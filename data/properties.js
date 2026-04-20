@@ -1,0 +1,36 @@
+/* data/properties.js */
+const PROPERTIES=[
+{id:'room',       icon:'🛏️',name:'Rented Room',         price:3000,    value:0,      rent:0,    appRate:.00,desc:'Room in shared house, no equity'},
+{id:'studio',     icon:'🏢',name:'Studio Apartment',    price:65000,   value:65000,  rent:0,    appRate:.04,desc:'Compact and modern city living'},
+{id:'apt1bed',    icon:'🏠',name:'1-Bed Apartment',     price:125000,  value:125000, rent:0,    appRate:.04,desc:'Comfortable city flat'},
+{id:'apt2bed',    icon:'🏠',name:'2-Bed Apartment',     price:190000,  value:190000, rent:0,    appRate:.04,desc:'Spacious family apartment'},
+{id:'townhouse',  icon:'🏘️',name:'Townhouse',           price:290000,  value:290000, rent:0,    appRate:.04,desc:'Multi-floor town living'},
+{id:'house',      icon:'🏡',name:'Suburban House',      price:390000,  value:390000, rent:0,    appRate:.05,desc:'Garden, garage, quiet street'},
+{id:'penthouse',  icon:'🌆',name:'Penthouse Suite',     price:950000,  value:950000, rent:0,    appRate:.05,desc:'Panoramic skyline views'},
+{id:'villa',      icon:'🏖️',name:'Beachfront Villa',    price:1600000, value:1600000,rent:0,    appRate:.06,desc:'Private pool and beach access'},
+{id:'mansion',    icon:'🏰',name:'Mansion',             price:3800000, value:3800000,rent:0,    appRate:.05,desc:'10 bedrooms, full staff quarters'},
+{id:'castle',     icon:'🏯',name:'Private Castle',      price:10000000,value:10000000,rent:0,   appRate:.04,desc:'Historic fortress — ultimate flex'},
+// Rental income
+{id:'r_room',     icon:'🛖',name:'Rental Room (HMO)',   price:48000,   value:48000,  rent:7200, appRate:.04,desc:'Single room let out monthly'},
+{id:'r_studio',   icon:'🏗️',name:'Buy-to-Let Studio',  price:95000,   value:95000,  rent:10800,appRate:.04,desc:'Studio let for monthly income'},
+{id:'r_apt',      icon:'🏢',name:'Rental Apartment',    price:210000,  value:210000, rent:18000,appRate:.04,desc:'Long-term tenant income'},
+{id:'r_house',    icon:'🏚️',name:'Rental House',       price:400000,  value:400000, rent:30000,appRate:.05,desc:'Family rental — solid returns'},
+{id:'r_block',    icon:'🏙️',name:'Apartment Block',    price:2200000, value:2200000,rent:200000,appRate:.05,desc:'Multiple units, big passive income'},
+{id:'r_commercial',icon:'🏬',name:'Commercial Unit',    price:5500000, value:5500000,rent:520000,appRate:.04,desc:'Office or retail space'},
+];
+const VEHICLES=[
+{id:'bike',     icon:'🚲',name:'Bicycle',        price:400,    value:250,    desc:'Free to run, eco-friendly'},
+{id:'scooter',  icon:'🛵',name:'Scooter',        price:3500,   value:2100,   desc:'Nip around town quickly'},
+{id:'moto',     icon:'🏍️',name:'Motorcycle',    price:13000,  value:9500,   desc:'Freedom and open roads'},
+{id:'used_car', icon:'🚗',name:'Used Hatchback', price:7500,   value:4800,   desc:'Reliable daily driver'},
+{id:'sedan',    icon:'🚙',name:'New Sedan',      price:29000,  value:21000,  desc:'Comfortable modern commuter'},
+{id:'suv',      icon:'🚐',name:'Family SUV',     price:54000,  value:40000,  desc:'Space for everyone'},
+{id:'pickup',   icon:'🛻',name:'Pickup Truck',   price:47000,  value:35000,  desc:'Work hard, play harder'},
+{id:'sports',   icon:'🏎️',name:'Sports Car',    price:135000, value:98000,  desc:'0-60 in 3.8 seconds flat'},
+{id:'luxury',   icon:'🚘',name:'Luxury Saloon',  price:230000, value:170000, desc:'Prestige and pure comfort'},
+{id:'suv_lux',  icon:'🚖',name:'Luxury SUV',     price:170000, value:125000, desc:'Premium family hauler'},
+{id:'supercar', icon:'🔥',name:'Supercar',       price:600000, value:450000, desc:'Track-day monster'},
+{id:'hyper',    icon:'💎',name:'Hypercar',       price:2800000,value:2100000,desc:'One of 50 made worldwide'},
+{id:'yacht',    icon:'⛵',name:'Luxury Yacht',   price:3500000,value:2700000,desc:'Private sea adventures'},
+{id:'jet',      icon:'🛩️',name:'Private Jet',   price:20000000,value:15000000,desc:'Fly on your schedule'},
+];

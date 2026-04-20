@@ -1,0 +1,23 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1200 630">
+  <defs>
+    <linearGradient id="g" x1="0" y1="0" x2="1" y2="1">
+      <stop stop-color="#09090f"/>
+      <stop offset=".55" stop-color="#181820"/>
+      <stop offset="1" stop-color="#26315f"/>
+    </linearGradient>
+  </defs>
+  <rect width="1200" height="630" fill="url(#g)"/>
+  <circle cx="960" cy="120" r="230" fill="#7c6fff" opacity=".22"/>
+  <circle cx="150" cy="550" r="260" fill="#22d3ee" opacity=".14"/>
+  <text x="90" y="210" font-family="Segoe UI, Arial, sans-serif" font-size="88" font-weight="900" fill="#eeeef8">LifeSim v9</text>
+  <text x="94" y="285" font-family="Segoe UI, Arial, sans-serif" font-size="34" font-weight="700" fill="#a4a4c7">Every choice echoes through a full life.</text>
+  <g transform="translate(90 360)">
+    <rect width="245" height="54" rx="14" fill="#202030"/>
+    <text x="24" y="36" font-family="Segoe UI, Arial, sans-serif" font-size="24" font-weight="800" fill="#4ade80">Careers</text>
+    <rect x="270" width="245" height="54" rx="14" fill="#202030"/>
+    <text x="294" y="36" font-family="Segoe UI, Arial, sans-serif" font-size="24" font-weight="800" fill="#f472b6">Relationships</text>
+    <rect x="540" width="245" height="54" rx="14" fill="#202030"/>
+    <text x="564" y="36" font-family="Segoe UI, Arial, sans-serif" font-size="24" font-weight="800" fill="#fbbf24">Milestones</text>
+  </g>
+  <text x="92" y="510" font-family="Segoe UI, Arial, sans-serif" font-size="26" font-weight="700" fill="#a4a4c7">Static. Offline. GitHub Pages ready.</text>
+</svg>

@@ -1,0 +1,20 @@
+# OS files
+.DS_Store
+Thumbs.db
+desktop.ini
+
+# Editor directories
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs and local artifacts
+*.log
+smoke.png
+.chrome-smoke-profile/
+.edge-smoke-profile/
+
+# Archives
+*.zip
+*.tar.gz
