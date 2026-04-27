@@ -2,77 +2,89 @@
 <html lang="en">
 <head>
 <meta charset="UTF-8">
-<meta name="viewport" content="width=device-width,initial-scale=1">
-<title>LifeSim v9</title>
-<meta name="description" content="A deep static life simulation game with careers, relationships, business, retirement, milestones, and replay challenges.">
-<meta property="og:title" content="LifeSim v9">
-<meta property="og:description" content="Live a full simulated life with choices that ripple across years.">
-<meta property="og:image" content="og-image.svg">
-<meta name="twitter:card" content="summary_large_image">
-<link rel="icon" href="favicon.svg" type="image/svg+xml">
+<meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
+<meta name="description" content="LifeSim v13 — a browser-based life simulation game where every choice shapes your legacy.">
+<meta name="theme-color" content="#7c6fff">
+<title>LifeSim v13</title>
+
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
+
 <link rel="stylesheet" href="css/base.css">
 <link rel="stylesheet" href="css/components.css">
 <link rel="stylesheet" href="css/screens.css">
 <link rel="stylesheet" href="css/animations.css">
 </head>
+
 <body>
-<div id="app">
+<div id="app" data-version="13.0">
 
 <!-- SPLASH -->
-<div id="splash-screen" class="screen active">
-  <div class="splash-glow"></div>
+<div id="splash-screen" class="screen active" aria-label="Main menu">
+  <div class="splash-glow" aria-hidden="true"></div>
+
   <div class="splash-logo">
-    <span class="logo-emoji">🌍</span>
+    <span class="logo-emoji" aria-hidden="true">🌍</span>
     <h1>LifeSim</h1>
     <p class="tagline">Every choice echoes through eternity</p>
-    <div class="ver-badge">v9.0 — LEGENDARY EDITION</div>
+    <div class="ver-badge">v13.0 — REFORGED EDITION</div>
   </div>
-  <div class="splash-menu">
+
+  <div class="splash-menu" role="menu" aria-label="Main menu actions">
     <button type="button" class="btn-primary btn-pulse" onclick="App.newLife()">🌟 Start New Life</button>
     <button type="button" class="btn-secondary" id="btn-continue" onclick="App.loadGame()" disabled>📖 Continue Life</button>
     <button type="button" class="btn-secondary" onclick="App.showHOF()">🏆 Hall of Fame</button>
     <button type="button" class="btn-secondary" onclick="App.showAchievements()">🎖️ Achievements</button>
-    <div class="save-tools" aria-label="Save management">
-      <button type="button" class="btn-secondary btn-compact" onclick="App.exportSave()">⬇️ Export</button>
-      <button type="button" class="btn-secondary btn-compact" onclick="App.importSaveClick()">⬆️ Import</button>
-      <button type="button" class="btn-secondary btn-compact danger-soft" onclick="App.wipeData()">🗑️ Wipe</button>
-    </div>
-    <input type="file" id="save-import" accept="application/json,.json" hidden onchange="App.importSaveFile(this)">
   </div>
-  <div class="splash-features">
-    <span>✨ Local Story Events</span><span>📈 Stock Market</span><span>🎓 Skills System</span><span>💕 Adult Romance</span>
+
+  <div class="splash-features" aria-label="Version highlights">
+    <span>🛠️ Fixed Achievements</span>
+    <span>🔐 Safer UI Rendering</span>
+    <span>🌳 Dynasty System</span>
+    <span>📊 Stat Charts</span>
+    <span>🎭 Life Chapters</span>
+    <span>🏅 Prestige Rank</span>
   </div>
-  <div class="splash-foot">LifeSim v9 — Legendary Edition · 2026</div>
+
+  <div id="prestige-panel" style="margin:8px auto 0;max-width:480px;text-align:center;padding:6px 12px;background:var(--s1);border-radius:20px;border:1.5px solid var(--b1)"></div>
+
+  <div class="splash-foot">LifeSim v13 — Reforged Edition · 2026</div>
 </div>
 
 <!-- CREATE -->
-<div id="create-screen" class="screen">
+<div id="create-screen" class="screen" aria-label="Create your life">
   <div class="topbar">
     <button type="button" class="back-btn" onclick="App.show('splash-screen')">← Back</button>
     <span class="topbar-title">👶 Create Your Life</span>
     <span></span>
   </div>
+
   <div class="create-scroll">
     <div class="create-inner">
       <div class="create-left">
-        <div class="create-avatar" id="create-avatar">👦</div>
+        <div class="create-avatar" id="create-avatar" aria-hidden="true">👦</div>
+
         <div class="form-group">
-          <label class="form-label">First Name</label>
+          <label class="form-label" for="inp-name">First Name</label>
           <input type="text" id="inp-name" name="name" class="form-input" placeholder="Enter name…" maxlength="20" autocomplete="given-name">
         </div>
+
         <div class="form-group">
           <label class="form-label">Gender</label>
-          <div class="gender-grid">
-            <button type="button" class="gbtn selected" id="gbtn-m" onclick="Create.setGender('male')"><span class="ge">👦</span>Male</button>
-            <button type="button" class="gbtn" id="gbtn-f" onclick="Create.setGender('female')"><span class="ge">👧</span>Female</button>
+          <div class="gender-grid" role="group" aria-label="Choose gender">
+            <button type="button" class="gbtn selected" id="gbtn-m" onclick="Create.setGender('male')"><span class="ge" aria-hidden="true">👦</span>Male</button>
+            <button type="button" class="gbtn" id="gbtn-f" onclick="Create.setGender('female')"><span class="ge" aria-hidden="true">👧</span>Female</button>
           </div>
         </div>
+
         <div class="form-group">
-          <label class="form-label">Country of Birth</label>
+          <label class="form-label" for="inp-country">Country of Birth</label>
           <select id="inp-country" name="country" class="form-select"></select>
         </div>
+
         <div class="form-group">
-          <label class="form-label">Difficulty</label>
+          <label class="form-label" for="inp-diff">Difficulty</label>
           <select id="inp-diff" name="difficulty" class="form-select">
             <option value="easy">😊 Easy — Born wealthy</option>
             <option value="normal" selected>🙂 Normal — Average start</option>
@@ -81,80 +93,99 @@
             <option value="custom">⚙️ Custom — Set your own stats</option>
           </select>
         </div>
-        <div class="form-group">
-          <label class="form-label">Challenge Mode</label>
-          <select id="inp-challenge" name="challenge" class="form-select" onchange="Create.updatePreview()"></select>
-        </div>
-        <div class="form-group">
-          <label class="form-label">Starting Perk</label>
-          <div class="row-card" onclick="Create.rollPerk()" style="margin-bottom:0">
-            <span class="ri" id="perk-ico">🎲</span>
-            <div class="rd"><div class="rt" id="perk-name">Random Perk</div><div class="rs" id="perk-desc">Rolls a replay perk for this life</div></div>
+
+        <div id="custom-stats" style="display:none;background:var(--s1);border-radius:12px;padding:12px;border:1.5px solid var(--b1)">
+          <div class="custom-stat-row">
+            <span>😊 Happiness</span>
+            <input type="range" id="cs-hap" min="5" max="95" value="50" class="stat-slider" oninput="Create.sl('hap',this.value)" aria-label="Custom happiness">
+            <span id="cs-hap-v" class="slider-val">50</span>
+          </div>
+          <div class="custom-stat-row">
+            <span>❤️ Health</span>
+            <input type="range" id="cs-hlt" min="5" max="95" value="50" class="stat-slider" oninput="Create.sl('hlt',this.value)" aria-label="Custom health">
+            <span id="cs-hlt-v" class="slider-val">50</span>
+          </div>
+          <div class="custom-stat-row">
+            <span>🧠 Smarts</span>
+            <input type="range" id="cs-smt" min="5" max="95" value="50" class="stat-slider" oninput="Create.sl('smt',this.value)" aria-label="Custom smarts">
+            <span id="cs-smt-v" class="slider-val">50</span>
+          </div>
+          <div class="custom-stat-row">
+            <span>✨ Looks</span>
+            <input type="range" id="cs-lks" min="5" max="95" value="50" class="stat-slider" oninput="Create.sl('lks',this.value)" aria-label="Custom looks">
+            <span id="cs-lks-v" class="slider-val">50</span>
           </div>
         </div>
-        <div id="custom-stats" style="display:none;background:var(--s1);border-radius:12px;padding:12px;border:1.5px solid var(--b1)">
-          <div class="custom-stat-row"><span>😊 Happiness</span><input type="range" id="cs-hap" min="5" max="95" value="50" class="stat-slider" oninput="Create.sl('hap',this.value)"><span id="cs-hap-v" class="slider-val">50</span></div>
-          <div class="custom-stat-row"><span>❤️ Health</span><input type="range" id="cs-hlt" min="5" max="95" value="50" class="stat-slider" oninput="Create.sl('hlt',this.value)"><span id="cs-hlt-v" class="slider-val">50</span></div>
-          <div class="custom-stat-row"><span>🧠 Smarts</span><input type="range" id="cs-smt" min="5" max="95" value="50" class="stat-slider" oninput="Create.sl('smt',this.value)"><span id="cs-smt-v" class="slider-val">50</span></div>
-          <div class="custom-stat-row"><span>✨ Looks</span><input type="range" id="cs-lks" min="5" max="95" value="50" class="stat-slider" oninput="Create.sl('lks',this.value)"><span id="cs-lks-v" class="slider-val">50</span></div>
-        </div>
+
         <div class="form-group">
           <label class="form-label">Personality Trait</label>
-          <div class="trait-grid" id="trait-grid"></div>
+          <div class="trait-grid" id="trait-grid" role="group" aria-label="Choose personality trait"></div>
         </div>
       </div>
+
       <div class="create-right">
         <div class="form-group">
           <label class="form-label">🎯 Life Ambition</label>
-          <div id="ambition-list"></div>
+          <div id="ambition-list" role="group" aria-label="Choose life ambition"></div>
         </div>
+
+        <!-- v13: Legacy Inheritance -->
+        <div id="legacy-section" style="display:none;background:var(--s1);border-radius:12px;padding:14px;border:1.5px solid rgba(124,111,255,.4);margin-top:12px"></div>
+
         <div id="create-preview-box" style="background:var(--s2);border-radius:12px;padding:14px;border:1.5px solid var(--b1);margin-top:12px">
           <div style="font-size:10px;font-weight:900;color:var(--muted);text-transform:uppercase;letter-spacing:1.2px;margin-bottom:8px">Life Preview</div>
-          <div id="preview-text" style="font-size:12px;font-weight:600;color:var(--muted);line-height:1.7"></div>
+          <div id="preview-text" style="font-size:12px;font-weight:600;color:var(--muted);line-height:1.7" aria-live="polite"></div>
         </div>
       </div>
     </div>
+
     <button type="button" class="btn-primary" style="margin-top:12px;max-width:600px;margin-left:auto;margin-right:auto;display:block" onclick="App.startGame()">🚀 Begin Your Story</button>
   </div>
 </div>
 
 <!-- GAME -->
-<div id="game-screen" class="screen">
+<div id="game-screen" class="screen" aria-label="Game screen">
 
-  <!-- SIDEBAR (desktop only — shown via CSS) -->
-  <aside class="game-sidebar" id="game-sidebar">
+  <!-- SIDEBAR -->
+  <aside class="game-sidebar" id="game-sidebar" aria-label="Character overview">
     <div class="sidebar-char">
-      <div class="sidebar-avatar" id="g-avatar">😊</div>
+      <div class="sidebar-avatar" id="g-avatar" aria-hidden="true">😊</div>
       <div class="sidebar-name" id="g-name">Name</div>
       <div class="sidebar-sub" id="g-info">Age 0</div>
       <div class="sidebar-tags" id="g-tags"></div>
     </div>
+
     <div class="sidebar-money-box">
       <div class="smb-val" id="g-money">$0</div>
       <div class="smb-lbl">Net Worth</div>
+      <div id="g-money-ctx" style="margin-bottom:2px"></div>
       <div class="smb-inc" id="g-income"></div>
       <div class="smb-cash" id="g-cash"></div>
+      <div id="g-goals-widget" style="margin-top:5px"></div>
     </div>
-    <div class="sidebar-stats">
-      <div class="ssb"><div class="ssb-top"><span class="ssb-l">😊 Happiness</span><span class="ssb-v" id="sv-hap" style="color:var(--yellow)">0</span></div><div class="ssb-track"><div class="ssb-fill" id="sf-hap" style="background:var(--yellow)"></div></div></div>
-      <div class="ssb"><div class="ssb-top"><span class="ssb-l">❤️ Health</span><span class="ssb-v" id="sv-hlt" style="color:var(--green)">0</span></div><div class="ssb-track"><div class="ssb-fill" id="sf-hlt" style="background:var(--green)"></div></div></div>
-      <div class="ssb"><div class="ssb-top"><span class="ssb-l">🧠 Smarts</span><span class="ssb-v" id="sv-smt" style="color:var(--cyan)">0</span></div><div class="ssb-track"><div class="ssb-fill" id="sf-smt" style="background:var(--cyan)"></div></div></div>
-      <div class="ssb"><div class="ssb-top"><span class="ssb-l">✨ Looks</span><span class="ssb-v" id="sv-lks" style="color:var(--pink)">0</span></div><div class="ssb-track"><div class="ssb-fill" id="sf-lks" style="background:var(--pink)"></div></div></div>
-      <div class="ssb"><div class="ssb-top"><span class="ssb-l">⚡ Fitness</span><span class="ssb-v" id="sv-fit" style="color:var(--orange)">0</span></div><div class="ssb-track"><div class="ssb-fill" id="sf-fit" style="background:var(--orange)"></div></div></div>
-      <div class="ssb"><div class="ssb-top"><span class="ssb-l">😤 Stress</span><span class="ssb-v" id="sv-str" style="color:var(--teal)">0</span></div><div class="ssb-track"><div class="ssb-fill" id="sf-str" style="background:var(--teal)"></div></div></div>
-      <div class="ssb"><div class="ssb-top"><span class="ssb-l">🌟 Fame</span><span class="ssb-v" id="sv-fam" style="color:var(--accent)">0</span></div><div class="ssb-track"><div class="ssb-fill" id="sf-fam" style="background:var(--accent)"></div></div></div>
-      <div class="ssb"><div class="ssb-top"><span class="ssb-l">⚖️ Karma</span><span class="ssb-v" id="sv-kar" style="color:var(--teal)">0</span></div><div class="ssb-track"><div class="ssb-fill" id="sf-kar" style="background:var(--teal)"></div></div></div>
+
+    <div class="sidebar-stats" aria-label="Character stats">
+      <div class="ssb"><div class="ssb-top"><span class="ssb-l">😊 Happiness</span><span class="ssb-v" id="sv-hap" style="color:var(--yellow)">0</span><span id="spark-hap"></span></div><div class="ssb-track"><div class="ssb-fill" id="sf-hap" style="background:var(--yellow)"></div></div></div>
+      <div class="ssb"><div class="ssb-top"><span class="ssb-l">❤️ Health</span><span class="ssb-v" id="sv-hlt" style="color:var(--green)">0</span><span id="spark-hlt"></span></div><div class="ssb-track"><div class="ssb-fill" id="sf-hlt" style="background:var(--green)"></div></div></div>
+      <div class="ssb"><div class="ssb-top"><span class="ssb-l">🧠 Smarts</span><span class="ssb-v" id="sv-smt" style="color:var(--cyan)">0</span><span id="spark-smt"></span></div><div class="ssb-track"><div class="ssb-fill" id="sf-smt" style="background:var(--cyan)"></div></div></div>
+      <div class="ssb"><div class="ssb-top"><span class="ssb-l">✨ Looks</span><span class="ssb-v" id="sv-lks" style="color:var(--pink)">0</span><span id="spark-lks"></span></div><div class="ssb-track"><div class="ssb-fill" id="sf-lks" style="background:var(--pink)"></div></div></div>
+      <div class="ssb"><div class="ssb-top"><span class="ssb-l">⚡ Fitness</span><span class="ssb-v" id="sv-fit" style="color:var(--orange)">0</span><span id="spark-fit"></span></div><div class="ssb-track"><div class="ssb-fill" id="sf-fit" style="background:var(--orange)"></div></div></div>
+      <div class="ssb"><div class="ssb-top"><span class="ssb-l">😤 Stress</span><span class="ssb-v" id="sv-str" style="color:var(--teal)">0</span><span id="spark-str"></span></div><div class="ssb-track"><div class="ssb-fill" id="sf-str" style="background:var(--teal)"></div></div></div>
+      <div class="ssb"><div class="ssb-top"><span class="ssb-l">🌟 Fame</span><span class="ssb-v" id="sv-fam" style="color:var(--accent)">0</span><span id="spark-fam"></span></div><div class="ssb-track"><div class="ssb-fill" id="sf-fam" style="background:var(--accent)"></div></div></div>
+      <div class="ssb"><div class="ssb-top"><span class="ssb-l">⚖️ Karma</span><span class="ssb-v" id="sv-kar" style="color:var(--teal)">0</span><span id="spark-kar"></span></div><div class="ssb-track"><div class="ssb-fill" id="sf-kar" style="background:var(--teal)"></div></div></div>
     </div>
+
     <div class="sidebar-spacer"></div>
     <button type="button" class="age-btn-side" id="age-btn-side" onclick="Engine.ageUp()">⏩ Age Up — Year +1</button>
+    <button type="button" class="settings-btn-side" onclick="UI.openSettings()">⚙️ Settings</button>
   </aside>
 
   <!-- MAIN CONTENT -->
-  <div class="game-main">
-    <!-- Mobile-only header -->
+  <main class="game-main" aria-label="LifeSim gameplay">
+    <!-- Mobile header -->
     <div class="game-hdr" id="game-hdr">
       <div class="hdr-row1">
-        <div class="avatar-wrap" id="g-avatar-m">😊</div>
+        <div class="avatar-wrap" id="g-avatar-m" aria-hidden="true">😊</div>
         <div class="char-meta">
           <div class="char-name" id="g-name-m">Name</div>
           <div class="char-sub" id="g-info-m">Age 0</div>
@@ -163,11 +194,14 @@
         <div class="money-block">
           <div class="money-val" id="g-money-m">$0</div>
           <div class="money-lbl">Net Worth</div>
+          <div id="g-money-ctx-m"></div>
           <div class="money-inc" id="g-income-m"></div>
           <div class="money-cash" id="g-cash-m"></div>
+          <div id="g-goals-widget-m" style="margin-top:4px"></div>
         </div>
       </div>
-      <div class="stats-bar-grid">
+
+      <div class="stats-bar-grid" aria-label="Character stats">
         <div class="sb"><div class="sb-top"><span class="sb-l">😊</span><span class="sb-v" id="sv-hap-m" style="color:var(--yellow)">0</span></div><div class="sb-track"><div class="sb-fill" id="sf-hap-m" style="background:var(--yellow)"></div></div></div>
         <div class="sb"><div class="sb-top"><span class="sb-l">❤️</span><span class="sb-v" id="sv-hlt-m" style="color:var(--green)">0</span></div><div class="sb-track"><div class="sb-fill" id="sf-hlt-m" style="background:var(--green)"></div></div></div>
         <div class="sb"><div class="sb-top"><span class="sb-l">🧠</span><span class="sb-v" id="sv-smt-m" style="color:var(--cyan)">0</span></div><div class="sb-track"><div class="sb-fill" id="sf-smt-m" style="background:var(--cyan)"></div></div></div>
@@ -180,102 +214,161 @@
     </div>
 
     <!-- Tab nav -->
-    <nav class="nav-bar">
-      <button type="button" class="nt active" data-tab="life"     onclick="UI.tab('life')">    <span class="ni">🌟</span><span class="nl">Life</span></button>
-      <button type="button" class="nt"        data-tab="mind"     onclick="UI.tab('mind')">    <span class="ni">🧠</span><span class="nl">Mind</span></button>
-      <button type="button" class="nt"        data-tab="love"     onclick="UI.tab('love')">    <span class="ni">❤️</span><span class="nl">Love</span></button>
-      <button type="button" class="nt"        data-tab="career"   onclick="UI.tab('career')">  <span class="ni">💼</span><span class="nl">Career</span></button>
-      <button type="button" class="nt"        data-tab="assets"   onclick="UI.tab('assets')">  <span class="ni">🏠</span><span class="nl">Assets</span></button>
-      <button type="button" class="nt"        data-tab="health"   onclick="UI.tab('health')">  <span class="ni">❤️‍🩹</span><span class="nl">Health</span></button>
-      <button type="button" class="nt"        data-tab="crime"    onclick="UI.tab('crime')">   <span class="ni">🚔</span><span class="nl">Crime</span></button>
-      <button type="button" class="nt"        data-tab="social"   onclick="UI.tab('social')">  <span class="ni">📱</span><span class="nl">Social</span></button>
-      <button type="button" class="nt"        data-tab="business" onclick="UI.tab('business')"><span class="ni">🏢</span><span class="nl">Biz</span></button>
-      <button type="button" class="nt"        data-tab="pets"     onclick="UI.tab('pets')">    <span class="ni">🐾</span><span class="nl">Pets</span></button>
-      <button type="button" class="nt"        data-tab="skills"   onclick="UI.tab('skills')">  <span class="ni">🎓</span><span class="nl">Skills</span></button>
-      <button type="button" class="nt"        data-tab="stocks"   onclick="UI.tab('stocks')">  <span class="ni">📈</span><span class="nl">Stocks</span></button>
-      <button type="button" class="nt"        data-tab="goals"    onclick="UI.tab('goals')">   <span class="ni">🎯</span><span class="nl">Goals</span></button>
+    <nav class="nav-bar" aria-label="Game tabs">
+      <button type="button" class="nt active" data-tab="life" onclick="UI.tab('life')"><span class="ni" aria-hidden="true">🌟</span><span class="nl">Life</span><span class="tab-dot" id="dot-life"></span></button>
+      <button type="button" class="nt" data-tab="mind" onclick="UI.tab('mind')"><span class="ni" aria-hidden="true">🧠</span><span class="nl">Mind</span><span class="tab-dot" id="dot-mind"></span></button>
+      <button type="button" class="nt" data-tab="love" onclick="UI.tab('love')"><span class="ni" aria-hidden="true">❤️</span><span class="nl">Love</span><span class="tab-dot" id="dot-love"></span></button>
+      <button type="button" class="nt" data-tab="career" onclick="UI.tab('career')"><span class="ni" aria-hidden="true">💼</span><span class="nl">Career</span><span class="tab-dot" id="dot-career"></span></button>
+      <button type="button" class="nt" data-tab="assets" onclick="UI.tab('assets')"><span class="ni" aria-hidden="true">🏠</span><span class="nl">Assets</span><span class="tab-dot" id="dot-assets"></span></button>
+      <button type="button" class="nt" data-tab="health" onclick="UI.tab('health')"><span class="ni" aria-hidden="true">❤️‍🩹</span><span class="nl">Health</span><span class="tab-dot" id="dot-health"></span></button>
+      <button type="button" class="nt" data-tab="crime" onclick="UI.tab('crime')"><span class="ni" aria-hidden="true">🚔</span><span class="nl">Crime</span><span class="tab-dot" id="dot-crime"></span></button>
+      <button type="button" class="nt" data-tab="social" onclick="UI.tab('social')"><span class="ni" aria-hidden="true">📱</span><span class="nl">Social</span><span class="tab-dot" id="dot-social"></span></button>
+      <button type="button" class="nt" data-tab="business" onclick="UI.tab('business')"><span class="ni" aria-hidden="true">🏢</span><span class="nl">Biz</span><span class="tab-dot" id="dot-business"></span></button>
+      <button type="button" class="nt" data-tab="pets" onclick="UI.tab('pets')"><span class="ni" aria-hidden="true">🐾</span><span class="nl">Pets</span><span class="tab-dot" id="dot-pets"></span></button>
+      <button type="button" class="nt" data-tab="skills" onclick="UI.tab('skills')"><span class="ni" aria-hidden="true">🎓</span><span class="nl">Skills</span><span class="tab-dot" id="dot-skills"></span></button>
+      <button type="button" class="nt" data-tab="stocks" onclick="UI.tab('stocks')"><span class="ni" aria-hidden="true">📈</span><span class="nl">Stocks</span><span class="tab-dot" id="dot-stocks"></span></button>
+      <button type="button" class="nt" data-tab="goals" onclick="UI.tab('goals')"><span class="ni" aria-hidden="true">🎯</span><span class="nl">Goals</span><span class="tab-dot" id="dot-goals"></span></button>
     </nav>
 
     <!-- Content -->
-    <div class="content-area">
-      <div id="tab-life"     class="tab-panel active"></div>
-      <div id="tab-mind"     class="tab-panel"></div>
-      <div id="tab-love"     class="tab-panel"></div>
-      <div id="tab-career"   class="tab-panel"></div>
-      <div id="tab-assets"   class="tab-panel"></div>
-      <div id="tab-health"   class="tab-panel"></div>
-      <div id="tab-crime"    class="tab-panel"></div>
-      <div id="tab-social"   class="tab-panel"></div>
+    <div class="content-area" id="game-content" aria-live="polite">
+      <div id="tab-life" class="tab-panel active"></div>
+      <div id="tab-mind" class="tab-panel"></div>
+      <div id="tab-love" class="tab-panel"></div>
+      <div id="tab-career" class="tab-panel"></div>
+      <div id="tab-assets" class="tab-panel"></div>
+      <div id="tab-health" class="tab-panel"></div>
+      <div id="tab-crime" class="tab-panel"></div>
+      <div id="tab-social" class="tab-panel"></div>
       <div id="tab-business" class="tab-panel"></div>
-      <div id="tab-pets"     class="tab-panel"></div>
-      <div id="tab-skills"   class="tab-panel"></div>
-      <div id="tab-stocks"   class="tab-panel"></div>
-      <div id="tab-goals"    class="tab-panel"></div>
+      <div id="tab-pets" class="tab-panel"></div>
+      <div id="tab-skills" class="tab-panel"></div>
+      <div id="tab-stocks" class="tab-panel"></div>
+      <div id="tab-goals" class="tab-panel"></div>
     </div>
 
     <!-- Mobile footer age-up -->
     <div class="game-foot">
-      <div class="age-wrap">
-        <button type="button" class="age-btn" id="age-btn" onclick="Engine.ageUp()">⏩ Age Up — Year +1</button>
+      <div class="age-wrap" style="display:flex;gap:8px">
+        <button type="button" class="age-btn" id="age-btn" onclick="Engine.ageUp()" style="flex:1">⏩ Age Up — Year +1</button>
+        <button type="button" class="settings-btn-mob" onclick="UI.openSettings()" aria-label="Open settings">⚙️</button>
       </div>
     </div>
-  </div><!-- .game-main -->
-</div><!-- #game-screen -->
+  </main>
+</div>
 
 <!-- DEATH -->
-<div id="death-screen" class="screen">
-  <div class="death-bg-fx"></div>
+<div id="death-screen" class="screen" aria-label="Life summary">
+  <div class="death-bg-fx" aria-hidden="true"></div>
   <div class="death-body">
-    <div class="death-icon">🪦</div>
+    <div class="death-icon" aria-hidden="true">🪦</div>
     <h2 class="death-title" id="dt-title">You have died.</h2>
     <p class="death-cause" id="dt-cause"></p>
     <blockquote class="death-quote" id="dt-quote"></blockquote>
+
     <div class="death-grade-box">
       <div class="death-grade" id="dt-grade">C</div>
       <div class="death-grade-lbl" id="dt-grade-lbl">Average Life</div>
     </div>
+
     <div class="death-story" id="dt-story"></div>
+
+    <!-- v13: Life Timeline -->
+    <div id="dt-timeline" style="background:var(--s1);border:1.5px solid var(--b2);border-radius:12px;padding:14px;margin-bottom:14px;text-align:left;max-height:200px;overflow-y:auto"></div>
+
+    <!-- v13: Previous Life Comparison -->
+    <div id="dt-prev-compare"></div>
+
     <div class="death-stats" id="dt-stats"></div>
+
     <div class="death-acts">
+      <button type="button" id="dt-share-btn" class="btn-secondary" style="border-color:rgba(124,111,255,.5);color:var(--accent)">📋 Copy Life Card</button>
       <button type="button" class="btn-primary" onclick="App.newLife()">🌟 New Life</button>
       <button type="button" class="btn-secondary" onclick="App.show('splash-screen')">🏠 Main Menu</button>
     </div>
   </div>
 </div>
 
-<!-- HOF -->
-<div id="hof-screen" class="screen">
+<!-- HALL OF FAME -->
+<div id="hof-screen" class="screen" aria-label="Hall of Fame">
   <div class="topbar">
     <button type="button" class="back-btn" onclick="App.show('splash-screen')">← Back</button>
-    <span class="topbar-title">🏆 Hall of Fame</span><span></span>
+    <span class="topbar-title">🏆 Hall of Fame</span>
+    <span></span>
   </div>
   <div class="hof-body" id="hof-body"></div>
 </div>
 
 <!-- ACHIEVEMENTS -->
-<div id="ach-screen" class="screen">
+<div id="ach-screen" class="screen" aria-label="Achievements">
   <div class="topbar">
     <button type="button" class="back-btn" onclick="App.show('splash-screen')">← Back</button>
-    <span class="topbar-title">🎖️ Achievements</span><span></span>
+    <span class="topbar-title">🎖️ Achievements</span>
+    <span></span>
   </div>
   <div class="ach-body" id="ach-body"></div>
 </div>
 
-</div><!-- #app -->
+</div>
 
-<!-- Modal -->
-<div class="modal-bg" id="ev-modal">
+<!-- Event Modal -->
+<div class="modal-bg" id="ev-modal" role="dialog" aria-modal="true" aria-labelledby="m-title" aria-describedby="m-text">
   <div class="modal-box">
     <button type="button" class="modal-skip-btn" onclick="UI.closeModal()" title="Skip" aria-label="Skip event">✕</button>
-    <span class="modal-icon" id="m-ico">✨</span>
+    <span class="modal-icon" id="m-ico" aria-hidden="true">✨</span>
     <div class="modal-title" id="m-title">Event</div>
-    <div class="modal-text"  id="m-text"></div>
+    <div class="modal-text" id="m-text"></div>
     <div class="modal-choices" id="m-choices"></div>
   </div>
 </div>
 
-<!-- Toast -->
-<div id="toast-wrap"></div>
+<!-- Settings Modal -->
+<div class="modal-bg" id="settings-modal" role="dialog" aria-modal="true" aria-labelledby="settings-title">
+  <div class="modal-box" style="max-width:380px">
+    <button type="button" class="modal-skip-btn" onclick="document.getElementById('settings-modal').classList.remove('open')" title="Close" aria-label="Close settings">✕</button>
+    <span class="modal-icon" aria-hidden="true">⚙️</span>
+    <div class="modal-title" id="settings-title">Settings</div>
+
+    <div style="display:flex;flex-direction:column;gap:10px;margin-top:8px">
+      <div class="settings-row">
+        <span class="settings-lbl">📊 Show stat changes</span>
+        <label class="toggle-switch">
+          <input type="checkbox" id="set-statdelta" checked onchange="UI.saveSetting('statDelta',this.checked)">
+          <span class="toggle-knob"></span>
+        </label>
+      </div>
+
+      <div class="settings-row">
+        <span class="settings-lbl">💡 Smart tips</span>
+        <label class="toggle-switch">
+          <input type="checkbox" id="set-tips" checked onchange="UI.saveSetting('tips',this.checked)">
+          <span class="toggle-knob"></span>
+        </label>
+      </div>
+
+      <div class="settings-row">
+        <span class="settings-lbl">⚠️ Low health warnings</span>
+        <label class="toggle-switch">
+          <input type="checkbox" id="set-healthwarn" checked onchange="UI.saveSetting('healthWarn',this.checked)">
+          <span class="toggle-knob"></span>
+        </label>
+      </div>
+
+      <div style="height:1px;background:var(--b1);margin:4px 0"></div>
+
+      <div class="settings-lbl" style="color:var(--muted);font-size:11px">
+        KEYBOARD: <kbd>Space</kbd> = Age Up &nbsp; <kbd>1–9</kbd> = Switch tabs
+      </div>
+
+      <div style="height:1px;background:var(--b1);margin:4px 0"></div>
+
+      <button type="button" class="btn-secondary" style="color:var(--red);border-color:rgba(248,113,113,.35)" onclick="UI.confirmReset()">🗑️ Reset Save &amp; Start Over</button>
+    </div>
+  </div>
+</div>
+
+<!-- Toasts -->
+<div id="toast-wrap" aria-live="polite" aria-atomic="true"></div>
 
 <script src="js/helpers.js"></script>
 <script src="data/names.js"></script>
@@ -284,9 +377,7 @@
 <script src="data/properties.js"></script>
 <script src="data/achievements.js"></script>
 <script src="data/events.js"></script>
-<script src="data/replay.js"></script>
 <script src="js/save.js"></script>
-<script src="js/life_progress.js"></script>
 <script src="js/ui.js"></script>
 <script src="js/relations.js"></script>
 <script src="js/career.js"></script>
@@ -295,11 +386,13 @@
 <script src="js/crime.js"></script>
 <script src="js/social.js"></script>
 <script src="js/business.js"></script>
+<script src="js/hustle.js"></script>
 <script src="js/pets.js"></script>
 <script src="js/goals.js"></script>
 <script src="js/skills.js"></script>
 <script src="js/stocks.js"></script>
-<script src="js/story_events.js"></script>
+<script src="js/ai_story.js"></script>
+<script src="js/legacy.js"></script>
 <script src="js/engine.js"></script>
 <script src="js/main.js"></script>
 </body>

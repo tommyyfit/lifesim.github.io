@@ -1,73 +1,189 @@
-/* js/save.js — LifeSim v9 */
+/* js/save.js — LifeSim v13 Reforged save / HOF / achievements system */
 const Save={
-  K:'lsv9_save', H:'lsv9_hof', U:'lsv9_ach', M:'lsv9_migrated_v8',
-  OLD:{K:'lsv8_save',H:'lsv8_hof',U:'lsv8_ach'},
-  _read(k,fb=null){try{const raw=localStorage.getItem(k);return raw?JSON.parse(raw):fb;}catch(e){return fb;}},
-  _write(k,v){try{localStorage.setItem(k,JSON.stringify(v));return true;}catch(e){return false;}},
-  _migrate(){
+  VERSION:13,
+
+  K:'lsv13_save',
+  H:'lsv13_hof',
+  U:'lsv13_ach',
+
+  OLD_SAVE_KEYS:['lsv12_save','lsv11_save','lsv10_save','lsv9_save','lsv8_save'],
+  OLD_HOF_KEYS:['lsv12_hof','lsv11_hof','lsv10_hof','lsv9_hof','lsv8_hof'],
+  OLD_ACH_KEYS:['lsv12_ach','lsv11_ach','lsv10_ach','lsv9_ach','lsv8_ach'],
+
+  _read(key,fallback=null){
     try{
-      if(localStorage.getItem(this.M))return;
-      if(!localStorage.getItem(this.K)&&localStorage.getItem(this.OLD.K))localStorage.setItem(this.K,localStorage.getItem(this.OLD.K));
-      if(!localStorage.getItem(this.H)&&localStorage.getItem(this.OLD.H))localStorage.setItem(this.H,localStorage.getItem(this.OLD.H));
-      if(!localStorage.getItem(this.U)&&localStorage.getItem(this.OLD.U))localStorage.setItem(this.U,localStorage.getItem(this.OLD.U));
-      localStorage.setItem(this.M,'1');
-    }catch(e){}
+      const raw=localStorage.getItem(key);
+      if(!raw)return fallback;
+      return JSON.parse(raw);
+    }catch(e){
+      console.warn('Save read failed:',key,e);
+      return fallback;
+    }
   },
-  save(G){try{localStorage.setItem(this.K,JSON.stringify(G));}catch(e){}},
-  load(){this._migrate();return this._read(this.K,null);},
-  has(){this._migrate();try{return!!localStorage.getItem(this.K);}catch(e){return false;}},
-  clear(){try{localStorage.removeItem(this.K);}catch(e){}},
-  hof(e){
+
+  _write(key,value){
     try{
-      const h=this.hofAll();
-      h.unshift(e);
-      h.sort((a,b)=>b.score-a.score);
-      if(h.length>15)h.pop();
-      this._write(this.H,h);
-    }catch(e){}
-  },
-  hofAll(){this._migrate();return this._read(this.H,[]);},
-  unlockAch(id){
-    try{
-      this._migrate();
-      let a=this._read(this.U,[]);
-      if(!a.includes(id)){a.push(id);this._write(this.U,a);return true;}
+      localStorage.setItem(key,JSON.stringify(value));
+      return true;
+    }catch(e){
+      console.warn('Save write failed:',key,e);
+      if(typeof UI!=='undefined'&&UI.toast)UI.toast('Save failed. Browser storage may be full.','bad');
       return false;
-    }catch(e){return false;}
+    }
   },
-  unlockedAchs(){this._migrate();return this._read(this.U,[]);},
-  exportData(){
-    this._migrate();
-    return {
-      app:'LifeSim',
-      version:9,
-      exportedAt:new Date().toISOString(),
-      save:this._read(this.K,null),
-      hallOfFame:this._read(this.H,[]),
-      achievements:this._read(this.U,[]),
+
+  _remove(key){
+    try{localStorage.removeItem(key);}
+    catch(e){}
+  },
+
+  _firstExisting(keys){
+    for(const k of keys){
+      try{
+        const raw=localStorage.getItem(k);
+        if(raw)return{key:k,raw};
+      }catch(e){}
+    }
+    return null;
+  },
+
+  _migrateOne(newKey,oldKeys,fallback){
+    let current=this._read(newKey,null);
+    if(current!==null)return current;
+
+    const old=this._firstExisting(oldKeys);
+    if(!old)return fallback;
+
+    try{
+      const parsed=JSON.parse(old.raw);
+      this._write(newKey,parsed);
+      return parsed;
+    }catch(e){
+      return fallback;
+    }
+  },
+
+  save(G){
+    if(!G||typeof G!=='object')return false;
+    const payload={
+      ...G,
+      version:this.VERSION,
+      savedAt:Date.now(),
+    };
+    return this._write(this.K,payload);
+  },
+
+  load(){
+    const migrated=this._migrateOne(this.K,this.OLD_SAVE_KEYS,null);
+    if(!migrated||typeof migrated!=='object')return null;
+    migrated.version=migrated.version||8;
+    return migrated;
+  },
+
+  has(){
+    try{
+      if(!!localStorage.getItem(this.K))return true;
+      return !!this._firstExisting(this.OLD_SAVE_KEYS);
+    }catch(e){
+      return false;
+    }
+  },
+
+  clear(){
+    this._remove(this.K);
+  },
+
+  clearAllSaves(){
+    this._remove(this.K);
+    this.OLD_SAVE_KEYS.forEach(k=>this._remove(k));
+  },
+
+  hof(entry){
+    try{
+      if(!entry||typeof entry!=='object')return false;
+      const h=this.hofAll();
+
+      const clean={
+        ...entry,
+        score:Math.round(entry.score||0),
+        netWorth:Math.round(entry.netWorth||0),
+        age:Math.round(entry.age||0),
+        savedAt:Date.now(),
+      };
+
+      h.unshift(clean);
+      h.sort((a,b)=>(b.score||0)-(a.score||0)||((b.netWorth||0)-(a.netWorth||0)));
+      const trimmed=h.slice(0,25);
+      return this._write(this.H,trimmed);
+    }catch(e){
+      console.warn('HOF save failed',e);
+      return false;
+    }
+  },
+
+  hofAll(){
+    const data=this._migrateOne(this.H,this.OLD_HOF_KEYS,[]);
+    if(!Array.isArray(data))return[];
+    return data
+      .filter(e=>e&&typeof e==='object')
+      .map(e=>({...e,score:Math.round(e.score||0),netWorth:Math.round(e.netWorth||0)}))
+      .sort((a,b)=>(b.score||0)-(a.score||0)||((b.netWorth||0)-(a.netWorth||0)))
+      .slice(0,25);
+  },
+
+  clearHOF(){
+    this._remove(this.H);
+  },
+
+  unlockAch(id){
+    if(!id)return false;
+    try{
+      const a=this.unlockedAchs();
+      if(!a.includes(id)){
+        a.push(id);
+        a.sort();
+        this._write(this.U,a);
+        return true;
+      }
+      return false;
+    }catch(e){
+      return false;
+    }
+  },
+
+  unlockedAchs(){
+    const data=this._migrateOne(this.U,this.OLD_ACH_KEYS,[]);
+    if(!Array.isArray(data))return[];
+    return [...new Set(data.filter(Boolean))];
+  },
+
+  lockAch(id){
+    if(!id)return false;
+    const a=this.unlockedAchs().filter(x=>x!==id);
+    return this._write(this.U,a);
+  },
+
+  clearAchievements(){
+    this._remove(this.U);
+  },
+
+  exportAll(){
+    return{
+      version:this.VERSION,
+      exportedAt:Date.now(),
+      save:this.load(),
+      hof:this.hofAll(),
+      achievements:this.unlockedAchs(),
+      prestige:typeof Legacy!=='undefined'&&Legacy.load?Legacy.load():null,
     };
   },
-  importData(data){
+
+  importAll(data){
     if(!data||typeof data!=='object')return false;
-    if(!('save' in data)&&data.name&&data.rels){
-      data={app:'LifeSim',version:9,save:data};
-    }
-    const hasSave='save' in data;
-    const hasHof=Array.isArray(data.hallOfFame);
-    const hasAch=Array.isArray(data.achievements);
-    if(!hasSave&&!hasHof&&!hasAch)return false;
-    if(hasSave){
-      if(data.save)localStorage.setItem(this.K,JSON.stringify(data.save));
-      else localStorage.removeItem(this.K);
-    }
-    if(hasHof)this._write(this.H,data.hallOfFame);
-    if(hasAch)this._write(this.U,data.achievements);
+    if(data.save)this._write(this.K,{...data.save,version:this.VERSION,savedAt:Date.now()});
+    if(Array.isArray(data.hof))this._write(this.H,data.hof.slice(0,25));
+    if(Array.isArray(data.achievements))this._write(this.U,[...new Set(data.achievements)]);
+    if(data.prestige&&typeof Legacy!=='undefined'&&Legacy.save)Legacy.save(data.prestige);
     return true;
-  },
-  wipeAll(){
-    try{
-      [this.K,this.H,this.U,this.M,this.OLD.K,this.OLD.H,this.OLD.U].forEach(k=>localStorage.removeItem(k));
-      return true;
-    }catch(e){return false;}
   },
 };

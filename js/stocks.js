@@ -1,181 +1,507 @@
-/* js/stocks.js — LifeSim v9 */
-const STOCK_LIST = [
-  { id:'APEX',  name:'Apex Technologies',   icon:'💻', sector:'Tech',      basePrice:120,  vol:0.18, div:0.01 },
-  { id:'VITA',  name:'VitaCorp Health',      icon:'💊', sector:'Health',    basePrice:85,   vol:0.12, div:0.025 },
-  { id:'NOVA',  name:'Nova Energy',          icon:'⚡', sector:'Energy',    basePrice:55,   vol:0.22, div:0.03 },
-  { id:'FXGD',  name:'FinEx Gold Fund',      icon:'🥇', sector:'Commodities',basePrice:200, vol:0.08, div:0.005 },
-  { id:'MRKT',  name:'MarketPulse ETF',      icon:'📊', sector:'Index',     basePrice:340,  vol:0.10, div:0.015 },
-  { id:'LUXE',  name:'Luxe Brands Inc.',     icon:'💎', sector:'Consumer',  basePrice:180,  vol:0.20, div:0.01 },
-  { id:'AGRI',  name:'AgroWorld',            icon:'🌾', sector:'Agriculture',basePrice:42,  vol:0.15, div:0.035 },
-  { id:'CRPT',  name:'CryptoVault Trust',    icon:'🪙', sector:'Crypto',    basePrice:900,  vol:0.55, div:0.0  },
-  { id:'BANK',  name:'Meridian Bank',        icon:'🏦', sector:'Finance',   basePrice:160,  vol:0.13, div:0.04 },
-  { id:'AERO',  name:'AeroSpace Systems',    icon:'🚀', sector:'Defence',   basePrice:290,  vol:0.17, div:0.008},
+/* js/stocks.js — LifeSim v13 Reforged market simulator */
+
+const STOCK_LIST=[
+  {id:'AAPL',name:'Apple Inc.',icon:'📱',sector:'Technology',basePrice:190,vol:.16,div:.005,quality:1.08,beta:1.05,desc:'Premium hardware, services and ecosystem.'},
+  {id:'MSFT',name:'Microsoft Corp.',icon:'💻',sector:'Technology',basePrice:420,vol:.14,div:.008,quality:1.10,beta:.95,desc:'Software, cloud and enterprise AI.'},
+  {id:'NVDA',name:'NVIDIA Corp.',icon:'🧠',sector:'Semiconductors',basePrice:880,vol:.34,div:0,quality:1.16,beta:1.75,desc:'AI chips, data centers and high momentum.'},
+  {id:'TSLA',name:'Tesla Inc.',icon:'🚗',sector:'EV / Auto',basePrice:180,vol:.42,div:0,quality:1.02,beta:1.85,desc:'Electric vehicles, batteries and speculation.'},
+  {id:'AMZN',name:'Amazon.com Inc.',icon:'📦',sector:'Consumer / Cloud',basePrice:185,vol:.21,div:0,quality:1.08,beta:1.18,desc:'E-commerce, logistics and cloud.'},
+  {id:'GOOGL',name:'Alphabet Inc.',icon:'🔎',sector:'Internet',basePrice:165,vol:.18,div:0,quality:1.07,beta:1.05,desc:'Search, ads, YouTube and AI.'},
+  {id:'META',name:'Meta Platforms',icon:'🌐',sector:'Social Media',basePrice:500,vol:.25,div:.004,quality:1.05,beta:1.25,desc:'Social apps, ads and metaverse bets.'},
+  {id:'JPM',name:'JPMorgan Chase',icon:'🏦',sector:'Banking',basePrice:195,vol:.17,div:.028,quality:1.03,beta:1.0,desc:'Large bank with dividend income.'},
+  {id:'KO',name:'Coca-Cola Co.',icon:'🥤',sector:'Consumer Defensive',basePrice:62,vol:.08,div:.031,quality:1.00,beta:.55,desc:'Defensive consumer brand and dividends.'},
+  {id:'VOO',name:'Vanguard S&P 500 ETF',icon:'📊',sector:'Index ETF',basePrice:470,vol:.10,div:.014,quality:1.02,beta:.82,desc:'Diversified broad-market exposure.'},
+  {id:'BTC',name:'Bitcoin Trust',icon:'₿',sector:'Crypto',basePrice:650,vol:.58,div:0,quality:1.00,beta:2.4,desc:'Extreme-volatility crypto exposure.'},
+  {id:'GLD',name:'SPDR Gold Shares',icon:'🥇',sector:'Gold ETF',basePrice:205,vol:.09,div:0,quality:.99,beta:.30,desc:'Defensive gold exposure.'},
 ];
 
-const Stocks = {
-  // Initialize market prices if needed
-  init() {
-    const G = window.G; if (!G) return;
-    if (!G.stocks) G.stocks = { portfolio: {}, history: {} };
-    if (!G.stocks.prices) {
-      G.stocks.prices = {};
-      STOCK_LIST.forEach(s => { G.stocks.prices[s.id] = s.basePrice; });
-    }
-    if (!G.stocks.history) G.stocks.history = {};
+const Stocks={
+  VERSION:13,
+
+  _esc(v){
+    if(typeof escHTML==='function')return escHTML(v);
+    return String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
   },
 
-  tick() {
-    const G = window.G; if (!G) return;
-    Stocks.init();
-    const prices = G.stocks.prices;
-    let dividends = 0;
-    // Apply world events effect
-    const worldBoom  = G.achievements?.boom_profit;
-    const worldCrash = G.achievements?.recession_surv;
-    const moodMult   = worldBoom ? 1.06 : worldCrash ? 0.95 : 1.0;
+  init(){
+    const G=window.G;if(!G)return;
+    if(!G.stocks||typeof G.stocks!=='object')G.stocks={};
+    const S=G.stocks;
 
-    STOCK_LIST.forEach(s => {
-      const old = prices[s.id] || s.basePrice;
-      // Random walk with mean reversion
-      const rnd = (Math.random() - 0.47) * 2 * s.vol;
-      const meanRev = (s.basePrice - old) / s.basePrice * 0.04;
-      let newP = old * (1 + rnd + meanRev) * moodMult;
-      newP = Math.max(newP, 1);
-      prices[s.id] = Math.round(newP * 100) / 100;
+    S.version=this.VERSION;
+    S.portfolio=S.portfolio&&typeof S.portfolio==='object'?S.portfolio:{};
+    S.costBasis=S.costBasis&&typeof S.costBasis==='object'?S.costBasis:{};
+    S.prices=S.prices&&typeof S.prices==='object'?S.prices:null;
+    S.history=S.history&&typeof S.history==='object'?S.history:{};
+    S.marketMood=S.marketMood||'neutral';
+    S.marketCycle=Number.isFinite(S.marketCycle)?S.marketCycle:0;
+    S.lastYearReturn=Number.isFinite(S.lastYearReturn)?S.lastYearReturn:0;
+    S.totalDividends=Number.isFinite(S.totalDividends)?S.totalDividends:0;
+    S.realizedPnl=Number.isFinite(S.realizedPnl)?S.realizedPnl:0;
+    S.totalBought=Number.isFinite(S.totalBought)?S.totalBought:0;
+    S.totalSold=Number.isFinite(S.totalSold)?S.totalSold:0;
 
-      // History (last 8 years)
-      if (!G.stocks.history[s.id]) G.stocks.history[s.id] = [];
-      G.stocks.history[s.id].push(old);
-      if (G.stocks.history[s.id].length > 8) G.stocks.history[s.id].shift();
+    if(!S.prices){
+      S.prices={};
+      STOCK_LIST.forEach(st=>S.prices[st.id]=st.basePrice);
+    }
 
-      // Dividends on held shares
-      const held = (G.stocks.portfolio[s.id] || 0);
-      if (held > 0 && s.div > 0) {
-        const div = Math.round(held * prices[s.id] * s.div);
-        dividends += div;
+    STOCK_LIST.forEach(st=>{
+      if(!Number.isFinite(S.prices[st.id]))S.prices[st.id]=st.basePrice;
+      if(!Array.isArray(S.history[st.id]))S.history[st.id]=[S.prices[st.id]];
+    });
+
+    Object.keys(S.portfolio).forEach(id=>{
+      if(!STOCK_LIST.some(st=>st.id===id)||!Number.isFinite(S.portfolio[id])||S.portfolio[id]<=0){
+        delete S.portfolio[id];
+        delete S.costBasis[id];
+      }else if(!Number.isFinite(S.costBasis[id])){
+        S.costBasis[id]=S.prices[id]||STOCK_LIST.find(st=>st.id===id)?.basePrice||1;
+      }
+    });
+  },
+
+  _mood(){
+    const G=window.G;
+    const finance=G?.skills?.finance||0;
+    const roll=Math.random();
+    const extremeDrag=G?.difficulty==='extreme'?0.035:G?.difficulty==='hard'?0.018:0;
+    const skillCalm=Math.min(.025,finance*.004);
+
+    if(roll<0.06+extremeDrag-skillCalm)return'crash';
+    if(roll<0.20+extremeDrag-skillCalm)return'bear';
+    if(roll>0.94+skillCalm)return'boom';
+    if(roll>0.73)return'bull';
+    return'neutral';
+  },
+
+  _moodReturn(mood){
+    return{
+      crash:-0.18,
+      bear:-0.055,
+      neutral:0.018,
+      bull:0.075,
+      boom:0.145,
+    }[mood]??0.018;
+  },
+
+  _moodLabel(mood){
+    return{
+      crash:'Crash',
+      bear:'Bearish',
+      neutral:'Mixed',
+      bull:'Bullish',
+      boom:'Boom',
+    }[mood]||'Mixed';
+  },
+
+  _moodColor(mood){
+    return{
+      crash:'var(--red)',
+      bear:'var(--orange)',
+      neutral:'var(--accent)',
+      bull:'var(--green)',
+      boom:'var(--yellow)',
+    }[mood]||'var(--accent)';
+  },
+
+  _riskLabel(s){
+    if(s.vol>.48)return'Extreme Risk';
+    if(s.vol>.30)return'High Risk';
+    if(s.vol>.14)return'Medium Risk';
+    return'Lower Risk';
+  },
+
+  _stockReturn(st,old,mood){
+    const G=window.G;
+    const finance=(G.skills?.finance||0);
+    const skillEdge=Math.min(.018,finance*.003);
+    const moodRet=this._moodReturn(mood)*(st.beta||1);
+    const qualityDrift=(st.quality-1)*0.045;
+    const randomShock=(Math.random()-.5)*st.vol;
+    const meanReversion=((st.basePrice-old)/Math.max(1,st.basePrice))*0.035;
+
+    let ret=moodRet+qualityDrift+skillEdge+randomShock+meanReversion;
+
+    if(st.sector==='Crypto'){
+      if(mood==='crash')ret-=0.18;
+      if(mood==='boom')ret+=0.12;
+    }
+
+    if(st.sector==='Gold ETF'){
+      if(mood==='crash'||mood==='bear')ret+=0.08;
+      if(mood==='boom')ret-=0.025;
+    }
+
+    if(st.sector==='Consumer Defensive'&&(mood==='crash'||mood==='bear'))ret+=0.035;
+    if(st.sector==='Banking'&&mood==='crash')ret-=0.045;
+
+    return Math.max(-0.82,Math.min(1.4,ret));
+  },
+
+  tick(){
+    const G=window.G;if(!G)return;
+    this.init();
+
+    const S=G.stocks;
+    const oldValue=this.portfolioValue();
+    const mood=this._mood();
+    S.marketMood=mood;
+    S.marketCycle=(S.marketCycle||0)+1;
+
+    let dividends=0;
+    const prices=S.prices;
+
+    STOCK_LIST.forEach(st=>{
+      const old=prices[st.id]||st.basePrice;
+      const ret=this._stockReturn(st,old,mood);
+      const next=Math.max(1,Math.round(old*(1+ret)*100)/100);
+      prices[st.id]=next;
+
+      if(!Array.isArray(S.history[st.id]))S.history[st.id]=[];
+      S.history[st.id].push(next);
+      if(S.history[st.id].length>32)S.history[st.id].shift();
+
+      const held=S.portfolio[st.id]||0;
+      if(held>0&&st.div>0){
+        dividends+=Math.round(held*next*st.div);
       }
     });
 
-    if (dividends > 0) {
-      G.money += dividends;
+    if(dividends>0){
+      G.money=(G.money||0)+dividends;
+      S.totalDividends=(S.totalDividends||0)+dividends;
       Engine.log(`💰 Dividend income: ${fmt(dividends)} received from your portfolio.`, 'money');
+    }
+
+    const newValue=this.portfolioValue();
+    S.lastYearReturn=oldValue>0?Math.round(((newValue-oldValue+dividends)/oldValue)*1000)/10:0;
+
+    if(mood==='crash')Engine.log('📉 Market crash year. Risk assets got hit hard.', 'bad');
+    else if(mood==='boom')Engine.log('📈 Market boom year. Investors are euphoric.', 'money');
+    else if(oldValue>0&&Math.abs(S.lastYearReturn)>=18){
+      Engine.log(`🌡️ Portfolio moved ${S.lastYearReturn>=0?'+':''}${S.lastYearReturn}% this year.`,S.lastYearReturn>=0?'money':'bad');
+    }
+
+    if(newValue>=100000&&!G.achievements?.investor_100k){
+      G.achievements=G.achievements||{};
+      G.achievements.investor_100k=true;
+      Engine.checkAch();
     }
   },
 
-  portfolioValue() {
-    const G = window.G; if (!G || !G.stocks) return 0;
-    Stocks.init();
-    let val = 0;
-    STOCK_LIST.forEach(s => {
-      const held = G.stocks.portfolio[s.id] || 0;
-      val += held * (G.stocks.prices[s.id] || s.basePrice);
-    });
-    return Math.round(val);
+  portfolioValue(){
+    const G=window.G;if(!G)return 0;
+    this.init();
+    return Math.round(STOCK_LIST.reduce((sum,st)=>sum+((G.stocks.portfolio[st.id]||0)*(G.stocks.prices[st.id]||st.basePrice)),0));
   },
 
-  buy(id, shares) {
-    const G = window.G;
-    Stocks.init();
-    const s = STOCK_LIST.find(x => x.id === id); if (!s) return;
-    const price = G.stocks.prices[id] || s.basePrice;
-    const total = Math.round(price * shares);
-    if (G.money < total) { UI.toast(`Need ${fmt(total)} to buy ${shares} share${shares>1?'s':''}!`); return; }
-    G.money -= total;
-    G.stocks.portfolio[id] = (G.stocks.portfolio[id] || 0) + shares;
-    Engine.log(`📈 Bought ${shares}× ${s.id} @ ${fmt(price)} (total ${fmt(total)}).`, 'money');
-    UI.toast(`📈 Bought ${shares}× ${s.name}!`, 'good');
-    UI.update(); Stocks.render();
+  costBasisValue(){
+    const G=window.G;if(!G)return 0;
+    this.init();
+    return Math.round(Object.entries(G.stocks.portfolio||{}).reduce((sum,[id,qty])=>{
+      const price=G.stocks.costBasis[id]||G.stocks.prices[id]||1;
+      return sum+(qty||0)*price;
+    },0));
   },
 
-  sell(id, shares) {
-    const G = window.G;
-    Stocks.init();
-    const s = STOCK_LIST.find(x => x.id === id); if (!s) return;
-    const held = G.stocks.portfolio[id] || 0;
-    if (held < shares) { UI.toast('Not enough shares!'); return; }
-    const price = G.stocks.prices[id] || s.basePrice;
-    const total = Math.round(price * shares);
-    G.money += total;
-    G.stocks.portfolio[id] = held - shares;
-    if (G.stocks.portfolio[id] === 0) delete G.stocks.portfolio[id];
-    Engine.log(`📉 Sold ${shares}× ${s.id} @ ${fmt(price)} (total ${fmt(total)}).`, 'money');
-    UI.toast(`📉 Sold ${shares}× ${s.name} for ${fmt(total)}`, 'good');
-    UI.update(); Stocks.render();
+  unrealizedPnl(){
+    return this.portfolioValue()-this.costBasisValue();
   },
 
-  render() {
-    const G = window.G; if (!G) return;
-    const el = document.getElementById('tab-stocks'); if (!el) return;
-    Stocks.init();
-    const portVal = Stocks.portfolioValue();
-    const port = G.stocks.portfolio;
-    const prices = G.stocks.prices;
+  _positionValue(id){
+    const G=window.G;if(!G)return 0;
+    this.init();
+    const st=STOCK_LIST.find(x=>x.id===id);
+    if(!st)return 0;
+    return Math.round((G.stocks.portfolio[id]||0)*(G.stocks.prices[id]||st.basePrice));
+  },
 
-    let h = `<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
-      <div class="nw-box" style="margin-bottom:0">
-        <div class="nw-lbl">📈 Portfolio Value</div>
-        <div class="nw-amt" style="font-size:20px;color:var(--green)">${fmtFull(portVal)}</div>
-        <div class="nw-sub">${Object.keys(port).length} positions</div>
-      </div>
-      <div class="nw-box" style="margin-bottom:0">
-        <div class="nw-lbl">💵 Cash Available</div>
-        <div class="nw-amt" style="font-size:20px;color:var(--yellow)">${fmt(G.money)}</div>
-        <div class="nw-sub">For investing</div>
-      </div>
+  _allocation(){
+    const total=this.portfolioValue();
+    if(total<=0)return[];
+    return STOCK_LIST
+      .map(st=>({id:st.id,stock:st,value:this._positionValue(st.id),weight:this._positionValue(st.id)/total}))
+      .filter(x=>x.value>0)
+      .sort((a,b)=>b.value-a.value);
+  },
+
+  _riskScore(){
+    const alloc=this._allocation();
+    if(!alloc.length)return{score:0,label:'No Risk',color:'var(--muted)'};
+    const score=Math.round(alloc.reduce((s,a)=>s+(a.stock.vol*100*a.weight*(a.stock.beta||1)),0));
+    if(score>=48)return{score,label:'Very Aggressive',color:'var(--red)'};
+    if(score>=30)return{score,label:'Aggressive',color:'var(--orange)'};
+    if(score>=18)return{score,label:'Balanced Growth',color:'var(--yellow)'};
+    return{score,label:'Defensive',color:'var(--green)'};
+  },
+
+  _concentration(){
+    const alloc=this._allocation();
+    if(!alloc.length)return{label:'None',value:0,color:'var(--muted)'};
+    const top=alloc[0];
+    const pct=Math.round(top.weight*100);
+    return{
+      label:`${top.id} ${pct}%`,
+      value:pct,
+      color:pct>=55?'var(--red)':pct>=35?'var(--yellow)':'var(--green)',
+    };
+  },
+
+  _tradeFee(total){
+    const G=window.G;
+    const finance=G?.skills?.finance||0;
+    const raw=Math.max(1,Math.round(total*(0.0025-Math.min(.0015,finance*.00025))));
+    return Math.min(raw,Math.max(1,Math.round(total*.01)));
+  },
+
+  buy(id,shares){
+    const G=window.G;if(!G)return;
+    this.init();
+
+    const st=STOCK_LIST.find(x=>x.id===id);
+    if(!st)return;
+
+    shares=Math.max(1,Math.floor(Number(shares)||1));
+    const price=G.stocks.prices[id]||st.basePrice;
+    const subtotal=Math.round(price*shares);
+    const fee=this._tradeFee(subtotal);
+    const total=subtotal+fee;
+
+    if((G.money||0)<total){
+      UI.toast(`Need ${fmt(total)} to buy ${shares} share${shares>1?'s':''}.`);
+      return;
+    }
+
+    const oldQty=G.stocks.portfolio[id]||0;
+    const oldBasis=G.stocks.costBasis[id]||price;
+
+    G.money-=total;
+    G.stocks.portfolio[id]=oldQty+shares;
+    G.stocks.costBasis[id]=((oldQty*oldBasis)+total)/(oldQty+shares);
+    G.stocks.totalBought=(G.stocks.totalBought||0)+total;
+
+    Engine.log(`📈 Bought ${shares}x ${id} at ${fmt(price)} each. Fee ${fmt(fee)}.`, 'money');
+    UI.update();
+    this.render();
+  },
+
+  buyMax(id){
+    const G=window.G;if(!G)return;
+    this.init();
+
+    const st=STOCK_LIST.find(x=>x.id===id);
+    if(!st)return;
+
+    const price=G.stocks.prices[id]||st.basePrice;
+    const cash=Math.max(0,G.money||0);
+    const shares=Math.floor(cash/(price*1.003));
+
+    if(shares<=0){
+      UI.toast(`Need at least ${fmt(Math.ceil(price))}.`);
+      return;
+    }
+
+    this.buy(id,shares);
+  },
+
+  buyAmount(id,amount){
+    const G=window.G;if(!G)return;
+    this.init();
+
+    const st=STOCK_LIST.find(x=>x.id===id);
+    if(!st)return;
+
+    const price=G.stocks.prices[id]||st.basePrice;
+    const shares=Math.floor((Number(amount)||0)/price);
+
+    if(shares<=0){
+      UI.toast(`Amount too small for ${id}.`);
+      return;
+    }
+
+    this.buy(id,shares);
+  },
+
+  sell(id,shares){
+    const G=window.G;if(!G)return;
+    this.init();
+
+    const st=STOCK_LIST.find(x=>x.id===id);
+    if(!st)return;
+
+    const held=G.stocks.portfolio[id]||0;
+    shares=Math.max(1,Math.floor(Number(shares)||1));
+
+    if(held<shares){
+      UI.toast('Not enough shares!');
+      return;
+    }
+
+    const price=G.stocks.prices[id]||st.basePrice;
+    const subtotal=Math.round(price*shares);
+    const fee=this._tradeFee(subtotal);
+    const total=Math.max(0,subtotal-fee);
+    const profit=Math.round((price-(G.stocks.costBasis[id]||price))*shares-fee);
+
+    G.money=(G.money||0)+total;
+    G.stocks.portfolio[id]=held-shares;
+    G.stocks.realizedPnl=(G.stocks.realizedPnl||0)+profit;
+    G.stocks.totalSold=(G.stocks.totalSold||0)+total;
+
+    if(G.stocks.portfolio[id]<=0){
+      delete G.stocks.portfolio[id];
+      delete G.stocks.costBasis[id];
+    }
+
+    Engine.log(`📉 Sold ${shares}x ${id} for ${fmt(total)} after fee (${profit>=0?'+':''}${fmt(profit)} realized).`, profit>=0?'money':'bad');
+    UI.update();
+    this.render();
+  },
+
+  sellAll(){
+    const G=window.G;if(!G)return;
+    this.init();
+
+    const ids=Object.keys(G.stocks.portfolio||{}).filter(id=>(G.stocks.portfolio[id]||0)>0);
+    if(!ids.length){UI.toast('No holdings to sell.');return;}
+    if(!confirm('Sell your entire stock portfolio?\n\nThis cannot be undone.'))return;
+
+    ids.forEach(id=>this.sell(id,G.stocks.portfolio[id]||0));
+  },
+
+  render(){
+    const G=window.G;if(!G)return;
+    const el=document.getElementById('tab-stocks');if(!el)return;
+    this.init();
+
+    const S=G.stocks;
+    const port=S.portfolio;
+    const prices=S.prices;
+    const value=this.portfolioValue();
+    const basis=this.costBasisValue();
+    const pnl=value-basis;
+    const pnlPct=basis>0?Math.round((pnl/basis)*1000)/10:0;
+    const mood=S.marketMood||'neutral';
+    const moodLabel=this._moodLabel(mood);
+    const moodColor=this._moodColor(mood);
+    const risk=this._riskScore();
+    const concentration=this._concentration();
+    const positions=Object.keys(port).filter(id=>(port[id]||0)>0).length;
+
+    let h=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
+      ${this._metricBox('📈 Portfolio',fmtFull(value),pnl>=0?'var(--green)':'var(--red)',`P/L ${pnl>=0?'+':''}${fmt(pnl)} · ${pnlPct>=0?'+':''}${pnlPct}% · ${positions} positions`)}
+      ${this._metricBox('🌡️ Market Mood',moodLabel,moodColor,`Last year return ${S.lastYearReturn>=0?'+':''}${S.lastYearReturn||0}%`)}
+      ${this._metricBox('⚖️ Risk Profile',risk.label,risk.color,`Risk score ${risk.score}/100 · Top holding ${concentration.label}`)}
+      ${this._metricBox('💰 Cashflow',fmt(S.totalDividends||0),'var(--green)',`Dividends lifetime · Realized P/L ${S.realizedPnl>=0?'+':''}${fmt(S.realizedPnl||0)}`)}
     </div>`;
 
-    // Your holdings
-    const heldIds = Object.keys(port).filter(k => (port[k]||0) > 0);
-    if (heldIds.length > 0) {
-      h += `<div class="sec">💼 Your Holdings</div>`;
-      heldIds.forEach(id => {
-        const s = STOCK_LIST.find(x => x.id === id); if (!s) return;
-        const price = prices[id] || s.basePrice;
-        const qty = port[id];
-        const val = Math.round(price * qty);
-        // Mini sparkline from history
-        const hist = G.stocks.history[id] || [];
-        const trend = hist.length >= 2 ? (hist[hist.length-1] > hist[0] ? '↗️' : '↘️') : '➡️';
-        h += `<div class="row-card" style="border-color:rgba(74,222,128,.25)">
-          <span class="ri">${s.icon}</span>
+    h+=`<div class="info-box"><p>📊 This is a simplified fictional market sim using real-world inspired names. Finance skill improves long-term drift and lowers trade friction slightly.</p></div>`;
+
+    h+=this._renderHoldings(G);
+    h+=this._renderMarket(G);
+
+    el.innerHTML=h;
+  },
+
+  _metricBox(label,value,color,sub){
+    return `<div class="nw-box" style="margin-bottom:0">
+      <div class="nw-lbl">${this._esc(label)}</div>
+      <div class="nw-amt" style="font-size:20px;color:${color||'var(--txt)'}">${value}</div>
+      <div class="nw-sub">${this._esc(sub)}</div>
+    </div>`;
+  },
+
+  _spark(id){
+    const G=window.G;
+    const hist=G?.stocks?.history?.[id]||[];
+    if(typeof sparklineSVG==='function'&&hist.length>=2){
+      const mini=hist.map(v=>({p:v}));
+      const last=hist[hist.length-1],prev=hist[0];
+      const color=last>=prev?'var(--green)':'var(--red)';
+      return sparklineSVG(mini,'p',color,84,26);
+    }
+    return '';
+  },
+
+  _renderHoldings(G){
+    const port=G.stocks.portfolio;
+    const prices=G.stocks.prices;
+    const heldIds=Object.keys(port).filter(k=>(port[k]||0)>0);
+
+    if(!heldIds.length){
+      return `<div class="sec">💼 Your Holdings</div><div class="empty"><span class="ei">📈</span><p>No investments yet.<br>Buy shares below to build your portfolio.</p></div>`;
+    }
+
+    let h='<div class="sec">💼 Your Holdings</div>';
+    heldIds
+      .sort((a,b)=>this._positionValue(b)-this._positionValue(a))
+      .forEach(id=>{
+        const st=STOCK_LIST.find(x=>x.id===id);if(!st)return;
+        const price=prices[id]||st.basePrice;
+        const qty=port[id]||0;
+        const val=Math.round(price*qty);
+        const basisPrice=G.stocks.costBasis[id]||price;
+        const gain=Math.round((price-basisPrice)*qty);
+        const gainPct=basisPrice>0?Math.round(((price-basisPrice)/basisPrice)*1000)/10:0;
+        const half=Math.max(1,Math.floor(qty/2));
+
+        h+=`<div class="row-card" style="border-color:${gain>=0?'rgba(74,222,128,.28)':'rgba(248,113,113,.28)'}">
+          <span class="ri">${st.icon}</span>
           <div class="rd">
-            <div class="rt">${s.name} <span style="font-size:10px;color:var(--muted)">${s.id}</span> ${trend}</div>
-            <div class="rs">${qty} shares · ${fmt(price)}/share · <strong style="color:var(--green)">${fmt(val)}</strong></div>
+            <div class="rt">${this._esc(st.name)} <span style="font-size:10px;color:var(--muted)">${st.id}</span></div>
+            <div class="rs">${qty} shares · Value ${fmt(val)} · Avg ${fmt(basisPrice)} · Now ${fmt(price)} · <strong style="color:${gain>=0?'var(--green)':'var(--red)'}">${gain>=0?'+':''}${fmt(gain)} (${gainPct>=0?'+':''}${gainPct}%)</strong></div>
+            <div style="margin-top:4px">${this._spark(id)}</div>
           </div>
-          <div style="display:flex;gap:5px">
-            <button class="btn-primary btn-sm" style="font-size:10px;padding:5px 8px;width:auto;background:rgba(248,113,113,.2);border-color:rgba(248,113,113,.4);color:var(--red)" onclick="Stocks.sell('${id}',1)">Sell 1</button>
-            <button class="btn-primary btn-sm" style="font-size:10px;padding:5px 8px;width:auto;background:rgba(248,113,113,.2);border-color:rgba(248,113,113,.4);color:var(--red)" onclick="Stocks.sell('${id}',${qty})">All</button>
+          <div style="display:flex;gap:5px;flex-wrap:wrap;justify-content:flex-end">
+            <button class="btn-primary btn-sm" style="font-size:10px;padding:5px 8px;width:auto;background:rgba(248,113,113,.18);border-color:rgba(248,113,113,.4);color:var(--red)" onclick="Stocks.sell('${id}',1)">Sell 1</button>
+            <button class="btn-primary btn-sm" style="font-size:10px;padding:5px 8px;width:auto;background:rgba(248,113,113,.18);border-color:rgba(248,113,113,.4);color:var(--red)" onclick="Stocks.sell('${id}',${half})">Half</button>
+            <button class="btn-primary btn-sm" style="font-size:10px;padding:5px 8px;width:auto;background:rgba(248,113,113,.18);border-color:rgba(248,113,113,.4);color:var(--red)" onclick="Stocks.sell('${id}',${qty})">All</button>
           </div>
         </div>`;
       });
-    } else {
-      h += `<div class="empty compact"><span class="ei">📈</span><p>No holdings yet.<br>Buy shares below to build your first portfolio.</p></div>`;
-    }
 
-    h += `<div class="sec">🏢 Market — Buy Shares</div>`;
-    STOCK_LIST.forEach(s => {
-      const price = prices[s.id] || s.basePrice;
-      const hist  = G.stocks.history[s.id] || [];
-      const prev  = hist.length >= 2 ? hist[hist.length-2] : s.basePrice;
-      const chg   = ((price - prev) / prev * 100).toFixed(1);
-      const chgCol = price > prev ? 'var(--green)' : price < prev ? 'var(--red)' : 'var(--muted)';
-      const chgStr = price > prev ? `▲ ${chg}%` : price < prev ? `▼ ${Math.abs(chg)}%` : '─';
-      const held = port[s.id] || 0;
-      const volTag = s.vol > 0.3 ? '🔥 High Risk' : s.vol > 0.16 ? '⚡ Med Risk' : '🛡️ Low Risk';
-      h += `<div class="row-card" style="padding:10px 12px">
-        <span class="ri">${s.icon}</span>
+    h+=`<div class="act-grid" style="margin-top:10px">
+      <div class="card danger" onclick="Stocks.sellAll()"><span class="ci">🚨</span><span class="cn">Sell Entire Portfolio</span><span class="cd">Cash out all holdings</span></div>
+    </div>`;
+
+    return h;
+  },
+
+  _renderMarket(G){
+    const prices=G.stocks.prices;
+    const port=G.stocks.portfolio;
+    let h='<div class="sec">🏛️ Market</div>';
+
+    STOCK_LIST.forEach(st=>{
+      const price=prices[st.id]||st.basePrice;
+      const hist=G.stocks.history[st.id]||[];
+      const prev=hist.length>=2?hist[hist.length-2]:st.basePrice;
+      const chg=prev?((price-prev)/prev*100):0;
+      const col=chg>=0?'var(--green)':'var(--red)';
+      const held=port[st.id]||0;
+      const buy5=Math.round(price*5+this._tradeFee(price*5));
+
+      h+=`<div class="row-card" style="padding:10px 12px">
+        <span class="ri">${st.icon}</span>
         <div class="rd">
-          <div class="rt">${s.name} <span style="font-size:10px;color:var(--muted)">${s.id} · ${s.sector}</span></div>
-          <div class="rs">${volTag}${s.div > 0 ? ` · Div ${(s.div*100).toFixed(1)}%/yr` : ''} ${held>0?`· Holding: <strong>${held}</strong>`:''}</div>
+          <div class="rt">${this._esc(st.name)} <span style="font-size:10px;color:var(--muted)">${st.id} · ${this._esc(st.sector)}</span></div>
+          <div class="rs">${this._esc(st.desc)} · ${this._riskLabel(st)}${st.div?` · Dividend ${(st.div*100).toFixed(1)}%`:''}${held?` · Holding ${held}`:''}</div>
+          <div style="margin-top:4px">${this._spark(st.id)}</div>
         </div>
         <div style="text-align:right;flex-shrink:0">
           <div style="font-size:14px;font-weight:900;color:var(--txt)">${fmt(price)}</div>
-          <div style="font-size:10px;font-weight:700;color:${chgCol}">${chgStr}</div>
-          <button class="btn-primary btn-sm" style="font-size:10px;padding:5px 8px;width:auto;margin-top:4px" onclick="Stocks.buy('${s.id}',1)">Buy 1</button>
-          <button class="btn-primary btn-sm" style="font-size:10px;padding:5px 8px;width:auto;margin-top:4px" onclick="Stocks.buy('${s.id}',5)">Buy 5</button>
+          <div style="font-size:10px;font-weight:800;color:${col}">${chg>=0?'▲':'▼'} ${Math.abs(chg).toFixed(1)}%</div>
+          <div style="display:flex;gap:4px;justify-content:flex-end;flex-wrap:wrap;margin-top:4px">
+            <button class="btn-primary btn-sm" style="font-size:10px;padding:5px 8px;width:auto" onclick="Stocks.buy('${st.id}',1)">Buy 1</button>
+            <button class="btn-primary btn-sm" style="font-size:10px;padding:5px 8px;width:auto" onclick="Stocks.buy('${st.id}',5)">Buy 5</button>
+            <button class="btn-primary btn-sm" style="font-size:10px;padding:5px 8px;width:auto" onclick="Stocks.buyMax('${st.id}')">Max</button>
+          </div>
+          <div style="font-size:9px;color:var(--muted);font-weight:700;margin-top:3px">5 shares ≈ ${fmt(buy5)}</div>
         </div>
       </div>`;
     });
-    el.innerHTML = h;
+
+    return h;
   },
 };

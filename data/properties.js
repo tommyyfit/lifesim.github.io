@@ -1,6 +1,5 @@
 /* data/properties.js */
 const PROPERTIES=[
-{id:'room',       icon:'🛏️',name:'Rented Room',         price:3000,    value:0,      rent:0,    appRate:.00,desc:'Room in shared house, no equity'},
 {id:'studio',     icon:'🏢',name:'Studio Apartment',    price:65000,   value:65000,  rent:0,    appRate:.04,desc:'Compact and modern city living'},
 {id:'apt1bed',    icon:'🏠',name:'1-Bed Apartment',     price:125000,  value:125000, rent:0,    appRate:.04,desc:'Comfortable city flat'},
 {id:'apt2bed',    icon:'🏠',name:'2-Bed Apartment',     price:190000,  value:190000, rent:0,    appRate:.04,desc:'Spacious family apartment'},
