@@ -44,35 +44,35 @@ function safeCall(label,fn,fallback=null){
   catch(e){console.warn(label||'safeCall failed',e);return fallback;}
 }
 
-function countryCurrency(G=window.G){
+function countryCurrency(G=typeof window!=='undefined'?window.G:null){
   return (G&&G.country&&G.country.currency)||'$';
 }
 
-function countryMult(G=window.G){
+function countryMult(G=typeof window!=='undefined'?window.G:null){
   return Math.max(0.2,num(G?.country?.mult,1));
 }
 
-function sc(base){
-  return Math.round(num(base)*countryMult(window.G));
+function sc(base,G=typeof window!=='undefined'?window.G:null){
+  return Math.round(num(base)*countryMult(G));
 }
 
-function diffCostMult(G=window.G){
+function diffCostMult(G=typeof window!=='undefined'?window.G:null){
   const d=(G&&G.difficulty)||'normal';
   const diff=({easy:.85,normal:1,hard:1.2,extreme:1.45,custom:1}[d]||1);
   const trait=G&&G.trait==='frugal'?.9:1;
   return diff*trait;
 }
 
-function annualCost(base){
-  return Math.round(sc(base)*diffCostMult(window.G));
+function annualCost(base,G=typeof window!=='undefined'?window.G:null){
+  return Math.round(sc(base,G)*diffCostMult(G));
 }
 
 function creditClamp(v){
   return Math.max(300,Math.min(850,Math.round(num(v,650))));
 }
 
-function fmt(n){
-  const s=countryCurrency(window.G);
+function fmt(n,G=typeof window!=='undefined'?window.G:null){
+  const s=countryCurrency(G);
   n=num(n,0);
   const abs=Math.abs(Math.round(n));
   let str;
@@ -83,8 +83,8 @@ function fmt(n){
   return(n<0?'-':'')+s+str;
 }
 
-function fmtFull(n){
-  const s=countryCurrency(window.G);
+function fmtFull(n,G=typeof window!=='undefined'?window.G:null){
+  const s=countryCurrency(G);
   n=num(n,0);
   return(n<0?'-':'')+s+Math.abs(Math.round(n)).toLocaleString();
 }
@@ -181,7 +181,7 @@ function moneyBenchmark(G){
   const diffMult={easy:1.4,normal:1,hard:.82,extreme:.68,custom:1}[G.difficulty||'normal']||1;
   const ambitionMult={wealth:1.12,investor:1.16,career_top:1.08,entrepreneur:1.1}[G.ambition]||1;
   const hMult=1+((householdSize(G)-1)*.18);
-  const livingReserve=annualCost(14000)*Math.max(1,householdSize(G))*2.2;
+  const livingReserve=annualCost(14000,G)*Math.max(1,householdSize(G))*2.2;
   const benchmark=Math.max(base*cMult*diffMult*ambitionMult*hMult,livingReserve);
   const nw=netWorth(G);
   const ratio=benchmark>0?nw/benchmark:0;
@@ -192,6 +192,26 @@ function moneyBenchmark(G){
   if(ratio>=.75)return{label:'Stable',icon:'📊',color:'var(--muted)',ratio,benchmark};
   if(ratio>=.35)return{label:'Behind',icon:'📉',color:'var(--orange)',ratio,benchmark};
   return{label:'Struggling',icon:'⚠️',color:'var(--red)',ratio,benchmark};
+}
+
+function clamp01(v){
+  return Math.max(0,Math.min(1,num(v,0)));
+}
+
+function weightedPick(items,weightKey='weight'){
+  if(!Array.isArray(items)||!items.length)return null;
+  const total=items.reduce((a,x)=>a+Math.max(0,num(typeof weightKey==='function'?weightKey(x):x?.[weightKey],1)),0);
+  if(total<=0)return pick(items);
+  let roll=Math.random()*total;
+  for(const item of items){
+    roll-=Math.max(0,num(typeof weightKey==='function'?weightKey(item):item?.[weightKey],1));
+    if(roll<=0)return item;
+  }
+  return items[items.length-1];
+}
+
+function uid(prefix='id'){
+  return `${prefix}_${Date.now().toString(36)}_${Math.random().toString(36).slice(2,8)}`;
 }
 
 function logCategory(entry){
@@ -233,4 +253,13 @@ function sparklineSVG(history,key,color,w,h){
     return`${x.toFixed(1)},${y.toFixed(1)}`;
   }).join(' ');
   return`<svg width="${w}" height="${h}" viewBox="0 0 ${w} ${h}" style="display:inline-block;vertical-align:middle;opacity:.7"><polyline points="${pts}" fill="none" stroke="${escHTML(color||'currentColor')}" stroke-width="1.5" stroke-linejoin="round" stroke-linecap="round"/></svg>`;
+}
+
+if(typeof window!=='undefined'){
+  Object.assign(window,{
+    num,r,pick,cl,cap,escHTML,safeCall,countryCurrency,countryMult,sc,diffCostMult,annualCost,
+    creditClamp,fmt,fmtFull,fmtFollowers,fmtPct,sumValues,stockPortfolioValue,debtTotal,netWorth,
+    applyStats,dependentChildrenCount,cohabitingPartner,householdSize,moneyBenchmark,logCategory,
+    sparklineSVG,clamp01,weightedPick,uid
+  });
 }

@@ -5,6 +5,8 @@ const Save={
   K:'lsv13_save',
   H:'lsv13_hof',
   U:'lsv13_ach',
+  B:'lsv13_save_backup',
+  META:'lsv13_meta',
 
   OLD_SAVE_KEYS:['lsv12_save','lsv11_save','lsv10_save','lsv9_save','lsv8_save'],
   OLD_HOF_KEYS:['lsv12_hof','lsv11_hof','lsv10_hof','lsv9_hof','lsv8_hof'],
@@ -48,7 +50,7 @@ const Save={
   },
 
   _migrateOne(newKey,oldKeys,fallback){
-    let current=this._read(newKey,null);
+    const current=this._read(newKey,null);
     if(current!==null)return current;
 
     const old=this._firstExisting(oldKeys);
@@ -57,32 +59,96 @@ const Save={
     try{
       const parsed=JSON.parse(old.raw);
       this._write(newKey,parsed);
+      this._write(this.META,{migratedFrom:old.key,migratedAt:Date.now(),version:this.VERSION});
       return parsed;
     }catch(e){
+      console.warn('Save migration failed:',old.key,e);
       return fallback;
     }
   },
 
+  _safeClone(value){
+    try{return JSON.parse(JSON.stringify(value));}
+    catch(e){return null;}
+  },
+
+  _normalizeSave(G){
+    if(!G||typeof G!=='object')return null;
+    const clone=this._safeClone(G);
+    if(!clone)return null;
+
+    clone.version=this.VERSION;
+    clone.savedAt=Date.now();
+    clone.saveSchema='lsv13-reforged';
+
+    if(!Array.isArray(clone.log))clone.log=[];
+    if(clone.log.length>500)clone.log=clone.log.slice(0,500);
+    if(!Array.isArray(clone.statHistory))clone.statHistory=[];
+    if(clone.statHistory.length>80)clone.statHistory=clone.statHistory.slice(-80);
+    if(!clone.achievements||typeof clone.achievements!=='object')clone.achievements={};
+    if(!clone.rels||typeof clone.rels!=='object')clone.rels={father:null,mother:null,siblings:[],partner:null,children:[],friends:[],exes:[]};
+    if(!clone.assets||typeof clone.assets!=='object')clone.assets={properties:[],vehicles:[]};
+    if(!clone.hustle||typeof clone.hustle!=='object')clone.hustle={};
+    if(!clone.food||typeof clone.food!=='object')clone.food={};
+    if(!Array.isArray(clone.pets))clone.pets=[];
+    if(!Array.isArray(clone.conditions))clone.conditions=[];
+    if(!Array.isArray(clone.crimes))clone.crimes=[];
+
+    return clone;
+  },
+
   save(G){
-    if(!G||typeof G!=='object')return false;
-    const payload={
-      ...G,
-      version:this.VERSION,
-      savedAt:Date.now(),
-    };
-    return this._write(this.K,payload);
+    const payload=this._normalizeSave(G);
+    if(!payload)return false;
+
+    const existing=this._read(this.K,null);
+    if(existing&&typeof existing==='object'){
+      this._write(this.B,{...existing,backupAt:Date.now()});
+    }
+
+    const ok=this._write(this.K,payload);
+    if(ok)this._write(this.META,{lastSavedAt:payload.savedAt,version:this.VERSION,name:payload.name||'',age:payload.age||0});
+    return ok;
+  },
+
+  autosave(G){
+    return this.save(G);
   },
 
   load(){
     const migrated=this._migrateOne(this.K,this.OLD_SAVE_KEYS,null);
-    if(!migrated||typeof migrated!=='object')return null;
-    migrated.version=migrated.version||8;
-    return migrated;
+    if(migrated&&typeof migrated==='object'){
+      migrated.version=migrated.version||8;
+      return migrated;
+    }
+
+    const backup=this._read(this.B,null);
+    if(backup&&typeof backup==='object'){
+      backup.version=backup.version||8;
+      if(typeof UI!=='undefined'&&UI.toast)UI.toast('Loaded backup save because main save was missing/corrupt.','neutral');
+      return backup;
+    }
+
+    return null;
+  },
+
+  loadBackup(){
+    const backup=this._read(this.B,null);
+    if(!backup||typeof backup!=='object')return null;
+    backup.version=backup.version||8;
+    return backup;
+  },
+
+  restoreBackup(){
+    const backup=this.loadBackup();
+    if(!backup)return false;
+    return this._write(this.K,{...backup,restoredAt:Date.now(),version:this.VERSION});
   },
 
   has(){
     try{
       if(!!localStorage.getItem(this.K))return true;
+      if(!!localStorage.getItem(this.B))return true;
       return !!this._firstExisting(this.OLD_SAVE_KEYS);
     }catch(e){
       return false;
@@ -93,8 +159,13 @@ const Save={
     this._remove(this.K);
   },
 
+  clearBackup(){
+    this._remove(this.B);
+  },
+
   clearAllSaves(){
     this._remove(this.K);
+    this._remove(this.B);
     this.OLD_SAVE_KEYS.forEach(k=>this._remove(k));
   },
 
@@ -112,7 +183,7 @@ const Save={
       };
 
       h.unshift(clean);
-      h.sort((a,b)=>(b.score||0)-(a.score||0)||((b.netWorth||0)-(a.netWorth||0)));
+      h.sort((a,b)=>(b.score||0)-(a.score||0)||((b.netWorth||0)-(a.netWorth||0))||((b.age||0)-(a.age||0)));
       const trimmed=h.slice(0,25);
       return this._write(this.H,trimmed);
     }catch(e){
@@ -126,8 +197,13 @@ const Save={
     if(!Array.isArray(data))return[];
     return data
       .filter(e=>e&&typeof e==='object')
-      .map(e=>({...e,score:Math.round(e.score||0),netWorth:Math.round(e.netWorth||0)}))
-      .sort((a,b)=>(b.score||0)-(a.score||0)||((b.netWorth||0)-(a.netWorth||0)))
+      .map(e=>({
+        ...e,
+        score:Math.round(e.score||0),
+        netWorth:Math.round(e.netWorth||0),
+        age:Math.round(e.age||0),
+      }))
+      .sort((a,b)=>(b.score||0)-(a.score||0)||((b.netWorth||0)-(a.netWorth||0))||((b.age||0)-(a.age||0)))
       .slice(0,25);
   },
 
@@ -154,7 +230,7 @@ const Save={
   unlockedAchs(){
     const data=this._migrateOne(this.U,this.OLD_ACH_KEYS,[]);
     if(!Array.isArray(data))return[];
-    return [...new Set(data.filter(Boolean))];
+    return [...new Set(data.filter(Boolean).map(String))].sort();
   },
 
   lockAch(id){
@@ -172,18 +248,70 @@ const Save={
       version:this.VERSION,
       exportedAt:Date.now(),
       save:this.load(),
+      backup:this.loadBackup(),
       hof:this.hofAll(),
       achievements:this.unlockedAchs(),
       prestige:typeof Legacy!=='undefined'&&Legacy.load?Legacy.load():null,
+      meta:this._read(this.META,{}),
     };
   },
 
+  exportString(){
+    try{return JSON.stringify(this.exportAll());}
+    catch(e){return'';}
+  },
+
+  downloadExport(filename='lifesim-v13-save.json'){
+    try{
+      const blob=new Blob([JSON.stringify(this.exportAll(),null,2)],{type:'application/json'});
+      const url=URL.createObjectURL(blob);
+      const a=document.createElement('a');
+      a.href=url;
+      a.download=filename;
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+      URL.revokeObjectURL(url);
+      return true;
+    }catch(e){
+      console.warn('Export download failed',e);
+      if(typeof UI!=='undefined'&&UI.toast)UI.toast('Export failed.','bad');
+      return false;
+    }
+  },
+
   importAll(data){
-    if(!data||typeof data!=='object')return false;
-    if(data.save)this._write(this.K,{...data.save,version:this.VERSION,savedAt:Date.now()});
-    if(Array.isArray(data.hof))this._write(this.H,data.hof.slice(0,25));
-    if(Array.isArray(data.achievements))this._write(this.U,[...new Set(data.achievements)]);
-    if(data.prestige&&typeof Legacy!=='undefined'&&Legacy.save)Legacy.save(data.prestige);
-    return true;
+    try{
+      if(typeof data==='string')data=JSON.parse(data);
+      if(!data||typeof data!=='object')return false;
+
+      if(data.save&&typeof data.save==='object'){
+        const current=this._read(this.K,null);
+        if(current)this._write(this.B,{...current,backupAt:Date.now(),reason:'before import'});
+        this._write(this.K,{...data.save,version:this.VERSION,savedAt:Date.now(),importedAt:Date.now()});
+      }
+
+      if(data.backup&&typeof data.backup==='object')this._write(this.B,{...data.backup,version:this.VERSION,importedAt:Date.now()});
+      if(Array.isArray(data.hof))this._write(this.H,data.hof.filter(e=>e&&typeof e==='object').slice(0,25));
+      if(Array.isArray(data.achievements))this._write(this.U,[...new Set(data.achievements.filter(Boolean).map(String))].sort());
+      if(data.prestige&&typeof Legacy!=='undefined'&&Legacy.save)Legacy.save(data.prestige);
+      this._write(this.META,{importedAt:Date.now(),version:this.VERSION});
+      return true;
+    }catch(e){
+      console.warn('Import failed',e);
+      if(typeof UI!=='undefined'&&UI.toast)UI.toast('Import failed. File may be invalid.','bad');
+      return false;
+    }
+  },
+
+  storageInfo(){
+    try{
+      const keys=[this.K,this.B,this.H,this.U,this.META];
+      const rows=keys.map(k=>({key:k,bytes:(localStorage.getItem(k)||'').length}));
+      const total=rows.reduce((s,r)=>s+r.bytes,0);
+      return{rows,total};
+    }catch(e){
+      return{rows:[],total:0};
+    }
   },
 };

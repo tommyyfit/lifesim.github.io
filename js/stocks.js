@@ -16,11 +16,47 @@ const STOCK_LIST=[
 ];
 
 const Stocks={
-  VERSION:13,
+  VERSION:13.1,
 
   _esc(v){
     if(typeof escHTML==='function')return escHTML(v);
     return String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
+  },
+
+  _num(v,fallback=0){
+    const n=Number(v);
+    return Number.isFinite(n)?n:fallback;
+  },
+
+  _rand(min,max){
+    if(typeof r==='function')return r(min,max);
+    min=Math.ceil(this._num(min,0));
+    max=Math.floor(this._num(max,min));
+    if(max<min){const t=min;min=max;max=t;}
+    return Math.floor(Math.random()*(max-min+1))+min;
+  },
+
+  _toast(msg,type=''){
+    if(typeof UI!=='undefined'&&UI&&typeof UI.toast==='function')UI.toast(msg,type);
+    else console.log('[LifeSim]',msg);
+  },
+
+  _log(msg,type='neutral'){
+    if(typeof Engine!=='undefined'&&Engine&&typeof Engine.log==='function')Engine.log(msg,type);
+    else console.log(`[${type}]`,msg);
+  },
+
+  _update(){
+    if(typeof UI!=='undefined'&&UI&&typeof UI.update==='function')UI.update();
+  },
+
+  _checkAch(){
+    if(typeof Engine!=='undefined'&&Engine&&typeof Engine.checkAch==='function')Engine.checkAch();
+  },
+
+  _confirm(msg){
+    if(typeof confirm==='function')return confirm(msg);
+    return true;
   },
 
   init(){
@@ -114,7 +150,7 @@ const Stocks={
 
   _stockReturn(st,old,mood){
     const G=window.G;
-    const finance=(G.skills?.finance||0);
+    const finance=(G?.skills?.finance||0);
     const skillEdge=Math.min(.018,finance*.003);
     const moodRet=this._moodReturn(mood)*(st.beta||1);
     const qualityDrift=(st.quality-1)*0.045;
@@ -171,22 +207,22 @@ const Stocks={
     if(dividends>0){
       G.money=(G.money||0)+dividends;
       S.totalDividends=(S.totalDividends||0)+dividends;
-      Engine.log(`💰 Dividend income: ${fmt(dividends)} received from your portfolio.`, 'money');
+      this._log(`💰 Dividend income: ${fmt(dividends)} received from your portfolio.`, 'money');
     }
 
     const newValue=this.portfolioValue();
     S.lastYearReturn=oldValue>0?Math.round(((newValue-oldValue+dividends)/oldValue)*1000)/10:0;
 
-    if(mood==='crash')Engine.log('📉 Market crash year. Risk assets got hit hard.', 'bad');
-    else if(mood==='boom')Engine.log('📈 Market boom year. Investors are euphoric.', 'money');
+    if(mood==='crash')this._log('📉 Market crash year. Risk assets got hit hard.', 'bad');
+    else if(mood==='boom')this._log('📈 Market boom year. Investors are euphoric.', 'money');
     else if(oldValue>0&&Math.abs(S.lastYearReturn)>=18){
-      Engine.log(`🌡️ Portfolio moved ${S.lastYearReturn>=0?'+':''}${S.lastYearReturn}% this year.`,S.lastYearReturn>=0?'money':'bad');
+      this._log(`🌡️ Portfolio moved ${S.lastYearReturn>=0?'+':''}${S.lastYearReturn}% this year.`,S.lastYearReturn>=0?'money':'bad');
     }
 
     if(newValue>=100000&&!G.achievements?.investor_100k){
       G.achievements=G.achievements||{};
       G.achievements.investor_100k=true;
-      Engine.checkAch();
+      this._checkAch();
     }
   },
 
@@ -251,8 +287,69 @@ const Stocks={
   _tradeFee(total){
     const G=window.G;
     const finance=G?.skills?.finance||0;
+    total=Math.max(0,this._num(total,0));
     const raw=Math.max(1,Math.round(total*(0.0025-Math.min(.0015,finance*.00025))));
     return Math.min(raw,Math.max(1,Math.round(total*.01)));
+  },
+
+  _maxAffordableShares(id,cash){
+    const G=window.G;if(!G)return 0;
+    this.init();
+    const st=STOCK_LIST.find(x=>x.id===id);if(!st)return 0;
+    const price=G.stocks.prices[id]||st.basePrice;
+    cash=Math.max(0,this._num(cash,G.money||0));
+    let shares=Math.floor(cash/Math.max(1,price));
+    while(shares>0){
+      const subtotal=Math.round(price*shares);
+      const fee=this._tradeFee(subtotal);
+      if(subtotal+fee<=cash)return shares;
+      shares--;
+    }
+    return 0;
+  },
+
+  _diversificationScore(){
+    const alloc=this._allocation();
+    if(!alloc.length)return{score:0,label:'No portfolio',color:'var(--muted)'};
+    const hhi=alloc.reduce((s,a)=>s+(a.weight*a.weight),0);
+    const score=Math.round((1-Math.min(1,hhi))*100);
+    if(score>=72)return{score,label:'Well diversified',color:'var(--green)'};
+    if(score>=48)return{score,label:'Moderate',color:'var(--yellow)'};
+    return{score,label:'Concentrated',color:'var(--orange)'};
+  },
+
+  _investorNote(){
+    const G=window.G;if(!G)return{icon:'📌',title:'No Life Loaded',text:'Start a life to use investing.',color:'var(--muted)'};
+    this.init();
+    const value=this.portfolioValue();
+    const cash=G.money||0;
+    const risk=this._riskScore();
+    const conc=this._concentration();
+    const div=this._diversificationScore();
+    const mood=G.stocks.marketMood||'neutral';
+
+    if(value<=0&&cash>=1000)return{icon:'🚀',title:'Start investing',text:'Buy a small first position instead of keeping every dollar in cash.',color:'var(--accent)'};
+    if(value<=0)return{icon:'💵',title:'Build cash first',text:'You need more cash before investing makes sense.',color:'var(--muted)'};
+    if(conc.value>=60)return{icon:'⚠️',title:'Too concentrated',text:`${conc.label} dominates your portfolio. Consider diversifying.`,color:'var(--orange)'};
+    if(risk.score>=50)return{icon:'🔥',title:'Very aggressive',text:'High beta assets can grow fast, but crashes will hurt more.',color:'var(--red)'};
+    if(mood==='crash'&&cash>500)return{icon:'🛒',title:'Crash opportunity',text:'Prices are down. Defensive buying or holding can pay off long term.',color:'var(--yellow)'};
+    if(div.score>=72)return{icon:'✅',title:'Healthy allocation',text:'Your portfolio is diversified enough for smoother long-term compounding.',color:'var(--green)'};
+    return{icon:'📊',title:'Keep compounding',text:'Add gradually, avoid panic selling, and watch concentration risk.',color:'var(--green)'};
+  },
+
+  _allocationHTML(){
+    const alloc=this._allocation();
+    if(!alloc.length)return'';
+    const items=alloc.slice(0,6).map(a=>{
+      const pct=Math.round(a.weight*100);
+      const col=pct>=55?'var(--red)':pct>=35?'var(--yellow)':'var(--green)';
+      return`<div style="display:flex;align-items:center;gap:7px;margin:5px 0">
+        <span style="width:42px;font-size:10px;font-weight:900;color:var(--txt)">${this._esc(a.id)}</span>
+        <div style="flex:1;height:7px;background:var(--s3);border-radius:99px;overflow:hidden"><div style="height:100%;width:${pct}%;background:${col};border-radius:99px"></div></div>
+        <span style="width:36px;text-align:right;font-size:10px;font-weight:900;color:${col}">${pct}%</span>
+      </div>`;
+    }).join('');
+    return`<div class="info-box" style="margin-bottom:12px"><p style="margin:0 0 6px"><strong>📌 Allocation Snapshot</strong></p>${items}</div>`;
   },
 
   buy(id,shares){
@@ -269,7 +366,7 @@ const Stocks={
     const total=subtotal+fee;
 
     if((G.money||0)<total){
-      UI.toast(`Need ${fmt(total)} to buy ${shares} share${shares>1?'s':''}.`);
+      this._toast(`Need ${fmt(total)} to buy ${shares} share${shares>1?'s':''}.`);
       return;
     }
 
@@ -281,8 +378,8 @@ const Stocks={
     G.stocks.costBasis[id]=((oldQty*oldBasis)+total)/(oldQty+shares);
     G.stocks.totalBought=(G.stocks.totalBought||0)+total;
 
-    Engine.log(`📈 Bought ${shares}x ${id} at ${fmt(price)} each. Fee ${fmt(fee)}.`, 'money');
-    UI.update();
+    this._log(`📈 Bought ${shares}x ${id} at ${fmt(price)} each. Fee ${fmt(fee)}.`, 'money');
+    this._update();
     this.render();
   },
 
@@ -295,10 +392,10 @@ const Stocks={
 
     const price=G.stocks.prices[id]||st.basePrice;
     const cash=Math.max(0,G.money||0);
-    const shares=Math.floor(cash/(price*1.003));
+    const shares=this._maxAffordableShares(id,cash);
 
     if(shares<=0){
-      UI.toast(`Need at least ${fmt(Math.ceil(price))}.`);
+      this._toast(`Need at least ${fmt(Math.ceil(price+this._tradeFee(price)))}.`);
       return;
     }
 
@@ -316,7 +413,7 @@ const Stocks={
     const shares=Math.floor((Number(amount)||0)/price);
 
     if(shares<=0){
-      UI.toast(`Amount too small for ${id}.`);
+      this._toast(`Amount too small for ${id}.`);
       return;
     }
 
@@ -334,7 +431,7 @@ const Stocks={
     shares=Math.max(1,Math.floor(Number(shares)||1));
 
     if(held<shares){
-      UI.toast('Not enough shares!');
+      this._toast('Not enough shares!');
       return;
     }
 
@@ -354,8 +451,8 @@ const Stocks={
       delete G.stocks.costBasis[id];
     }
 
-    Engine.log(`📉 Sold ${shares}x ${id} for ${fmt(total)} after fee (${profit>=0?'+':''}${fmt(profit)} realized).`, profit>=0?'money':'bad');
-    UI.update();
+    this._log(`📉 Sold ${shares}x ${id} for ${fmt(total)} after fee (${profit>=0?'+':''}${fmt(profit)} realized).`, profit>=0?'money':'bad');
+    this._update();
     this.render();
   },
 
@@ -364,8 +461,8 @@ const Stocks={
     this.init();
 
     const ids=Object.keys(G.stocks.portfolio||{}).filter(id=>(G.stocks.portfolio[id]||0)>0);
-    if(!ids.length){UI.toast('No holdings to sell.');return;}
-    if(!confirm('Sell your entire stock portfolio?\n\nThis cannot be undone.'))return;
+    if(!ids.length){this._toast('No holdings to sell.');return;}
+    if(!this._confirm('Sell your entire stock portfolio?\n\nThis cannot be undone.'))return;
 
     ids.forEach(id=>this.sell(id,G.stocks.portfolio[id]||0));
   },
@@ -388,15 +485,21 @@ const Stocks={
     const risk=this._riskScore();
     const concentration=this._concentration();
     const positions=Object.keys(port).filter(id=>(port[id]||0)>0).length;
+    const div=this._diversificationScore();
+    const note=this._investorNote();
 
     let h=`<div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
       ${this._metricBox('📈 Portfolio',fmtFull(value),pnl>=0?'var(--green)':'var(--red)',`P/L ${pnl>=0?'+':''}${fmt(pnl)} · ${pnlPct>=0?'+':''}${pnlPct}% · ${positions} positions`)}
       ${this._metricBox('🌡️ Market Mood',moodLabel,moodColor,`Last year return ${S.lastYearReturn>=0?'+':''}${S.lastYearReturn||0}%`)}
       ${this._metricBox('⚖️ Risk Profile',risk.label,risk.color,`Risk score ${risk.score}/100 · Top holding ${concentration.label}`)}
+      ${this._metricBox('🧩 Diversification',div.label,div.color,`Score ${div.score}/100 · Concentration ${concentration.value}%`)}
       ${this._metricBox('💰 Cashflow',fmt(S.totalDividends||0),'var(--green)',`Dividends lifetime · Realized P/L ${S.realizedPnl>=0?'+':''}${fmt(S.realizedPnl||0)}`)}
+      ${this._metricBox('🏦 Invested',fmt(S.totalBought||0),'var(--accent)',`Sold ${fmt(S.totalSold||0)} · Cash ${fmt(G.money||0)}`)}
     </div>`;
 
+    h+=`<div class="info-box" style="border-color:${note.color}55;background:${note.color}10"><p style="margin:0"><strong>${this._esc(note.icon)} Investor Note:</strong> <span style="font-weight:900;color:${note.color}">${this._esc(note.title)}</span> · ${this._esc(note.text)}</p></div>`;
     h+=`<div class="info-box"><p>📊 This is a simplified fictional market sim using real-world inspired names. Finance skill improves long-term drift and lowers trade friction slightly.</p></div>`;
+    h+=this._allocationHTML();
 
     h+=this._renderHoldings(G);
     h+=this._renderMarket(G);
@@ -495,6 +598,7 @@ const Stocks={
           <div style="display:flex;gap:4px;justify-content:flex-end;flex-wrap:wrap;margin-top:4px">
             <button class="btn-primary btn-sm" style="font-size:10px;padding:5px 8px;width:auto" onclick="Stocks.buy('${st.id}',1)">Buy 1</button>
             <button class="btn-primary btn-sm" style="font-size:10px;padding:5px 8px;width:auto" onclick="Stocks.buy('${st.id}',5)">Buy 5</button>
+            <button class="btn-primary btn-sm" style="font-size:10px;padding:5px 8px;width:auto" onclick="Stocks.buy('${st.id}',10)">Buy 10</button>
             <button class="btn-primary btn-sm" style="font-size:10px;padding:5px 8px;width:auto" onclick="Stocks.buyMax('${st.id}')">Max</button>
           </div>
           <div style="font-size:9px;color:var(--muted);font-weight:700;margin-top:3px">5 shares ≈ ${fmt(buy5)}</div>

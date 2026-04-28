@@ -27,9 +27,52 @@ const HUSTLE_VENTURES=[
 ];
 
 const Hustle={
+  VERSION:13,
+  ACTION_LIMITS:{focus:1,start:2,improve:3,rebrand:2,cashOut:2},
+  HISTORY_LIMIT:16,
+
   _esc(v){
     if(typeof escHTML==='function')return escHTML(v);
     return String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
+  },
+
+  _resetActionYearIfNeeded(G=window.G){
+    if(!G)return;
+    if(!G.hustle||typeof G.hustle!=='object')G.hustle={};
+    if(!Number.isFinite(G.hustle.actionYear))G.hustle.actionYear=G.age||0;
+    if(!G.hustle.actionUses||typeof G.hustle.actionUses!=='object')G.hustle.actionUses={};
+    if(G.hustle.actionYear!==(G.age||0)){
+      G.hustle.actionYear=G.age||0;
+      G.hustle.actionUses={};
+    }
+  },
+
+  _usesLeft(action,G=window.G){
+    if(!G)return 0;
+    this._resetActionYearIfNeeded(G);
+    const limit=this.ACTION_LIMITS[action]??99;
+    const used=G.hustle?.actionUses?.[action]||0;
+    return Math.max(0,limit-used);
+  },
+
+  _canUseAction(action,msg='That hustle action is already used enough this year. Age up to refresh.'){
+    const G=window.G;if(!G)return false;
+    this._resetActionYearIfNeeded(G);
+    if(this._usesLeft(action,G)<=0){UI.toast(msg,'bad');return false;}
+    return true;
+  },
+
+  _markAction(action,G=window.G){
+    if(!G)return;
+    this._resetActionYearIfNeeded(G);
+    G.hustle.actionUses[action]=(G.hustle.actionUses[action]||0)+1;
+  },
+
+  _recordHistory(type,label,amount=0,meta=''){
+    const G=window.G;if(!G)return;
+    this.ensureState(G);
+    G.hustle.history.unshift({age:G.age||0,type,label,amount,meta});
+    if(G.hustle.history.length>this.HISTORY_LIMIT)G.hustle.history.length=this.HISTORY_LIMIT;
   },
 
   ensureState(G=window.G){
@@ -45,7 +88,11 @@ const Hustle={
       ventures:h.ventures&&typeof h.ventures==='object'&&!Array.isArray(h.ventures)?h.ventures:{},
       bestYear:Number.isFinite(h.bestYear)?Math.max(0,Math.round(h.bestYear)):0,
       totalActions:Number.isFinite(h.totalActions)?Math.max(0,Math.round(h.totalActions)):0,
+      actionYear:Number.isFinite(h.actionYear)?h.actionYear:(window.G?.age||0),
+      actionUses:h.actionUses&&typeof h.actionUses==='object'?h.actionUses:{},
+      history:Array.isArray(h.history)?h.history:[],
     };
+    this._resetActionYearIfNeeded(G);
 
     if(G.hustle.ventures.onlyfans&&!G.hustle.ventures.premium_creator){
       G.hustle.ventures.premium_creator=G.hustle.ventures.onlyfans;
@@ -133,7 +180,7 @@ const Hustle={
       return;
     }
 
-    const actionUsed=G.hustle.lastActionAge===G.age;
+    const actionUsed=this._usesLeft('focus',G)<=0;
     const ventures=this.activeVentures(G);
     const ventureLimit=this.ventureLimit(G);
     const startable=this._startableVentures(G);
@@ -150,12 +197,13 @@ const Hustle={
       ${this._metricBox('Portfolio Quality',quality.score?`${quality.score}/100`:'—',quality.color,`${quality.label} · ${ventures.length}/${ventureLimit} slots`)}
     </div>`;
 
-    h+=`<div class="info-box"><p>💼 Hustles now have two layers: quick gigs for instant cash and ventures that compound yearly. Work one major hustle move per year, build momentum, then let strong ventures pay passively.</p></div>`;
+    h+=`<div class="info-box"><p>💼 Hustles now have two layers: quick gigs for instant cash and ventures that compound yearly. Work one major hustle move per year, improve ventures a few times, and let strong ventures pay passively.</p></div>`;
 
     h+=this._renderActiveVentures(G,ventures,actionUsed);
     h+=this._renderStartableVentures(G,startable,ventures.length,ventureLimit);
     h+=this._renderLockedVentures(nextIdeas);
     h+=this._renderQuickGigs(G,gigs,actionUsed);
+    h+=this._renderHistory(G);
 
     el.innerHTML=h;
   },
@@ -284,6 +332,16 @@ const Hustle={
     return h+'</div>';
   },
 
+  _renderHistory(G){
+    const rows=(G.hustle?.history||[]).slice(0,6);
+    if(!rows.length)return '';
+    let h='<div class="sec">Hustle History</div>';
+    rows.forEach(row=>{
+      h+=`<div class="row-card"><span class="ri">${row.type==='cashout'?'💰':row.type==='passive'?'📈':row.type==='start'?'🚀':'💼'}</span><div class="rd"><div class="rt">Age ${row.age} · ${this._esc(row.label)}</div><div class="rs">${this._esc(row.meta||row.type)}</div></div><div class="rv">${row.amount?fmt(row.amount):''}</div></div>`;
+    });
+    return h;
+  },
+
   startVenture(id){
     const G=window.G;if(!G)return;
     this.ensureState(G);
@@ -291,10 +349,12 @@ const Hustle={
     if(!def||(G.age||0)<def.minAge||!def.need(G)){UI.toast('That hustle is not unlocked yet.');return;}
     if(G.hustle.ventures[def.id]){UI.toast('You already run that venture.');return;}
     if(this.activeVentures(G).length>=this.ventureLimit(G)){UI.toast('You cannot manage another active venture yet.');return;}
+    if(!this._canUseAction('start','You already launched enough ventures this year. Age up to refresh.'))return;
     const cost=sc(def.startCost||0);
     if((G.money||0)<cost){UI.toast(`Need ${fmt(cost)} to start it.`);return;}
 
     G.money-=cost;
+    this._markAction('start',G);
     G.hustle.ventures[def.id]={
       id:def.id,
       level:1,
@@ -318,6 +378,7 @@ const Hustle={
       this._touchSocial(def,G,2);
     }
 
+    this._recordHistory('start',`Started ${def.name}`,-cost,'venture launched');
     Engine.log(`${def.icon} Started ${def.name} for ${fmt(cost)}.`, 'special');
     UI.update();this.render();
   },
@@ -326,7 +387,7 @@ const Hustle={
     const G=window.G;if(!G)return;
     this.ensureState(G);
     if((G.age||0)<13){UI.toast('Too young for hustle work.');return;}
-    if(G.hustle.lastActionAge===G.age){UI.toast('You already made your big hustle move this year.');return;}
+    if(!this._canUseAction('focus','You already made your big hustle move this year. Age up to refresh.'))return;
 
     const g=HUSTLE_GIGS.find(x=>x.id===id);
     if(!g||(G.age||0)<g.minAge||!g.need(G))return;
@@ -344,6 +405,7 @@ const Hustle={
     G.hustle.clients=Math.max(0,(G.hustle.clients||0)+r(1,3));
     G.hustle.lastGigAge=G.age;
     G.hustle.lastActionAge=G.age;
+    this._markAction('focus',G);
     G.hustle.streak=continued?(G.hustle.streak||0)+1:1;
     G.hustle.totalActions=(G.hustle.totalActions||0)+1;
     G.happiness=cl(G.happiness+r(2,7));
@@ -359,6 +421,7 @@ const Hustle={
       if(Math.random()<.35)G.followers=(G.followers||0)+r(20,140);
     }
 
+    this._recordHistory('gig',g.name,payout,'quick gig');
     Engine.log(`${g.icon} Side hustle: ${g.name} paid ${fmt(payout)} this year.`, 'money');
     UI.update();this.render();
   },
@@ -366,7 +429,7 @@ const Hustle={
   workVenture(id){
     const G=window.G;if(!G)return;
     this.ensureState(G);
-    if(G.hustle.lastActionAge===G.age){UI.toast('You already focused on a hustle this year.');return;}
+    if(!this._canUseAction('focus','You already focused on a hustle this year. Age up to refresh.'))return;
 
     const v=G.hustle.ventures[id];
     const def=this._ventureDef(id);
@@ -390,6 +453,7 @@ const Hustle={
     G.hustle.rep=cl((G.hustle.rep||0)+r(5,11),0,100);
     G.hustle.lastGigAge=G.age;
     G.hustle.lastActionAge=G.age;
+    this._markAction('focus',G);
     G.hustle.streak=continued?(G.hustle.streak||0)+1:1;
     G.hustle.totalActions=(G.hustle.totalActions||0)+1;
 
@@ -424,6 +488,7 @@ const Hustle={
 
     const levelTxt=v.level>beforeLevel?` Level up to Lv ${v.level}!`:'';
     const metricTxt=def.progress==='audience'?`+${fmtFollowers(growth)} subscribers / fans`:`+${Math.max(1,Math.round(growth/3))} clients`;
+    this._recordHistory('venture',def.name,payout,`${metricTxt}${levelTxt}`);
     Engine.log(`${def.icon} ${def.name} generated ${fmt(payout)} and ${metricTxt}.${levelTxt}`,v.level>beforeLevel?'special':'money');
     UI.update();this.render();
   },
@@ -435,15 +500,18 @@ const Hustle={
     const def=this._ventureDef(id);
     if(!v||!def)return;
 
+    if(!this._canUseAction('improve','You already improved enough ventures this year. Age up to refresh.'))return;
     const cost=this._improveCost(v,def);
     if((G.money||0)<cost){UI.toast(`Need ${fmt(cost)} to improve it.`);return;}
 
     G.money-=cost;
+    this._markAction('improve',G);
     v.quality=cl((v.quality||45)+r(9,16),0,100);
     v.momentum=cl((v.momentum||35)+r(4,10),0,100);
     v.brandRisk=cl((v.brandRisk||0)-r(3,8),0,100);
     v.progress=cl((v.progress||0)+r(5,12),0,100);
     G.hustle.rep=cl((G.hustle.rep||0)+r(1,4),0,100);
+    this._recordHistory('improve',`Improved ${def.name}`,-cost,'quality and momentum up');
     Engine.log(`🛠️ Improved ${def.name}. Quality and momentum rose, brand risk dropped.`, 'good');
     UI.update();this.render();
   },
@@ -451,7 +519,7 @@ const Hustle={
   onlyFansDrop(){
     const G=window.G;if(!G)return;
     this.ensureState(G);
-    if(G.hustle.lastActionAge===G.age){UI.toast('You already used your major hustle action this year.');return;}
+    if(!this._canUseAction('focus','You already used your major hustle action this year. Age up to refresh.'))return;
     const def=this._ventureDef('premium_creator');
     const v=G.hustle.ventures.premium_creator;
     if(!def||!v){UI.toast('You need an active OnlyFans venture first.');return;}
@@ -469,6 +537,7 @@ const Hustle={
     G.hustle.rep=cl((G.hustle.rep||0)+r(6,12),0,100);
     G.hustle.lastGigAge=G.age;
     G.hustle.lastActionAge=G.age;
+    this._markAction('focus',G);
     G.hustle.streak=continued?(G.hustle.streak||0)+1:1;
     G.hustle.totalActions=(G.hustle.totalActions||0)+1;
 
@@ -493,6 +562,7 @@ const Hustle={
     G.stress=cl((G.stress||0)+r(5,10));
     this._touchSocial(def,G,6);
 
+    this._recordHistory('venture','OnlyFans exclusive drop',payout,`+${fmtFollowers(growth)} subscribers`);
     Engine.log(`${def.icon} Exclusive OnlyFans drop earned ${fmt(payout)} and added ${fmtFollowers(growth)} subscribers.`, 'special');
     UI.update();this.render();
   },
@@ -500,7 +570,7 @@ const Hustle={
   onlyFansCustoms(){
     const G=window.G;if(!G)return;
     this.ensureState(G);
-    if(G.hustle.lastActionAge===G.age){UI.toast('You already used your major hustle action this year.');return;}
+    if(!this._canUseAction('focus','You already used your major hustle action this year. Age up to refresh.'))return;
     const def=this._ventureDef('premium_creator');
     const v=G.hustle.ventures.premium_creator;
     if(!def||!v){UI.toast('You need an active OnlyFans venture first.');return;}
@@ -517,6 +587,7 @@ const Hustle={
     G.hustle.rep=cl((G.hustle.rep||0)+r(5,10),0,100);
     G.hustle.lastGigAge=G.age;
     G.hustle.lastActionAge=G.age;
+    this._markAction('focus',G);
     G.hustle.streak=continued?(G.hustle.streak||0)+1:1;
     G.hustle.totalActions=(G.hustle.totalActions||0)+1;
 
@@ -540,6 +611,7 @@ const Hustle={
     G.stress=cl((G.stress||0)+r(8,14));
     this._touchSocial(def,G,5);
 
+    this._recordHistory('venture','OnlyFans VIP customs',payout,`+${fmtFollowers(growth)} subscribers`);
     Engine.log(`${def.icon} VIP customs on OnlyFans earned ${fmt(payout)} this year.`, 'money');
     UI.update();this.render();
   },
@@ -551,10 +623,12 @@ const Hustle={
     const v=G.hustle.ventures.premium_creator;
     if(!def||!v){UI.toast('You need an active OnlyFans venture first.');return;}
 
+    if(!this._canUseAction('rebrand','You already refreshed enough brands this year. Age up to refresh.'))return;
     const cost=sc(Math.round(2400+((v.level||1)*850)+((v.brandRisk||0)*22)));
     if((G.money||0)<cost){UI.toast(`Need ${fmt(cost)} to refresh the brand.`);return;}
 
     G.money-=cost;
+    this._markAction('rebrand',G);
     v.brandRisk=cl((v.brandRisk||35)-r(12,22),0,100);
     v.quality=cl((v.quality||45)+r(6,12),0,100);
     v.momentum=cl((v.momentum||35)+r(4,9),0,100);
@@ -563,6 +637,7 @@ const Hustle={
     G.happiness=cl(G.happiness+r(2,5));
     G.stress=cl((G.stress||0)-r(2,6));
 
+    this._recordHistory('rebrand',`Rebranded ${def.name}`,-cost,'brand risk down');
     Engine.log(`${def.icon} Rebranded ${def.name}. Quality improved and brand risk came down.`, 'good');
     UI.update();this.render();
   },
@@ -573,15 +648,18 @@ const Hustle={
     const v=G.hustle.ventures[id];
     const def=this._ventureDef(id);
     if(!v||!def)return;
+    if(!this._canUseAction('cashOut','You already cashed out enough ventures this year. Age up to refresh.'))return;
 
     const cash=this._cashoutValue(v,def,G);
     if(!confirm(`Cash out ${def.name}?\n\nYou will receive ${fmt(cash)}.\n\nThis removes the venture permanently.`))return;
 
+    this._markAction('cashOut',G);
     G.money=(G.money||0)+cash;
     G.hustle.earnings=(G.hustle.earnings||0)+cash;
     G.hustle.rep=cl((G.hustle.rep||0)+r(1,4),0,100);
     delete G.hustle.ventures[id];
     G.hustle.clients=this.activeVentures(G).reduce((sum,x)=>sum+(x.clients||0),0);
+    this._recordHistory('cashout',`Cashed out ${def.name}`,cash,'venture removed');
     Engine.log(`${def.icon} Cashed out ${def.name} for ${fmt(cash)}.`, 'money');
     UI.update();this.render();
   },
@@ -644,7 +722,10 @@ const Hustle={
 
     G.hustle.clients=ventures.reduce((sum,v)=>sum+(v.clients||0),0);
     G.hustle.bestYear=Math.max(G.hustle.bestYear||0,total);
-    if(total>0)Engine.log(`💼 Your hustle portfolio brought in ${fmt(total)} this year.`, 'money');
+    if(total>0){
+      this._recordHistory('passive','Portfolio income',total,`${ventures.length} active venture${ventures.length!==1?'s':''}`);
+      Engine.log(`💼 Your hustle portfolio brought in ${fmt(total)} this year.`, 'money');
+    }
     if(!workedLastYear)Engine.log('📉 Your side hustles cooled off because you did not push them last year.', 'neutral');
 
     if((G.hustle.rep||0)>=45&&Math.random()<.18){

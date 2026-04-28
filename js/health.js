@@ -24,6 +24,54 @@ const Health={
     {key:'obesity',icon:'🍔',name:'Obesity',desc:'Long-term weight and lifestyle strain',health:-3,happiness:-1,effect:'-3 Health/yr'},
   ],
 
+  ACTION_LIMITS:{
+    foodPlan:3,
+    visit:4,
+    treat:4,
+    sexualCheckup:2,
+    rehab:1,
+    screen:3,
+    supplement:6,
+    lifestyle:3,
+    surgery:2,
+    quit:2,
+  },
+
+  _resetActionYearIfNeeded(G=window.G){
+    if(!G)return;
+    if(!Number.isFinite(G.healthActionYear))G.healthActionYear=G.age||0;
+    if(!G.healthActionUses||typeof G.healthActionUses!=='object')G.healthActionUses={};
+    if(G.healthActionYear!==(G.age||0)){
+      G.healthActionYear=G.age||0;
+      G.healthActionUses={};
+    }
+  },
+
+  _usesLeft(action,G=window.G){
+    if(!G)return 0;
+    this._resetActionYearIfNeeded(G);
+    const limit=this.ACTION_LIMITS[action]??99;
+    const used=G.healthActionUses?.[action]||0;
+    return Math.max(0,limit-used);
+  },
+
+  _canUseAction(action,msg='You already used that health action enough this year. Age up to refresh.'){
+    const G=window.G;
+    if(!G)return false;
+    this._resetActionYearIfNeeded(G);
+    if(this._usesLeft(action,G)<=0){
+      UI.toast(msg,'bad');
+      return false;
+    }
+    return true;
+  },
+
+  _markAction(action,G=window.G){
+    if(!G)return;
+    this._resetActionYearIfNeeded(G);
+    G.healthActionUses[action]=(G.healthActionUses[action]||0)+1;
+  },
+
   _esc(v){
     if(typeof escHTML==='function')return escHTML(v);
     return String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
@@ -76,6 +124,8 @@ const Health={
         <div class="nw-sub">Nutrition ${nutrition}% · Food security ${food.foodSecurity}% · Household ${this._esc(household.label)}</div>
         <div class="nw-sub">Last bill ${fmt(food.lastCost||0)} · Groceries ${fmt(food.groceryCost||0)} · Eating out ${fmt(food.diningCost||0)}</div>
       </div>`;
+
+    h+=`<div class="info-box"><p>🩺 Health actions this year: visits ${this._usesLeft('visit')}, screenings ${this._usesLeft('screen')}, supplements ${this._usesLeft('supplement')}, lifestyle ${this._usesLeft('lifestyle')}. Age Up refreshes these limits.</p></div>`;
 
     h+=this._renderConditions(G);
     h+=this._renderRecovery(G,recovery);
@@ -215,6 +265,9 @@ const Health={
   setFoodPlan(plan){
     const G=window.G;if(!G||!this.FOOD_PLANS[plan])return;
     this._ensureState(G);
+    if(G.food.plan===plan){UI.toast('That food plan is already selected.');return;}
+    if(!this._canUseAction('foodPlan'))return;
+    this._markAction('foodPlan');
     G.food.plan=plan;
     G.food.lastChoiceLabel=this.FOOD_PLANS[plan].label;
     const cost=this._foodCost(this.FOOD_PLANS[plan],G);
@@ -243,6 +296,8 @@ const Health={
   visit(t){
     const G=window.G;if(!G)return;
     this._ensureState(G);
+    if(!this._canUseAction('visit'))return;
+    this._markAction('visit');
     const costs={gp:100,specialist:600,hospital:2000,mental:160};
     const cost=sc(costs[t]||100);
     const ok=this._payMedical(`${t} visit`,cost);
@@ -280,6 +335,8 @@ const Health={
     const G=window.G;if(!G)return;
     this._ensureState(G);
     if((G.conditions||[]).length<=i)return;
+    if(!this._canUseAction('treat'))return;
+    this._markAction('treat');
     const c=G.conditions[i];
     const cost=sc(c?.key==='cancer'?1800:c?.key==='afib'?1200:800);
     const ok=this._payMedical('condition treatment',cost);
@@ -297,6 +354,8 @@ const Health={
   sexualCheckup(){
     const G=window.G;if(!G)return;
     this._ensureState(G);
+    if(!this._canUseAction('sexualCheckup'))return;
+    this._markAction('sexualCheckup');
     const sti=G.sexualHealth?.sti||G.sexualHealth?.std;
     const cost=sc(sti?400:120);
     this._payMedical('sexual health checkup',cost);
@@ -316,9 +375,11 @@ const Health={
   rehab(){
     const G=window.G;if(!G)return;
     this._ensureState(G);
+    if(!this._canUseAction('rehab'))return;
     const cost=sc(3500);
     if((G.money||0)<cost){UI.toast(`Need ${fmt(cost)}!`);return;}
     G.money-=cost;
+    this._markAction('rehab');
     G.addictions=G.addictions||{};
     delete G.addictions.smoking;
     delete G.addictions.alcohol;
@@ -337,6 +398,8 @@ const Health={
   screen(t){
     const G=window.G;if(!G)return;
     this._ensureState(G);
+    if(!this._canUseAction('screen'))return;
+    this._markAction('screen');
     const costs={blood:150,cancer:300,heart:400,genetic:800};
     const cost=sc(costs[t]||150);
     this._payMedical(`${t} screening`,cost);
@@ -358,10 +421,12 @@ const Health={
   sup(t){
     const G=window.G;if(!G)return;
     this._ensureState(G);
+    if(!this._canUseAction('supplement'))return;
     const costs={vitamins:40,protein:45,steroids:500,nootropics:120};
     const cost=sc(costs[t]||0);
     if(cost>0&&(G.money||0)<cost){UI.toast(`Need ${fmt(cost)}!`);return;}
     if(cost>0)G.money-=cost;
+    this._markAction('supplement');
 
     if(t==='vitamins'){
       G.health=cl(G.health+r(1,4));
@@ -398,6 +463,8 @@ const Health={
   lifestyle(t){
     const G=window.G;if(!G)return;
     this._ensureState(G);
+    if(!this._canUseAction('lifestyle'))return;
+    this._markAction('lifestyle');
 
     if(t==='vegan'){
       G.health=cl(G.health+r(5,10));
@@ -437,6 +504,8 @@ const Health={
     this._ensureState(G);
     if(type==='drugs'){UI.toast('Use rehab for drug addiction.');return;}
     if(!G.addictions?.[type]){UI.toast('No active addiction of that type.');return;}
+    if(!this._canUseAction('quit'))return;
+    this._markAction('quit');
 
     delete G.addictions[type];
     this._markRecovery();
@@ -462,6 +531,8 @@ const Health={
     const G=window.G;if(!G)return;
     this._ensureState(G);
     if((G.age||0)<18){UI.toast('Surgery unlocks at 18.');return;}
+    if(!this._canUseAction('surgery'))return;
+    this._markAction('surgery');
     const costs={eyes:3000,heart:25000,joint:14000,cosmetic:9000};
     const cost=sc(costs[t]||9000);
     const okPay=this._payMedical(`${t} surgery`,cost);
@@ -507,6 +578,9 @@ const Health={
     if(!G.addictions)G.addictions={};
     if(!G.recovery)G.recovery={active:false,cleanStreak:0,rehabCount:0,relapseChance:0.18};
     if(!G.sexualHealth)G.sexualHealth={partners:0,protectedEncounters:0,unprotectedEncounters:0,sti:false,std:false};
+    if(!G.healthActionUses||typeof G.healthActionUses!=='object')G.healthActionUses={};
+    if(!Number.isFinite(G.healthActionYear))G.healthActionYear=G.age||0;
+    this._resetActionYearIfNeeded(G);
     this._ensureFoodState(G);
     if(!Number.isFinite(G.health))G.health=60;
     if(!Number.isFinite(G.happiness))G.happiness=60;
@@ -541,7 +615,7 @@ const Health={
 
   _foodCost(plan,G){
     const hh=this._foodHousehold(G);
-    const total=Math.round(annualCost(plan.cost)*hh.equivalent);
+    const total=Math.round(annualCost(plan.cost,G)*hh.equivalent);
     return{total,groceries:Math.round(total*(plan.groceries??.65)),dining:Math.round(total*(plan.dining??.35)),household:hh};
   },
 
@@ -676,13 +750,13 @@ const Health={
     });
 
     if(G.addictions?.smoking){G.health=cl(G.health-r(3,6));G.fitness=cl((G.fitness||50)-r(1,3));}
-    if(G.addictions?.alcohol){G.health=cl(G.health-r(2,5));G.happiness=cl(G.happiness-r(1,3));G.money=Math.max(0,(G.money||0)-annualCost(450));}
-    if(G.addictions?.drugs){G.health=cl(G.health-r(7,14));G.happiness=cl(G.happiness-r(4,8));G.stress=cl((G.stress||0)+r(6,12));G.money=Math.max(0,(G.money||0)-annualCost(900));}
+    if(G.addictions?.alcohol){G.health=cl(G.health-r(2,5));G.happiness=cl(G.happiness-r(1,3));G.money=Math.max(0,(G.money||0)-annualCost(450,G));}
+    if(G.addictions?.drugs){G.health=cl(G.health-r(7,14));G.happiness=cl(G.happiness-r(4,8));G.stress=cl((G.stress||0)+r(6,12));G.money=Math.max(0,(G.money||0)-annualCost(900,G));}
 
-    if((G.conditions||[]).length>0&&Math.random()<.35)this._payMedical('ongoing treatment',annualCost(700+(G.conditions.length*350)));
+    if((G.conditions||[]).length>0&&Math.random()<.35)this._payMedical('ongoing treatment',annualCost(700+(G.conditions.length*350),G));
     if(G.sexualHealth?.sti||G.sexualHealth?.std){
       G.health=cl(G.health-r(2,5));
-      if(Math.random()<.4)this._payMedical('sti treatment',annualCost(350));
+      if(Math.random()<.4)this._payMedical('sti treatment',annualCost(350,G));
     }
 
     if(G.trait==='resilient'&&(G.age||0)>45)G.health=cl(G.health+1);

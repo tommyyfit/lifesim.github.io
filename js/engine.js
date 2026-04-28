@@ -7,6 +7,7 @@ const Engine={
   _safe(label,fn){try{return fn();}catch(e){console.warn(label,e);return null;}},
   _esc(v){return String(v??'').replace(/[&<>'\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;', '"':'&quot;'}[c]));},
   _snap(G){return{happiness:G.happiness,health:G.health,smarts:G.smarts,looks:G.looks,fitness:G.fitness||50,stress:G.stress||0,money:G.money,fame:G.fame||0,karma:G.karma||0};},
+
   _resolveGlobal(name){
     if(!name)return undefined;
     if(Object.prototype.hasOwnProperty.call(globalThis,name))return globalThis[name];
@@ -39,34 +40,52 @@ const Engine={
   ageUp(){
     const G=window.G;if(!G||!G.alive||this._aging)return;
     this._aging=true;
+
     const btns=[document.getElementById('age-btn'),document.getElementById('age-btn-side')].filter(Boolean);
-    btns.forEach(b=>{b.disabled=true;b.classList?.add('is-aging');});
-    G.age=(G.age||0)+1;
-    G.year=(G.year||0)+1;
-    this._ensureCoreState(G);
-
-    this._moduleOrder.forEach(path=>this._safePath(path));
-    this._retirementTick();
-    this._snapshotStats();
-    this._safe('Chapters.checkAndRecord',()=>{if(typeof Chapters!=='undefined')Chapters.checkAndRecord(G);});
-    this._trackSpecialStreaks();
-    this._drift();
-
-    const pendingEvts=[];
-    this._queueEvents(pendingEvts);
-    this._modalSkipCb=null;
-    this._processQueue(pendingEvts,()=>{
-      try{
-        if(!this._checkDeath()){
-          UI.update();
-          this.checkAch();
-          UI.refreshActiveTab();
-          if(typeof Save!=='undefined')Save.save(G);
-        }
-      }catch(e){console.warn('Post-event error:',e);}
+    const finish=()=>{
       btns.forEach(b=>{b.disabled=false;b.classList?.remove('is-aging');});
+      this._modalSkipCb=null;
       this._aging=false;
-    });
+    };
+
+    btns.forEach(b=>{b.disabled=true;b.classList?.add('is-aging');});
+
+    try{
+      G.age=(G.age||0)+1;
+      G.year=(G.year||0)+1;
+      G.ageUpSerial=(G.ageUpSerial||0)+1;
+      this._ensureCoreState(G);
+
+      this._moduleOrder.forEach(path=>this._safePath(path));
+      this._retirementTick();
+      this._snapshotStats();
+      this._safe('Chapters.checkAndRecord',()=>{if(typeof Chapters!=='undefined')Chapters.checkAndRecord(G);});
+      this._trackSpecialStreaks();
+      this._drift();
+
+      const pendingEvts=[];
+      this._queueEvents(pendingEvts);
+      this._modalSkipCb=null;
+
+      this._processQueue(pendingEvts,()=>{
+        try{
+          if(!this._checkDeath()){
+            UI.update();
+            this.checkAch();
+            UI.refreshActiveTab();
+            if(typeof Save!=='undefined')Save.save(G);
+          }
+        }catch(e){
+          console.warn('Post-event error:',e);
+        }finally{
+          finish();
+        }
+      });
+    }catch(e){
+      console.warn('Age up failed:',e);
+      finish();
+      UI.toast?.('Age Up hit an error. Check console for details.','bad');
+    }
   },
 
   _safePath(path){
@@ -92,6 +111,11 @@ const Engine={
     if(!Number.isFinite(G.fame))G.fame=0;
     if(!Number.isFinite(G.money))G.money=0;
     if(!Array.isArray(G.countriesVisited))G.countriesVisited=[];
+
+    // v13.1: memory for normal Age Up events and world events.
+    if(!Array.isArray(G.eventMemory))G.eventMemory=[];
+    if(!Array.isArray(G.worldEventMemory))G.worldEventMemory=[];
+    if(!Number.isFinite(G.ageUpSerial))G.ageUpSerial=0;
   },
 
   _retirementTick(){
@@ -120,34 +144,111 @@ const Engine={
     G.healthyStreak=(G.health||0)>=80?(G.healthyStreak||0)+1:0;
   },
 
+  _eventKey(evt){
+    if(!evt)return'event:unknown';
+    const raw=evt.id||evt.tag||evt.title||evt.name||evt.text||evt.icon||'unknown';
+    const kind=evt._world?'world':'life';
+    return `${kind}:${String(raw).trim().toLowerCase().replace(/\s+/g,' ').slice(0,140)}`;
+  },
+
+  _rememberLifeEvent(evt){
+    const G=window.G;if(!G||!evt)return;
+    if(!Array.isArray(G.eventMemory))G.eventMemory=[];
+    const key=this._eventKey(evt);
+    G.eventMemory.unshift({age:G.age||0,key,title:evt.title||evt.name||evt.text||'Event'});
+    if(G.eventMemory.length>28)G.eventMemory.length=28;
+  },
+
+  _rememberWorldEvent(evt){
+    const G=window.G;if(!G||!evt)return;
+    if(!Array.isArray(G.worldEventMemory))G.worldEventMemory=[];
+    const key=this._eventKey({...evt,_world:true});
+    G.worldEventMemory.unshift({age:G.age||0,key,title:evt.title||evt.name||evt.text||'World Event'});
+    if(G.worldEventMemory.length>18)G.worldEventMemory.length=18;
+  },
+
+  _pickFreshEvent(pool,queue,{world=false}={}){
+    const G=window.G;
+    if(!Array.isArray(pool)||!pool.length)return null;
+
+    const recentLife=new Set((G.eventMemory||[]).slice(0,14).map(e=>e.key));
+    const recentWorld=new Set((G.worldEventMemory||[]).slice(0,8).map(e=>e.key));
+    const alreadyQueued=new Set((queue||[]).map(e=>this._eventKey(e)));
+
+    const normalized=pool.map(evt=>world?{...evt,_world:true}:evt);
+    let candidates=normalized.filter(evt=>{
+      const key=this._eventKey(evt);
+      if(alreadyQueued.has(key))return false;
+      return world?!recentWorld.has(key):!recentLife.has(key);
+    });
+
+    if(!candidates.length){
+      candidates=normalized.filter(evt=>!alreadyQueued.has(this._eventKey(evt)));
+    }
+
+    if(!candidates.length)candidates=normalized;
+    return pick(candidates);
+  },
+
   _queueEvents(queue){
     const G=window.G;if(!G||typeof EVENTS==='undefined')return;
     if(G.inPrison)return;
+
     const pool=G.age<=12?EVENTS.childhood:G.age<=17?EVENTS.teen:G.age<=59?EVENTS.adult:EVENTS.elder;
     if(!Array.isArray(pool)||!pool.length)return;
+
     const extraChance={easy:.18,normal:.35,hard:.48,extreme:.62,custom:.35}[G.difficulty||'normal']??.35;
     const maxEvents=(G.stress||0)>85?3:2;
     const n=Math.min(maxEvents,Math.random()<extraChance?2:1);
-    for(let i=0;i<n;i++){const evt=pick(pool);if(evt)queue.push(evt);}
+
+    for(let i=0;i<n;i++){
+      const evt=this._pickFreshEvent(pool,queue);
+      if(evt){
+        queue.push(evt);
+        this._rememberLifeEvent(evt);
+      }
+    }
+
     const worldChance={easy:.08,normal:.12,hard:.16,extreme:.22,custom:.12}[G.difficulty||'normal']??.12;
     if(G.age>18&&Math.random()<worldChance&&typeof WORLD_EVENTS!=='undefined'){
-      const we=pick(WORLD_EVENTS);if(we)queue.push({...we,_world:true});
+      const we=this._pickFreshEvent(WORLD_EVENTS,queue,{world:true});
+      if(we){
+        queue.push(we);
+        this._rememberWorldEvent(we);
+      }
     }
   },
 
   _processQueue(queue,done){
     if(!queue||queue.length===0){done&&done();return;}
+
     const evt=queue.shift();
     if(!evt){this._processQueue(queue,done);return;}
+
     if(evt._world&&evt.tag){
       const G=window.G;G.achievements=G.achievements||{};
       if(evt.tag==='recession')G.achievements.survived_recession=true;
       if(evt.tag==='pandemic')G.achievements.survived_pandemic=true;
       if(evt.tag==='boom')G.achievements.boom_profit=true;
     }
-    this._modalSkipCb=()=>setTimeout(()=>this._processQueue(queue,done),120);
-    if(typeof UI!=='undefined'&&typeof UI.showEvent==='function')UI.showEvent(evt,()=>{this._modalSkipCb=null;setTimeout(()=>this._processQueue(queue,done),120);});
-    else{this._modalSkipCb=null;this._processQueue(queue,done);}
+
+    let settled=false;
+    const next=()=>{
+      if(settled)return;
+      settled=true;
+      this._modalSkipCb=null;
+      setTimeout(()=>this._processQueue(queue,done),120);
+    };
+
+    this._modalSkipCb=next;
+
+    try{
+      if(typeof UI!=='undefined'&&typeof UI.showEvent==='function')UI.showEvent(evt,next);
+      else next();
+    }catch(e){
+      console.warn('Event modal failed:',e);
+      next();
+    }
   },
 
   act(id){
@@ -341,7 +442,8 @@ const Engine={
     ].map(([l,v,s])=>`<div class="dstat-row"><span class="dstat-l">${this._esc(l)}</span><span class="dstat-v" style="${s}">${this._esc(v)}</span></div>`).join('');}
     const prevLife=typeof Save!=='undefined'?(Save.hofAll()||[])[0]:null;
     if(typeof Save!=='undefined')Save.hof({name:`${G.name} ${G.surname}`,age:G.age,country:G.country?.flag,countryName:G.country?.name,netWorth:nw,career:G.career?.title||(G.retired?'Retired':'Unemployed'),educationLabel:this._educationLabel(G),partnerStatus:this._partnerStatus(G),children:(G.rels?.children||[]).length,cause,grade:grade.g,score,happiness:G.happiness,health:G.health,followers:G.followers||0,completedGoals,totalGoals,topSkills,ambitionAchieved:!!G.ambitionAchieved,highlight:story.slice(0,2).join(' ')});
-    const prev=document.getElementById('dt-prev');
+
+    const prev=document.getElementById('dt-prev')||document.getElementById('dt-prev-compare');
     if(prev&&prevLife)prev.innerHTML=`<div style="background:var(--s1);border:1.5px solid var(--b2);border-radius:12px;padding:12px 14px;margin-bottom:14px"><div style="font-size:10px;font-weight:900;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">🔄 vs Your Last Life</div><div style="display:grid;grid-template-columns:1fr auto auto;gap:6px 12px;font-size:12px;font-weight:700"><span style="color:var(--muted)">Stat</span><span style="color:var(--muted)">Last</span><span style="color:var(--muted)">Now</span><span>Age</span><span>${prevLife.age}</span><span style="color:${G.age>=prevLife.age?'var(--green)':'var(--red)'}">${G.age}</span><span>Grade</span><span>${prevLife.grade}</span><span style="color:var(--yellow)">${grade.g}</span><span>Net Worth</span><span>${fmtFull(prevLife.netWorth)}</span><span style="color:${nw>=prevLife.netWorth?'var(--green)':'var(--red)'}">${fmtFull(nw)}</span></div></div>`;
     this._safe('Legacy.recordLife',()=>{if(typeof Legacy!=='undefined')Legacy.recordLife(`${G.name} ${G.surname}`,grade.g,score);});
     if(typeof Save!=='undefined')Save.clear();

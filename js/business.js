@@ -33,6 +33,24 @@ const Business={
     bribe:{icon:'⚖️',label:'Compliance Lawyer',cost:0,desc:'Reduce audit heat'},
   },
 
+  ACTION_LIMITS:{
+    market:2,
+    hire:2,
+    expand:1,
+    efficiency:1,
+    franchise:1,
+    pivot:1,
+    ipo:1,
+    sell:99,
+    insurance:1,
+    pr:2,
+    taxhack:1,
+    bribe:1,
+  },
+
+  HISTORY_LIMIT:12,
+  EVENT_MEMORY_LIMIT:10,
+
   render(){
     const G=window.G;
     if(!G)return;
@@ -52,6 +70,7 @@ const Business={
       const taxSub=b.taxHackActive?'Pay accountants and reduce heat':'Short-term cash, real audit risk';
       const lawyerCost=this.bribeCost(b);
       const valuationMultiple=this.valuationMultiple(b);
+      const actionSummary=this._actionSummary(b);
 
       h+=`<div class="biz-hero">
         <div class="biz-ico">${b.icon}</div>
@@ -64,14 +83,15 @@ const Business={
         ${this._metricBox('Business Health',`${health.score}%`,health.color,health.label)}
         ${this._metricBox('Audit Heat',`${auditRisk}%`,riskColor,`${b.taxHackActive?'Aggressive scheme active':'Books are clean'}${b.bribeShield>0?` · legal cover ${b.bribeShield}y`:''}`)}
         ${this._metricBox('Brand Power',`${b.brand||0}/100`,'var(--teal)',`Quality ${b.quality||0}/100 · staff ${b.staff||0}`)}
-        ${this._metricBox('Hidden Tax Gain',fmt(b.lastTaxSavings||0),'',`${b.taxHackYears||0} dirty year${(b.taxHackYears||0)!==1?'s':''} · legal fees ${fmt(b.totalBribes||0)}`)}
+        ${this._metricBox('Operations',`${b.systems||0}/100`,'',`${actionSummary} · morale ${b.morale||0}/100`)}
       </div>`;
 
       h+=this._renderOperations(b,taxLabel,taxSub,lawyerCost);
       h+=this._renderRiskPanel(b,auditRisk,profit,margin);
+      h+=this._renderHistory(b);
     }else{
       if((G.age||0)<18){el.innerHTML='<div class="empty"><span class="ei">🏢</span><p>Must be 18 to start a business.</p></div>';return;}
-      h+=`<div class="info-box"><p>🚀 Build your own business empire. Better businesses compound fast, but growth, debt, taxes and bad management can destroy weak operators.</p></div>
+      h+=`<div class="info-box"><p>🚀 Build your own business empire. Better businesses compound fast, but growth, cashflow, taxes and bad management can destroy weak operators.</p></div>
       <div class="sec">🚀 Start a Business</div>`;
       this.TYPES.forEach(t=>{
         const cost=sc(t.startCost);
@@ -90,37 +110,61 @@ const Business={
 
   _renderOperations(b,taxLabel,taxSub,lawyerCost){
     return `<div class="sec">Operations</div>
+      <div class="info-box"><p>🧭 Actions now have yearly limits to prevent spam-click exploits. Age up to refresh your management bandwidth.</p></div>
       <div class="act-grid">
-        ${this._actionCard('market',`+Revenue (${fmt(sc(2000))})`)}
-        ${this._actionCard('hire','+Revenue +Staff')}
-        ${this._actionCard('expand',`Scale up (${fmt(sc(10000))})`)}
-        ${this._actionCard('efficiency','-Expenses +systems')}
+        ${this._actionCard('market',`+Revenue (${fmt(sc(2000))})`,false,'',b)}
+        ${this._actionCard('hire','+Revenue +Staff',false,'',b)}
+        ${this._actionCard('expand',`Scale up (${fmt(sc(10000))})`,false,'',b)}
+        ${this._actionCard('efficiency','-Expenses +systems',false,'',b)}
       </div>
       <div class="act-grid" style="margin-top:8px">
-        ${this._actionCard('franchise',`Major scale (${fmt(sc(50000))})`)}
-        ${this._actionCard('pivot','Change model')}
-        ${this._actionCard('ipo',`Need ${fmt(sc(1000000))}+ value`)}
-        ${this._actionCard('sell','Cash out',true)}
+        ${this._actionCard('franchise',`Major scale (${fmt(sc(50000))})`,false,'',b)}
+        ${this._actionCard('pivot','Change model',false,'',b)}
+        ${this._actionCard('ipo',`Need ${fmt(sc(1000000))}+ value`,false,'',b)}
+        ${this._actionCard('sell','Cash out',true,'',b)}
       </div>
       <div class="act-grid" style="margin-top:8px">
-        ${this._actionCard('insurance',b.insured?'Already insured':`Protect (${fmt(sc(2000))})`,false,b.insured?'special':'')}
-        ${this._actionCard('pr','+Fame +Brand')}
-        <div class="card ${b.taxHackActive?'danger':''}" onclick="Business.act('taxhack')"><span class="ci">🧾</span><span class="cn">${taxLabel}</span><span class="cd">${taxSub}</span></div>
-        <div class="card" onclick="Business.act('bribe')"><span class="ci">⚖️</span><span class="cn">Compliance Lawyer</span><span class="cd">${fmt(lawyerCost)} · lowers audit risk</span></div>
+        ${this._actionCard('insurance',b.insured?'Already insured':`Protect (${fmt(sc(2000))})`,false,b.insured?'special':'',b)}
+        ${this._actionCard('pr','+Fame +Brand',false,'',b)}
+        ${this._customActionCard('taxhack','🧾',taxLabel,taxSub,b,b.taxHackActive?'danger':'')}
+        ${this._customActionCard('bribe','⚖️','Compliance Lawyer',`${fmt(lawyerCost)} · lowers audit risk`,b)}
       </div>`;
   },
 
   _renderRiskPanel(b,auditRisk,profit,margin){
     const status=profit<0?'Burning cash':margin>=35?'Highly profitable':margin>=15?'Healthy margin':'Thin margin';
     const risk=auditRisk>=55?'High audit pressure':auditRisk>=30?'Moderate audit pressure':'Low audit pressure';
+    const dirty=b.taxHackActive?` Dirty books are active and have run for ${b.taxHackYears||0} year${(b.taxHackYears||0)!==1?'s':''}.`:'';
     return `<div class="info-box" style="border-color:${auditRisk>=55?'rgba(248,113,113,.35)':auditRisk>=30?'rgba(251,191,36,.35)':'rgba(74,222,128,.35)'}">
-      <p>📊 Status: ${status}. ${risk}. Brand, quality, staff and systems now affect growth, crisis resistance and valuation.</p>
+      <p>📊 Status: ${status}. ${risk}. Brand, quality, staff, morale and systems affect growth, crisis resistance and valuation.${dirty}</p>
     </div>`;
   },
 
-  _actionCard(id,sub,danger=false,extraClass=''){
+  _renderHistory(b){
+    const history=(b.history||[]).slice(0,5);
+    if(!history.length)return '';
+    let h='<div class="sec">Recent Business History</div>';
+    history.forEach(row=>{
+      const p=row.profit||0;
+      h+=`<div class="row-card">
+        <span class="ri">${p>=0?'📈':'📉'}</span>
+        <div class="rd"><div class="rt">Age ${row.age} · Year ${row.year}</div><div class="rs">Profit ${fmt(p)} · Revenue ${fmt(row.revenue)} · Value ${fmt(row.value)} · Health ${row.health}%</div></div>
+        <div class="rv">${p>=0?'+':'−'}</div>
+      </div>`;
+    });
+    return h;
+  },
+
+  _actionCard(id,sub,danger=false,extraClass='',b=null){
     const a=this.ACTIONS[id];
-    return `<div class="card ${danger?'danger ':''}${extraClass}" onclick="Business.act('${id}')"><span class="ci">${a.icon}</span><span class="cn">${a.label}</span><span class="cd">${sub||a.desc}</span></div>`;
+    return this._customActionCard(id,a.icon,a.label,sub||a.desc,b,`${danger?'danger ':''}${extraClass}`);
+  },
+
+  _customActionCard(id,icon,label,sub,b=null,extraClass=''){
+    const blocked=b&&!this._canUseAction(b,id);
+    const left=b?this._usesLeft(b,id):null;
+    const leftTxt=b&&left!==null&&left<99?` · ${left} left this year`:'';
+    return `<div class="card ${extraClass||''} ${blocked?'locked':''}" onclick="${blocked?'':`Business.act('${id}')`}"><span class="ci">${icon}</span><span class="cn">${label}</span><span class="cd">${sub||''}${leftTxt}</span></div>`;
   },
 
   _metricBox(label,value,color,sub){
@@ -143,7 +187,8 @@ const Business={
       id:t.id,icon:t.icon,name:t.name,desc:t.desc,revenue:t.rev,expenses:t.expenses,
       value:cost,growthRate:t.growthRate,foundedAge:G.age,yearsOpen:0,insured:false,
       brand:r(8,18),quality:r(42,58),staff:0,systems:r(25,45),morale:r(45,60),
-      taxHackActive:false,auditHeat:0,bribeShield:0,lastTaxSavings:0,taxHackYears:0,totalBribes:0
+      taxHackActive:false,auditHeat:0,bribeShield:0,lastTaxSavings:0,taxHackYears:0,totalBribes:0,
+      actionYear:G.age,actionUses:{},history:[],eventMemory:[],lastProfit:0,lastGrowthPct:0,lastCrisisAge:-999,lastBoomAge:-999
     };
     Engine.log(`🚀 Launched ${t.name}! Invested ${fmt(cost)}. Year 1 begins.`,'special');
     G.happiness=cl((G.happiness||50)+15);
@@ -178,24 +223,37 @@ const Business={
     if(!Number.isFinite(b.value))b.value=sc(1000);
     if(!Number.isFinite(b.growthRate))b.growthRate=.10;
     if(!Number.isFinite(b.yearsOpen))b.yearsOpen=0;
+    if(!Number.isFinite(b.lastProfit))b.lastProfit=0;
+    if(!Number.isFinite(b.lastGrowthPct))b.lastGrowthPct=0;
+    if(!Number.isFinite(b.lastCrisisAge))b.lastCrisisAge=-999;
+    if(!Number.isFinite(b.lastBoomAge))b.lastBoomAge=-999;
+    if(!Array.isArray(b.history))b.history=[];
+    if(!Array.isArray(b.eventMemory))b.eventMemory=[];
+    if(!b.actionUses||typeof b.actionUses!=='object')b.actionUses={};
+    if(!Number.isFinite(b.actionYear))b.actionYear=window.G?.age||0;
+    this._resetYearActionsIfNeeded(b);
   },
 
   margin(b){
-    return Math.round((((b.revenue||0)-(b.expenses||0))/Math.max(1,b.revenue||1))*100);
+    const revenue=Math.max(1,b.revenue||1);
+    return Math.round((((b.revenue||0)-(b.expenses||0))/revenue)*100);
   },
 
   valuationMultiple(b){
     const margin=this.margin(b);
-    let mult=1.6+(b.growthRate||0)*8+((b.brand||0)/100)*1.2+((b.systems||0)/100)*0.8;
+    let mult=1.6+(b.growthRate||0)*8+((b.brand||0)/100)*1.2+((b.systems||0)/100)*0.8+((b.quality||0)/100)*0.5;
     if(margin>35)mult+=0.8;
+    if(margin>55)mult+=0.4;
     if(margin<0)mult-=0.9;
+    if(this.auditRisk(b)>55)mult-=0.5;
     return Math.max(0.6,Math.round(mult*10)/10);
   },
 
   businessHealth(b){
     const profit=(b.revenue||0)-(b.expenses||0);
-    const profitScore=profit>0?25:Math.max(0,15+profit/Math.max(1,b.expenses||1)*30);
-    const score=cl(profitScore+(b.brand||0)*0.22+(b.quality||0)*0.20+(b.systems||0)*0.20+(b.morale||0)*0.15-(this.auditRisk(b)*0.18));
+    const margin=this.margin(b);
+    const profitScore=profit>0?Math.min(28,18+margin*.22):Math.max(0,15+profit/Math.max(1,b.expenses||1)*30);
+    const score=cl(profitScore+(b.brand||0)*0.20+(b.quality||0)*0.20+(b.systems||0)*0.22+(b.morale||0)*0.16-(this.auditRisk(b)*0.18));
     if(score>=75)return{score,color:'var(--green)',label:'Strong operator'};
     if(score>=55)return{score,color:'var(--teal)',label:'Healthy but improvable'};
     if(score>=35)return{score,color:'var(--yellow)',label:'Fragile business'};
@@ -203,7 +261,7 @@ const Business={
   },
 
   auditRisk(b){
-    const G=window.G;
+    const G=window.G||{};
     this.ensureState(b);
     const smartAdj=(G.smarts||50)>=85?-12:(G.smarts||50)>=70?-7:(G.smarts||50)<=35?10:0;
     const skillAdj=(G.skills?.finance||0)*3+(G.skills?.negotiation||0)*2;
@@ -211,7 +269,8 @@ const Business={
     const heat=(b.auditHeat||0)+(b.taxHackActive?18:0);
     const countryAdj=Math.round(((G.country?.crimeRate||0.35)-0.35)*26);
     const diffAdj=G.difficulty==='easy'?-4:G.difficulty==='hard'?5:G.difficulty==='extreme'?9:0;
-    return Math.max(3,Math.min(95,Math.round(heat+countryAdj+diffAdj+smartAdj-skillAdj-systemsAdj-(b.bribeShield||0)*10)));
+    const ageAdj=(b.taxHackYears||0)>3?Math.min(14,(b.taxHackYears||0)*2):0;
+    return Math.max(3,Math.min(95,Math.round(heat+countryAdj+diffAdj+smartAdj+ageAdj-skillAdj-systemsAdj-(b.bribeShield||0)*10)));
   },
 
   bribeCost(b){
@@ -223,15 +282,19 @@ const Business={
     return sc(Math.max(1800,Math.round(Math.max(0,(b.revenue||0)-(b.expenses||0))*0.10+(b.revenue||0)*0.025)));
   },
 
-  _chargeShortfall(amount){
+  _chargeShortfall(amount,label='business costs'){
     const G=window.G;
     const due=Math.max(0,Math.round(amount));
-    if(!due)return;
-    if((G.money||0)>=due){G.money-=due;return;}
+    if(!due)return {paid:true,missed:0};
+    if(typeof Assets!=='undefined'&&Assets.chargeExpense){
+      return Assets.chargeExpense(label,due,{toCollections:true,collectionMult:1.18,creditPenalty:24,stress:6,happiness:3,icon:'🏢',missType:'bad'});
+    }
+    if((G.money||0)>=due){G.money-=due;return {paid:true,missed:0};}
     const unpaid=due-Math.max(0,G.money||0);
     G.money=0;
     G.debtCollections=(G.debtCollections||0)+Math.round(unpaid*1.18);
     if(typeof Assets!=='undefined'&&Assets.changeCredit)Assets.changeCredit(-26);
+    return {paid:false,missed:unpaid};
   },
 
   _pay(cost){
@@ -241,6 +304,48 @@ const Business={
     return true;
   },
 
+  _resetYearActionsIfNeeded(b){
+    const age=window.G?.age||0;
+    if(b.actionYear!==age){
+      b.actionYear=age;
+      b.actionUses={};
+    }
+  },
+
+  _usesLeft(b,id){
+    this._resetYearActionsIfNeeded(b);
+    const limit=this.ACTION_LIMITS[id]??99;
+    const used=b.actionUses?.[id]||0;
+    return Math.max(0,limit-used);
+  },
+
+  _canUseAction(b,id){
+    if(id==='sell')return true;
+    if(id==='insurance'&&b.insured)return false;
+    return this._usesLeft(b,id)>0;
+  },
+
+  _markActionUse(b,id){
+    this._resetYearActionsIfNeeded(b);
+    b.actionUses[id]=(b.actionUses[id]||0)+1;
+  },
+
+  _actionSummary(b){
+    this._resetYearActionsIfNeeded(b);
+    const used=Object.values(b.actionUses||{}).reduce((a,n)=>a+(Number(n)||0),0);
+    return used?`${used} action${used!==1?'s':''} used age ${window.G?.age||0}`:'fresh year';
+  },
+
+  _runAction(b,id,fn){
+    if(!this._canUseAction(b,id)){
+      UI.toast('You already used that business action enough this year. Age up to refresh.','bad');
+      return false;
+    }
+    const ok=fn();
+    if(ok!==false)this._markActionUse(b,id);
+    return ok!==false;
+  },
+
   act(a){
     const G=window.G;
     const b=G.business;
@@ -248,72 +353,95 @@ const Business={
     if(b)this.ensureState(b);
 
     if(a==='market'){
-      const c=sc(2000);
-      if(!this._pay(c))return;
-      b.revenue=Math.floor((b.revenue||0)*(1+r(6,15)/100));
-      b.brand=cl((b.brand||0)+r(3,7));
-      Engine.log(`📣 Marketing boosted revenue to ${fmt(sc(b.revenue))}/yr and grew the brand.`, 'money');
+      this._runAction(b,'market',()=>{
+        const c=sc(2000);
+        if(!this._pay(c))return false;
+        b.revenue=Math.floor((b.revenue||0)*(1+r(6,15)/100));
+        b.brand=cl((b.brand||0)+r(3,7));
+        b.morale=cl((b.morale||55)+r(0,2));
+        Engine.log(`📣 Marketing boosted revenue to ${fmt(sc(b.revenue))}/yr and grew the brand.`, 'money');
+      });
     }else if(a==='hire'){
-      const c=sc(5000);
-      if(!this._pay(c))return;
-      b.staff=(b.staff||0)+r(1,3);
-      b.revenue=Math.floor((b.revenue||0)*1.13);
-      b.expenses=Math.floor((b.expenses||0)*1.09+1500);
-      b.morale=cl((b.morale||55)+r(1,5));
-      Engine.log('👥 New hires increased capacity. Revenue rose, but payroll is higher.', 'good');
+      this._runAction(b,'hire',()=>{
+        const c=sc(5000);
+        if(!this._pay(c))return false;
+        b.staff=(b.staff||0)+r(1,3);
+        b.revenue=Math.floor((b.revenue||0)*1.13);
+        b.expenses=Math.floor((b.expenses||0)*1.09+1500);
+        b.morale=cl((b.morale||55)+r(1,5));
+        b.systems=cl((b.systems||40)-r(0,2));
+        Engine.log('👥 New hires increased capacity. Revenue rose, but payroll is higher.', 'good');
+      });
     }else if(a==='expand'){
-      const c=sc(10000);
-      if(!this._pay(c))return;
-      b.revenue=Math.floor((b.revenue||0)*(1+r(18,32)/100));
-      b.expenses=Math.floor((b.expenses||0)*1.16);
-      b.value=Math.floor((b.value||0)*1.22);
-      b.systems=cl((b.systems||40)+r(2,6));
-      b.morale=cl((b.morale||55)-r(1,4));
-      Engine.log(`🏗️ Expansion complete. Revenue now ${fmt(sc(b.revenue))}/yr.`, 'special');
+      this._runAction(b,'expand',()=>{
+        const c=sc(10000);
+        if(!this._pay(c))return false;
+        b.revenue=Math.floor((b.revenue||0)*(1+r(18,32)/100));
+        b.expenses=Math.floor((b.expenses||0)*1.16);
+        b.value=Math.floor((b.value||0)*1.22);
+        b.systems=cl((b.systems||40)+r(2,6));
+        b.morale=cl((b.morale||55)-r(1,4));
+        Engine.log(`🏗️ Expansion complete. Revenue now ${fmt(sc(b.revenue))}/yr.`, 'special');
+      });
     }else if(a==='efficiency'){
-      b.expenses=Math.floor((b.expenses||0)*(1-r(6,14)/100));
-      b.systems=cl((b.systems||40)+r(4,9));
-      b.morale=cl((b.morale||55)-r(0,4));
-      Engine.log(`⚙️ Operations tightened. Expenses now ${fmt(sc(b.expenses))}/yr.`, 'good');
+      this._runAction(b,'efficiency',()=>{
+        b.expenses=Math.floor((b.expenses||0)*(1-r(6,14)/100));
+        b.systems=cl((b.systems||40)+r(4,9));
+        b.quality=cl((b.quality||50)+r(0,3));
+        b.morale=cl((b.morale||55)-r(0,4));
+        Engine.log(`⚙️ Operations tightened. Expenses now ${fmt(sc(b.expenses))}/yr.`, 'good');
+      });
     }else if(a==='franchise'){
-      const c=sc(50000);
-      if(!this._pay(c))return;
-      b.revenue=Math.floor((b.revenue||0)*(1+r(40,80)/100));
-      b.expenses=Math.floor((b.expenses||0)*1.32);
-      b.value=Math.floor((b.value||0)*1.55);
-      b.brand=cl((b.brand||0)+r(8,14));
-      b.systems=cl((b.systems||40)+r(4,8));
-      Engine.log(`🏪 Franchise launched. Revenue jumped to ${fmt(sc(b.revenue))}/yr.`, 'special');
+      this._runAction(b,'franchise',()=>{
+        const c=sc(50000);
+        if(!this._pay(c))return false;
+        b.revenue=Math.floor((b.revenue||0)*(1+r(40,80)/100));
+        b.expenses=Math.floor((b.expenses||0)*1.32);
+        b.value=Math.floor((b.value||0)*1.55);
+        b.brand=cl((b.brand||0)+r(8,14));
+        b.systems=cl((b.systems||40)+r(4,8));
+        b.morale=cl((b.morale||55)-r(2,7));
+        Engine.log(`🏪 Franchise launched. Revenue jumped to ${fmt(sc(b.revenue))}/yr.`, 'special');
+      });
     }else if(a==='pivot'){
-      const nt=pick(this.TYPES.filter(t=>t.id!==b.id));
-      b.id=nt.id;
-      b.revenue=nt.rev;
-      b.expenses=nt.expenses;
-      b.growthRate=nt.growthRate;
-      b.icon=nt.icon;
-      b.name=nt.name;
-      b.desc=nt.desc;
-      b.auditHeat=Math.max(0,(b.auditHeat||0)-6);
-      b.quality=cl((b.quality||50)-r(2,7));
-      b.systems=cl((b.systems||40)-r(3,8));
-      Engine.log(`🔄 Pivoted to ${nt.name}. New direction, new risk profile.`, 'neutral');
+      this._runAction(b,'pivot',()=>{
+        const nt=pick(this.TYPES.filter(t=>t.id!==b.id));
+        const oldName=b.name;
+        b.id=nt.id;
+        b.revenue=nt.rev;
+        b.expenses=nt.expenses;
+        b.growthRate=nt.growthRate;
+        b.icon=nt.icon;
+        b.name=nt.name;
+        b.desc=nt.desc;
+        b.auditHeat=Math.max(0,(b.auditHeat||0)-6);
+        b.quality=cl((b.quality||50)-r(2,7));
+        b.systems=cl((b.systems||40)-r(3,8));
+        b.brand=cl((b.brand||0)-r(2,6));
+        Engine.log(`🔄 Pivoted from ${oldName} to ${nt.name}. New direction, new risk profile.`, 'neutral');
+      });
     }else if(a==='ipo'){
-      if((b.value||0)<sc(1000000)){UI.toast(`Need ${fmt(sc(1000000))} valuation!`);return;}
-      const ipoGain=Math.floor((b.value||0)*r(150,300)/100);
-      G.money=(G.money||0)+ipoGain;
-      if(!G.achievements)G.achievements={};
-      G.achievements.ipo=true;
-      G.business=null;
-      Engine.log(`📈 IPO SUCCESS! Raised ${fmt(ipoGain)}!`, 'special');
-      G.happiness=cl((G.happiness||50)+25);
-      Engine.checkAch();
-      UI.update();
-      this.render();
+      this._runAction(b,'ipo',()=>{
+        if((b.value||0)<sc(1000000)){UI.toast(`Need ${fmt(sc(1000000))} valuation!`);return false;}
+        const ipoGain=Math.floor((b.value||0)*r(150,300)/100);
+        G.money=(G.money||0)+ipoGain;
+        if(!G.achievements)G.achievements={};
+        G.achievements.ipo=true;
+        G.business=null;
+        Engine.log(`📈 IPO SUCCESS! Raised ${fmt(ipoGain)}!`, 'special');
+        G.happiness=cl((G.happiness||50)+25);
+        Engine.checkAch();
+        UI.update();
+        this.render();
+        return true;
+      });
       return;
     }else if(a==='sell'){
       if(!b){UI.toast('No business to sell!');return;}
       const qualityPremium=1+((b.brand||0)+(b.systems||0)+(b.quality||0)-150)/500;
-      const sv=Math.floor((b.value||0)*(r(90,130)/100)*Math.max(0.75,qualityPremium));
+      const auditDiscount=this.auditRisk(b)>55?0.82:this.auditRisk(b)>30?0.93:1;
+      const sv=Math.floor((b.value||0)*(r(90,130)/100)*Math.max(0.75,qualityPremium)*auditDiscount);
+      if(typeof confirm==='function'&&!confirm(`Sell ${b.name}?\n\nEstimated sale price: ${fmt(sv)}\n\nThis is permanent.`))return;
       G.money=(G.money||0)+sv;
       G.business=null;
       Engine.log(`💰 Business sold for ${fmt(sv)}.`, 'money');
@@ -322,58 +450,68 @@ const Business={
       this.render();
       return;
     }else if(a==='insurance'){
-      if(b.insured){UI.toast('Business is already insured.');return;}
-      const c=sc(2000);
-      if(!this._pay(c))return;
-      b.insured=true;
-      Engine.log('🛡️ Business insurance purchased. Crisis downside is lower.', 'good');
+      this._runAction(b,'insurance',()=>{
+        if(b.insured){UI.toast('Business is already insured.');return false;}
+        const c=sc(2000);
+        if(!this._pay(c))return false;
+        b.insured=true;
+        Engine.log('🛡️ Business insurance purchased. Crisis downside is lower.', 'good');
+      });
     }else if(a==='pr'){
-      const c=sc(2500);
-      if((G.money||0)>=c)G.money-=c;
-      G.fame=cl((G.fame||0)+r(3,8));
-      b.brand=cl((b.brand||0)+r(5,10));
-      b.revenue=Math.floor((b.revenue||0)*1.05);
-      Engine.log('📰 PR campaign boosted public image, fame and revenue.', 'good');
+      this._runAction(b,'pr',()=>{
+        const c=sc(2500);
+        if(!this._pay(c))return false;
+        G.fame=cl((G.fame||0)+r(3,8));
+        b.brand=cl((b.brand||0)+r(5,10));
+        b.revenue=Math.floor((b.revenue||0)*1.05);
+        b.auditHeat=Math.max(0,(b.auditHeat||0)-r(0,3));
+        Engine.log('📰 PR campaign boosted public image, fame and revenue.', 'good');
+      });
     }else if(a==='taxhack'){
-      if(b.taxHackActive){
-        const fee=sc(1800+Math.round((b.auditHeat||0)*35));
-        if(!this._pay(fee))return;
-        b.taxHackActive=false;
-        b.auditHeat=Math.max(0,(b.auditHeat||0)-r(14,24));
-        b.systems=cl((b.systems||40)+r(2,6));
-        Engine.log('🧾 Accountants cleaned the books and lowered audit risk.', 'good');
-      }else{
-        const savings=this._taxSavings(b);
-        const smartBonus=(G.smarts||50)>=80?0.78:(G.smarts||50)>=65?0.88:(G.smarts||50)<=35?1.18:1;
-        G.money=(G.money||0)+savings;
-        b.lastTaxSavings=savings;
-        b.taxHackActive=true;
-        b.taxHackYears=(b.taxHackYears||0)+1;
-        b.auditHeat=Math.min(100,(b.auditHeat||0)+Math.round(r(14,24)*smartBonus));
-        G.stress=cl((G.stress||0)+r(4,8));
-        G.karma=cl((G.karma||0)-r(4,9),-100,100);
-        Engine.log(`🧾 Aggressive accounting created ${fmt(savings)} in extra cash. Audit risk climbed.`, 'money');
-      }
+      this._runAction(b,'taxhack',()=>{
+        if(b.taxHackActive){
+          const fee=sc(1800+Math.round((b.auditHeat||0)*35));
+          if(!this._pay(fee))return false;
+          b.taxHackActive=false;
+          b.auditHeat=Math.max(0,(b.auditHeat||0)-r(14,24));
+          b.systems=cl((b.systems||40)+r(2,6));
+          Engine.log('🧾 Accountants cleaned the books and lowered audit risk.', 'good');
+        }else{
+          const savings=this._taxSavings(b);
+          const smartBonus=(G.smarts||50)>=80?0.78:(G.smarts||50)>=65?0.88:(G.smarts||50)<=35?1.18:1;
+          G.money=(G.money||0)+savings;
+          b.lastTaxSavings=savings;
+          b.taxHackActive=true;
+          b.taxHackYears=(b.taxHackYears||0)+1;
+          b.auditHeat=Math.min(100,(b.auditHeat||0)+Math.round(r(14,24)*smartBonus));
+          G.stress=cl((G.stress||0)+r(4,8));
+          G.karma=cl((G.karma||0)-r(4,9),-100,100);
+          Engine.log(`🧾 Aggressive accounting created ${fmt(savings)} in extra cash. Audit risk climbed.`, 'money');
+        }
+      });
     }else if(a==='bribe'){
-      const cost=this.bribeCost(b);
-      if(!this._pay(cost))return;
-      b.totalBribes=(b.totalBribes||0)+cost;
-      b.bribeShield=Math.max(b.bribeShield||0,2);
-      b.auditHeat=Math.max(0,(b.auditHeat||0)-r(10,20));
-      b.systems=cl((b.systems||40)+r(3,7));
-      Engine.log(`⚖️ Compliance lawyers reviewed the books for ${fmt(cost)}. Audit pressure eased.`, 'good');
+      this._runAction(b,'bribe',()=>{
+        const cost=this.bribeCost(b);
+        if(!this._pay(cost))return false;
+        b.totalBribes=(b.totalBribes||0)+cost;
+        b.bribeShield=Math.max(b.bribeShield||0,2);
+        b.auditHeat=Math.max(0,(b.auditHeat||0)-r(10,20));
+        b.systems=cl((b.systems||40)+r(3,7));
+        Engine.log(`⚖️ Compliance lawyers reviewed the books for ${fmt(cost)}. Audit pressure eased.`, 'good');
+      });
     }
     UI.update();
     this.render();
   },
 
   _auditCaughtChance(b){
-    const G=window.G;
+    const G=window.G||{};
     const skill=((G.skills?.finance||0)*0.04)+((G.skills?.negotiation||0)*0.025);
     const smart=(G.smarts||50)>=85?0.18:(G.smarts||50)>=70?0.10:(G.smarts||50)<=35?-0.12:0;
     const shield=(b.bribeShield||0)>0?0.10:0;
     const systems=(b.systems||40)/500;
-    return Math.max(0.08,Math.min(0.88,0.40+(this.auditRisk(b)/140)-skill-shield-smart-systems));
+    const dirtyYears=Math.min(0.16,(b.taxHackYears||0)*0.025);
+    return Math.max(0.08,Math.min(0.88,0.40+(this.auditRisk(b)/140)+dirtyYears-skill-shield-smart-systems));
   },
 
   _handleAudit(b){
@@ -391,7 +529,7 @@ const Business={
     }
     const fine=Math.round(sc(Math.max(5000,Math.round((b.revenue||0)*0.18+(b.auditHeat||0)*220)))+Math.max(0,Math.round((b.value||0)*0.04)));
     const seizure=Math.round((b.value||0)*(0.10+Math.random()*0.15));
-    this._chargeShortfall(fine);
+    this._chargeShortfall(fine,'tax investigation fine');
     b.value=Math.max(sc(500),Math.round((b.value||0)-seizure));
     b.revenue=Math.floor((b.revenue||0)*(0.84+Math.random()*0.08));
     b.taxHackActive=false;
@@ -426,12 +564,20 @@ const Business={
     const operatorBonus=((b.brand||0)*0.0015)+((b.quality||0)*0.0012)+((b.systems||0)*0.0012)+((b.morale||0)*0.0008);
     const difficultyDrag=G.difficulty==='extreme'?0.035:G.difficulty==='hard'?0.02:G.difficulty==='easy'?-0.01:0;
     const growPct=Math.max(-0.12,(b.growthRate||0)*(0.55+Math.random()*0.85)+operatorBonus-difficultyDrag);
+    b.lastGrowthPct=Math.round(growPct*1000)/10;
     b.revenue=Math.floor((b.revenue||0)*(1+growPct));
     b.expenses=Math.floor((b.expenses||0)*(1+growPct*0.42+Math.max(0,(100-(b.systems||40))/2500)));
     b.value=Math.floor(Math.max(sc(500),(b.value||0)*(1+growPct*0.7))*this._valuationQualityFactor(b));
-    const profit=sc((b.revenue||0)-(b.expenses||0));
-    if(profit>0)G.money=(G.money||0)+profit;
-    else if(profit<0){
+
+    const rawProfit=(b.revenue||0)-(b.expenses||0);
+    const profit=sc(rawProfit);
+    b.lastProfit=profit;
+
+    if(profit>0){
+      G.money=(G.money||0)+profit;
+    }else if(profit<0){
+      const burn=Math.round(Math.abs(profit)*0.35);
+      this._chargeShortfall(burn,'business operating loss');
       G.stress=cl((G.stress||0)+r(2,5));
       b.morale=cl((b.morale||55)-r(2,6));
     }
@@ -465,21 +611,10 @@ const Business={
     if(Math.random()<auditChance)this._handleAudit(b);
     if(!G.business)return;
 
-    const roll=Math.random();
-    if(roll<0.08){
-      if(!b.insured){
-        b.revenue=Math.floor((b.revenue||0)*0.80);
-        b.brand=cl((b.brand||0)-r(2,6));
-        Engine.log('⚠️ Business crisis! Revenue dropped. Insurance would have helped.', 'bad');
-      }else{
-        b.morale=cl((b.morale||55)-r(1,3));
-        Engine.log('⚠️ Business crisis hit, but insurance absorbed the worst damage.', 'neutral');
-      }
-    }else if(roll>0.91){
-      b.revenue=Math.floor((b.revenue||0)*1.16);
-      b.brand=cl((b.brand||0)+r(2,6));
-      Engine.log(`📈 Excellent year for ${b.name}! Revenue surged.`, 'money');
-    }
+    this._rollYearEvent(b,profit,growPct);
+    if(!G.business)return;
+
+    this._pushHistory(b,profit);
 
     if((b.value||0)>=sc(1000000000)&&!G.achievements?.unicorn){
       if(!G.achievements)G.achievements={};
@@ -500,8 +635,101 @@ const Business={
     if(G.business&&G.business.bribeShield>0)G.business.bribeShield=Math.max(0,G.business.bribeShield-1);
   },
 
+  _rollYearEvent(b,profit,growPct){
+    const G=window.G;
+    const age=G.age||0;
+    const events=[];
+    const margin=this.margin(b);
+
+    if(age-(b.lastCrisisAge||-999)>=3){
+      events.push({id:'crisis',weight:.08,run:()=>{
+        b.lastCrisisAge=age;
+        if(!b.insured){
+          b.revenue=Math.floor((b.revenue||0)*0.80);
+          b.brand=cl((b.brand||0)-r(2,6));
+          b.morale=cl((b.morale||55)-r(2,6));
+          Engine.log('⚠️ Business crisis! Revenue dropped. Insurance would have helped.', 'bad');
+        }else{
+          b.morale=cl((b.morale||55)-r(1,3));
+          Engine.log('⚠️ Business crisis hit, but insurance absorbed the worst damage.', 'neutral');
+        }
+      }});
+    }
+
+    if(age-(b.lastBoomAge||-999)>=2){
+      events.push({id:'boom',weight:.09,run:()=>{
+        b.lastBoomAge=age;
+        b.revenue=Math.floor((b.revenue||0)*1.16);
+        b.brand=cl((b.brand||0)+r(2,6));
+        Engine.log(`📈 Excellent year for ${b.name}! Revenue surged.`, 'money');
+      }});
+    }
+
+    if((b.staff||0)>4){
+      events.push({id:'staff',weight:.05,run:()=>{
+        b.morale=cl((b.morale||55)+r(-8,8));
+        b.systems=cl((b.systems||40)+r(-2,4));
+        Engine.log(`👥 Staff dynamics shifted at ${b.name}. Morale and systems changed.`, 'neutral');
+      }});
+    }
+
+    if(margin>=30&&profit>0){
+      events.push({id:'review',weight:.06,run:()=>{
+        b.brand=cl((b.brand||0)+r(3,8));
+        b.quality=cl((b.quality||50)+r(1,4));
+        Engine.log(`⭐ Customers praised ${b.name}. Brand and quality improved.`, 'good');
+      }});
+    }
+
+    if(growPct<0||margin<5){
+      events.push({id:'competitor',weight:.07,run:()=>{
+        b.revenue=Math.floor((b.revenue||0)*(0.94+Math.random()*0.04));
+        b.brand=cl((b.brand||0)-r(1,4));
+        Engine.log(`🥊 A competitor squeezed ${b.name}. Revenue pressure increased.`, 'bad');
+      }});
+    }
+
+    const fresh=events.filter(e=>!this._recentEvent(b,e.id));
+    const roll=Math.random();
+    let threshold=0;
+    for(const evt of fresh){
+      threshold+=evt.weight;
+      if(roll<threshold){
+        this._rememberEvent(b,evt.id);
+        evt.run();
+        return;
+      }
+    }
+  },
+
+  _recentEvent(b,id){
+    return (b.eventMemory||[]).slice(0,4).some(e=>e.id===id);
+  },
+
+  _rememberEvent(b,id){
+    if(!Array.isArray(b.eventMemory))b.eventMemory=[];
+    b.eventMemory.unshift({id,age:window.G?.age||0,year:b.yearsOpen||0});
+    if(b.eventMemory.length>this.EVENT_MEMORY_LIMIT)b.eventMemory.length=this.EVENT_MEMORY_LIMIT;
+  },
+
+  _pushHistory(b,profit){
+    if(!Array.isArray(b.history))b.history=[];
+    const health=this.businessHealth(b).score;
+    b.history.unshift({
+      age:window.G?.age||0,
+      year:b.yearsOpen||0,
+      revenue:sc(b.revenue||0),
+      expenses:sc(b.expenses||0),
+      profit:profit||0,
+      value:b.value||0,
+      health,
+    });
+    if(b.history.length>this.HISTORY_LIMIT)b.history.length=this.HISTORY_LIMIT;
+  },
+
   _valuationQualityFactor(b){
     const premium=((b.brand||0)+(b.quality||0)+(b.systems||0)-150)/2000;
-    return Math.max(0.96,Math.min(1.08,1+premium));
+    const auditPenalty=this.auditRisk(b)>55?-0.04:this.auditRisk(b)>30?-0.015:0;
+    return Math.max(0.94,Math.min(1.08,1+premium+auditPenalty));
   },
 };

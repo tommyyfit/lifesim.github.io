@@ -27,6 +27,29 @@ const Assets={
 
   insuranceCosts:{health:800,car:600,life:500},
 
+  ACTION_LIMITS:{
+    housing:2,
+    loan:2,
+    extraLoan:3,
+    creditRepair:1,
+    refinance:1,
+    insurance:3,
+    propertyMaintain:4,
+    propertyRenovate:1,
+    propertyManager:4,
+    buyProperty:2,
+    sellProperty:2,
+    vehicleService:4,
+    buyVehicle:2,
+    sellVehicle:2,
+    invest:3,
+    donate:4,
+  },
+
+  HISTORY_LIMIT:14,
+  INVESTMENT_HISTORY_LIMIT:12,
+  EXPENSE_MEMORY_LIMIT:8,
+
   render(){
     const G=window.G;
     if(!G)return;
@@ -83,12 +106,15 @@ const Assets={
     h+=this._renderVehicleMarket(G);
     h+=this._renderInvestments(G);
     h+=this._renderCharity();
+    h+=this._renderHistory(G);
 
     el.innerHTML=h;
   },
 
   _renderDebtSection(G){
-    let h=`<div class="sec">Credit & Debt</div><div class="act-grid">`;
+    const loanLeft=this._usesLeft('loan');
+    let h=`<div class="sec">Credit & Debt</div>`;
+    h+=`<div class="info-box"><p>🧾 Finance actions now have yearly limits: ${loanLeft} loan action${loanLeft!==1?'s':''} left this year. Age up to refresh.</p></div><div class="act-grid">`;
     Object.entries(this.loanPresets).forEach(([id,p])=>{
       const amount=sc(p.amount);
       const locked=(G.creditScore||650)<p.minCredit||!this._loanRoom(G,amount);
@@ -226,23 +252,48 @@ const Assets={
   },
 
   _renderInvestments(G){
-    let h='<div class="sec">Capital Moves</div><div class="act-grid">';
+    const left=this._usesLeft('invest');
+    let h=`<div class="sec">Capital Moves</div>
+      <div class="info-box"><p>📈 Investment actions are limited to ${left} more move${left!==1?'s':''} this year, so each click matters.</p></div>
+      <div class="act-grid">`;
     Object.entries(this.investmentPlans).forEach(([id,p])=>{
       const amt=sc(p.amount);
-      const locked=(G.money||0)<amt;
+      const locked=(G.money||0)<amt||left<=0;
       h+=`<div class="card ${locked?'locked':''}" onclick="${locked?'':`Assets.invest('${id}')`}"><span class="ci">${p.icon}</span><span class="cn">${p.label}</span><span class="cd">${fmt(amt)} · ${p.risk} risk · ${p.desc}</span></div>`;
     });
     return h+'</div>';
   },
 
   _renderCharity(){
+    const left=this._usesLeft('donate');
+    const lock=left<=0?'locked':'';
     return `<div class="sec">Charity</div>
       <div class="act-grid">
-        <div class="card" onclick="Assets.donate(1000)"><span class="ci">💝</span><span class="cn">Donate ${fmt(sc(1000))}</span><span class="cd">+Happiness +Karma</span></div>
-        <div class="card" onclick="Assets.donate(10000)"><span class="ci">❤️</span><span class="cn">Donate ${fmt(sc(10000))}</span><span class="cd">Meaningful gift</span></div>
-        <div class="card" onclick="Assets.donate(100000)"><span class="ci">🏥</span><span class="cn">Donate ${fmt(sc(100000))}</span><span class="cd">Major public gift</span></div>
-        <div class="card" onclick="Assets.donate(1000000)"><span class="ci">🌍</span><span class="cn">Donate ${fmt(sc(1000000))}</span><span class="cd">Legendary giving</span></div>
+        <div class="card ${lock}" onclick="${left<=0?'':`Assets.donate(1000)`}"><span class="ci">💝</span><span class="cn">Donate ${fmt(sc(1000))}</span><span class="cd">+Happiness +Karma · ${left} left this year</span></div>
+        <div class="card ${lock}" onclick="${left<=0?'':`Assets.donate(10000)`}"><span class="ci">❤️</span><span class="cn">Donate ${fmt(sc(10000))}</span><span class="cd">Meaningful gift · ${left} left</span></div>
+        <div class="card ${lock}" onclick="${left<=0?'':`Assets.donate(100000)`}"><span class="ci">🏥</span><span class="cn">Donate ${fmt(sc(100000))}</span><span class="cd">Major public gift · ${left} left</span></div>
+        <div class="card ${lock}" onclick="${left<=0?'':`Assets.donate(1000000)`}"><span class="ci">🌍</span><span class="cn">Donate ${fmt(sc(1000000))}</span><span class="cd">Legendary giving · ${left} left</span></div>
       </div>`;
+  },
+
+  _renderHistory(G){
+    const history=(G.assetHistory||[]).slice(0,5);
+    const inv=(G.investmentHistory||[]).slice(0,4);
+    const events=(G.assetEvents||[]).slice(0,4);
+    if(!history.length&&!inv.length&&!events.length)return '';
+    let h='<div class="sec">Finance History</div>';
+    if(history.length){
+      history.forEach(row=>{
+        h+=`<div class="row-card"><span class="ri">📊</span><div class="rd"><div class="rt">Age ${row.age} · Net worth ${fmt(row.netWorth)}</div><div class="rs">Cash ${fmt(row.cash)} · Assets ${fmt(row.assets)} · Debt ${fmt(row.debt)} · Credit ${row.credit}</div></div><div class="rv">${row.debt>0?'Debt':'OK'}</div></div>`;
+      });
+    }
+    if(inv.length){
+      h+='<div class="info-box"><p>📈 Recent investments: '+inv.map(x=>`${this._esc(x.label)} ${x.gain>=0?'+':''}${fmt(x.gain)}`).join(' · ')+'</p></div>';
+    }
+    if(events.length){
+      h+='<div class="info-box"><p>🧾 Recent asset moves: '+events.map(x=>`${this._esc(x.label||x.type)} ${x.amount?fmt(x.amount):''}`).join(' · ')+'</p></div>';
+    }
+    return h;
   },
 
   _renderMinor(G){
@@ -284,6 +335,52 @@ const Assets={
       return false;
     }
     return true;
+  },
+
+
+  _resetActionYearIfNeeded(G=window.G){
+    if(!G)return;
+    if(!Number.isFinite(G.assetsActionYear))G.assetsActionYear=G.age||0;
+    if(!G.assetsActionUses||typeof G.assetsActionUses!=='object')G.assetsActionUses={};
+    if(G.assetsActionYear!==(G.age||0)){
+      G.assetsActionYear=G.age||0;
+      G.assetsActionUses={};
+    }
+  },
+
+  _usesLeft(action){
+    const G=window.G;
+    if(!G)return 0;
+    this._resetActionYearIfNeeded(G);
+    const limit=this.ACTION_LIMITS[action]??99;
+    const used=G.assetsActionUses?.[action]||0;
+    return Math.max(0,limit-used);
+  },
+
+  _canUseAction(action){
+    const G=window.G;
+    if(!G)return false;
+    this._resetActionYearIfNeeded(G);
+    if(this._usesLeft(action)<=0){
+      UI.toast('You already used that finance action enough this year. Age up to refresh.','bad');
+      return false;
+    }
+    return true;
+  },
+
+  _markAction(action){
+    const G=window.G;
+    if(!G)return;
+    this._resetActionYearIfNeeded(G);
+    G.assetsActionUses[action]=(G.assetsActionUses[action]||0)+1;
+  },
+
+  _recordAssetEvent(type,data={}){
+    const G=window.G;
+    if(!G)return;
+    if(!Array.isArray(G.assetEvents))G.assetEvents=[];
+    G.assetEvents.unshift({age:G.age||0,type,...data});
+    if(G.assetEvents.length>this.HISTORY_LIMIT)G.assetEvents.length=this.HISTORY_LIMIT;
   },
 
   _totalDebt(G){
@@ -395,8 +492,11 @@ const Assets={
   setHousingPlan(id){
     const G=window.G;
     if(!this._adultOnly())return;
+    if(!this._canUseAction('housing'))return;
     if(!this.housingPlans[id])return;
+    if(G.housingPlan===id){UI.toast('You already live that way.');return;}
     G.housingPlan=id;
+    this._markAction('housing');
     Engine.log(`${this.housingPlans[id].icon} Living situation changed to ${this.housingPlans[id].label}.`, 'money');
     UI.update();
     this.render();
@@ -411,6 +511,13 @@ const Assets={
     if(!Array.isArray(G.loans))G.loans=[];
     if(!G.insurance)G.insurance={};
     if(!G.alimony)G.alimony={amount:0,yearsLeft:0,recipient:''};
+    if(!Array.isArray(G.assetHistory))G.assetHistory=[];
+    if(!Array.isArray(G.assetEvents))G.assetEvents=[];
+    if(!Array.isArray(G.investmentHistory))G.investmentHistory=[];
+    if(!Array.isArray(G.expenseMemory))G.expenseMemory=[];
+    if(!G.assetsActionUses||typeof G.assetsActionUses!=='object')G.assetsActionUses={};
+    if(!Number.isFinite(G.assetsActionYear))G.assetsActionYear=G.age||0;
+    this._resetActionYearIfNeeded(G);
     if(!Number.isFinite(G.creditScore))G.creditScore=650;
     if(!Number.isFinite(G.debtCollections))G.debtCollections=0;
     if(!Number.isFinite(G.lastLivingCosts))G.lastLivingCosts=0;
@@ -481,6 +588,7 @@ const Assets={
     const G=window.G;
     if(!this._adultOnly())return;
     this.ensureState();
+    if(!this._canUseAction('loan'))return;
     const preset=this.loanPresets[type];
     if(!preset)return;
     const amount=sc(preset.amount);
@@ -488,6 +596,8 @@ const Assets={
     if(!this._loanRoom(G,amount)){UI.toast('Too much debt already. Improve net worth or repay loans first.');return;}
     G.money+=amount;
     G.loans.push(this._createLoan(type,preset.label,amount,preset.rate,preset.years));
+    this._markAction('loan');
+    this._recordAssetEvent('loan',{label:preset.label,amount});
     this.changeCredit(type==='emergency'?-15:-8);
     G.stress=cl((G.stress||0)+(type==='emergency'?4:1));
     Engine.log(`💳 Took out a ${preset.label.toLowerCase()} for ${fmt(amount)}.`, 'money');
@@ -521,11 +631,13 @@ const Assets={
     const G=window.G;
     this.ensureState();
     if(!this._adultOnly())return;
+    if(!this._canUseAction('extraLoan'))return;
     const loan=(G.loans||[])[i];
     if(!loan)return;
     const extra=this._extraLoanPayment(loan);
     if((G.money||0)<extra){UI.toast(`Need ${fmt(extra)}!`);return;}
     G.money-=extra;
+    this._markAction('extraLoan');
     loan.remaining=Math.max(0,Math.round(loan.remaining-extra));
     loan.payment=this._annualLoanPayment(loan.remaining,loan.rate,loan.yearsLeft);
     this.changeCredit(4);
@@ -542,10 +654,12 @@ const Assets={
     const G=window.G;
     this.ensureState();
     if(!this._adultOnly())return;
+    if(!this._canUseAction('creditRepair'))return;
     const cost=this._creditRepairCost(G);
     if((G.money||0)<cost){UI.toast(`Need ${fmt(cost)}!`);return;}
     if((G.creditScore||650)>=780){UI.toast('Your credit is already very strong.');return;}
     G.money-=cost;
+    this._markAction('creditRepair');
     this.changeCredit(r(12,24));
     G.stress=cl((G.stress||0)-r(4,8));
     Engine.log(`🧾 Credit repair work cost ${fmt(cost)} and improved your score.`, 'good');
@@ -557,6 +671,7 @@ const Assets={
     const G=window.G;
     this.ensureState();
     if(!this._adultOnly())return;
+    if(!this._canUseAction('refinance'))return;
     const loan=(G.loans||[])[i];
     if(!loan)return;
     if((G.creditScore||650)<700){UI.toast('Need 700+ credit score to refinance.');return;}
@@ -564,6 +679,7 @@ const Assets={
     const fee=sc(Math.max(500,Math.round((loan.remaining||0)*0.015)));
     if((G.money||0)<fee){UI.toast(`Need ${fmt(fee)}!`);return;}
     G.money-=fee;
+    this._markAction('refinance');
     loan.rate=Math.max(0.025,Math.round(((loan.rate||0)-0.018)*1000)/1000);
     loan.payment=this._annualLoanPayment(loan.remaining,loan.rate,loan.yearsLeft);
     this.changeCredit(6);
@@ -591,9 +707,11 @@ const Assets={
   buyInsurance(type){
     const G=window.G;
     if(!this._adultOnly())return;
+    if(!this._canUseAction('insurance'))return;
     const cost=sc(this.insuranceCosts[type]||500);
     if((G.money||0)<cost){UI.toast(`Need ${fmt(cost)}!`);return;}
     G.money-=cost;
+    this._markAction('insurance');
     G.insurance[type]=true;
     Engine.log(`🛡️ ${cap(type)} insurance purchased.`, 'good');
     Engine.checkAch();
@@ -618,16 +736,20 @@ const Assets={
     const p=(G.assets.properties||[])[i];
     if(!p||!this._adultOnly())return;
     if(act==='maintain'){
+      if(!this._canUseAction('propertyMaintain'))return;
       const cost=this._maintainPropCost(p);
       if((G.money||0)<cost){UI.toast(`Need ${fmt(cost)}!`);return;}
       G.money-=cost;
+      this._markAction('propertyMaintain');
       p.condition=cl((p.condition||70)+r(12,20));
       p.value=Math.round((p.value||0)*(1.01+Math.random()*0.02));
       Engine.log(`🔧 Property maintenance kept ${p.name} in shape.`, 'good');
     }else if(act==='renovate'){
+      if(!this._canUseAction('propertyRenovate'))return;
       const cost=this._renovatePropCost(p);
       if((G.money||0)<cost){UI.toast(`Need ${fmt(cost)}!`);return;}
       G.money-=cost;
+      this._markAction('propertyRenovate');
       p.condition=cl((p.condition||70)+r(18,28));
       p.upgrades=(p.upgrades||0)+1;
       p.value=Math.round((p.value||0)*(1.05+Math.random()*0.05));
@@ -636,7 +758,9 @@ const Assets={
       Engine.log(`🛠️ Renovated ${p.name}. Value, condition and lifestyle improved.`, 'special');
     }else if(act==='manager'){
       if(p.rent<=0)return;
+      if(!this._canUseAction('propertyManager'))return;
       p.managed=!p.managed;
+      this._markAction('propertyManager');
       Engine.log(`🤝 ${p.managed?'Hired a property manager for':'You took back control of'} ${p.name}.`, p.managed?'good':'neutral');
     }
     UI.update();
@@ -646,6 +770,7 @@ const Assets={
   buyProp(id){
     const G=window.G;
     if(!this._adultOnly())return;
+    if(!this._canUseAction('buyProperty'))return;
     const p=(PROPERTIES||[]).find(x=>x.id===id);
     if(!p)return;
     if(p.id==='room'){UI.toast('Rent is a yearly living cost, not a property purchase.');return;}
@@ -666,6 +791,8 @@ const Assets={
     const prop={...p,value:sc(p.value),rent:p.rent,condition:r(72,88),upgrades:0,managed:p.rent>0&&p.price>350000,primary:false};
     if(prop.rent===0&&!this._primaryHome(G))prop.primary=true;
     G.assets.properties.push(prop);
+    this._markAction('buyProperty');
+    this._recordAssetEvent('property-buy',{label:p.name,amount:price});
     this._ensurePrimaryHome(G);
     Engine.log(`🏠 Purchased ${p.name} ${purchaseNote}.`, 'special');
     G.happiness=cl((G.happiness||50)+11);
@@ -678,9 +805,12 @@ const Assets={
     const G=window.G;
     const p=(G.assets.properties||[])[i];
     if(!p||!this._adultOnly())return;
+    if(!this._canUseAction('sellProperty'))return;
     const sv=Math.floor((p.value||0)*(0.92+Math.random()*0.18));
     if(!confirm(`Sell ${p.name}?\n\nEstimated sale price: ${fmt(sv)}\n\nThis is permanent.`))return;
     G.money=(G.money||0)+sv;
+    this._markAction('sellProperty');
+    this._recordAssetEvent('property-sell',{label:p.name,amount:sv});
     G.assets.properties.splice(i,1);
     this._ensurePrimaryHome(G);
     Engine.log(`🏠 Sold property for ${fmt(sv)}.`, 'money');
@@ -692,9 +822,11 @@ const Assets={
     const G=window.G;
     const v=(G.assets.vehicles||[])[i];
     if(!v||!this._adultOnly())return;
+    if(!this._canUseAction('vehicleService'))return;
     const cost=this._serviceVehCost(v);
     if((G.money||0)<cost){UI.toast(`Need ${fmt(cost)}!`);return;}
     G.money-=cost;
+    this._markAction('vehicleService');
     v.condition=cl((v.condition||65)+r(16,26));
     v.value=Math.round((v.value||0)*(1.01+Math.random()*0.015));
     Engine.log(`🔧 ${v.name} was serviced and runs better now.`, 'good');
@@ -705,6 +837,7 @@ const Assets={
   buyVeh(id){
     const G=window.G;
     if(!this._adultOnly())return;
+    if(!this._canUseAction('buyVehicle'))return;
     const v=(VEHICLES||[]).find(x=>x.id===id);
     if(!v)return;
     const price=sc(v.price);
@@ -722,6 +855,8 @@ const Assets={
       note=`with ${fmt(down)} down and financing`;
     }
     G.assets.vehicles.push({...v,value:sc(v.value),condition:r(70,88)});
+    this._markAction('buyVehicle');
+    this._recordAssetEvent('vehicle-buy',{label:v.name,amount:price});
     Engine.log(`🚗 Bought ${v.name} ${note}.`, 'good');
     G.happiness=cl((G.happiness||50)+7);
     Engine.checkAch();
@@ -733,9 +868,12 @@ const Assets={
     const G=window.G;
     const v=(G.assets.vehicles||[])[i];
     if(!v||!this._adultOnly())return;
+    if(!this._canUseAction('sellVehicle'))return;
     const sv=Math.floor((v.value||0)*(0.82+Math.random()*0.08));
     if(!confirm(`Sell ${v.name}?\n\nYou'll receive: ${fmt(sv)}\n\nThis is permanent.`))return;
     G.money=(G.money||0)+sv;
+    this._markAction('sellVehicle');
+    this._recordAssetEvent('vehicle-sell',{label:v.name,amount:sv});
     G.assets.vehicles.splice(i,1);
     Engine.log(`🚗 Sold ${v.name} for ${fmt(sv)}.`, 'money');
     UI.update();
@@ -745,11 +883,13 @@ const Assets={
   invest(type){
     const G=window.G;
     if(!this._adultOnly())return;
+    if(!this._canUseAction('invest'))return;
     const plan=this.investmentPlans[type];
     if(!plan)return;
     const amt=sc(plan.amount);
     if((G.money||0)<amt){UI.toast(`Need at least ${fmt(amt)} to invest!`);return;}
     G.money-=amt;
+    this._markAction('invest');
     let gain=0,msg='';
     const rv=Math.random();
     const luckyMult=G.trait==='lucky'?1.25:1.0;
@@ -779,7 +919,9 @@ const Assets={
       gain=amt*(rv>0.35?(0.08+Math.random()*0.32):-(0.05+Math.random()*0.15));
       msg=gain>0?`Art appreciated: +${fmt(Math.round(gain))}.`:'Art market softened.';
     }
-    G.money=Math.max(0,(G.money||0)+amt+Math.round(gain));
+    const finalReturn=Math.max(0,amt+Math.round(gain));
+    G.money=Math.max(0,(G.money||0)+finalReturn);
+    this._rememberInvestment(type,amt,Math.round(gain),finalReturn,msg);
     G.lifetimeGambled=(G.lifetimeGambled||0)+(type==='forex'||type==='crypto'?amt:0);
     Engine.log(`📈 ${msg}`,gain>=0?'money':'bad');
     G.happiness=cl((G.happiness||50)+(gain>0?9:-7));
@@ -793,8 +935,11 @@ const Assets={
     const G=window.G;
     const a=sc(amt);
     if(!this._adultOnly())return;
+    if(!this._canUseAction('donate'))return;
     if((G.money||0)<a){UI.toast(`Need ${fmt(a)}!`);return;}
     G.money-=a;
+    this._markAction('donate');
+    this._recordAssetEvent('donation',{label:'Charity donation',amount:a});
     G.happiness=cl((G.happiness||50)+r(8,16));
     G.karma=cl((G.karma||0)+r(4,10),-100,100);
     G.fame=cl((G.fame||0)+r(2,8));
@@ -803,6 +948,41 @@ const Assets={
     Engine.checkAch();
     UI.update();
     this.render();
+  },
+
+  _rememberInvestment(type,amount,gain,finalReturn,msg){
+    const G=window.G;
+    if(!G)return;
+    if(!Array.isArray(G.investmentHistory))G.investmentHistory=[];
+    const plan=this.investmentPlans[type]||{};
+    G.investmentHistory.unshift({
+      age:G.age||0,
+      type,
+      label:plan.label||type,
+      amount,
+      gain,
+      finalReturn,
+      msg,
+    });
+    if(G.investmentHistory.length>this.INVESTMENT_HISTORY_LIMIT)G.investmentHistory.length=this.INVESTMENT_HISTORY_LIMIT;
+  },
+
+  _pushHistory(){
+    const G=window.G;
+    if(!G)return;
+    if(!Array.isArray(G.assetHistory))G.assetHistory=[];
+    const props=G.assets?.properties||[];
+    const vehs=G.assets?.vehicles||[];
+    const assetValue=props.reduce((a,p)=>a+(p.value||0),0)+vehs.reduce((a,v)=>a+(v.value||0),0)+(G.business?.value||0);
+    G.assetHistory.unshift({
+      age:G.age||0,
+      cash:G.money||0,
+      assets:assetValue,
+      debt:this._totalDebt(G),
+      netWorth:typeof netWorth==='function'?netWorth(G):(G.money||0)+assetValue-this._totalDebt(G),
+      credit:G.creditScore||650,
+    });
+    if(G.assetHistory.length>this.HISTORY_LIMIT)G.assetHistory.length=this.HISTORY_LIMIT;
   },
 
   tick(){
@@ -853,6 +1033,7 @@ const Assets={
       this.changeCredit(6);
       if((G.creditScore||0)>=720&&Math.random()<0.15)Engine.log('📊 Another year of on-time payments boosted your credit score.', 'good');
     }
+    this._pushHistory();
     UI.milestoneCheck(G);
   },
 
@@ -980,17 +1161,27 @@ const Assets={
 
   _randomExpense(){
     const G=window.G;
-    if(Math.random()>=0.28){G.lastUnexpectedExpense=0;return;}
+    if(Math.random()>=0.26){G.lastUnexpectedExpense=0;return;}
+    if(!Array.isArray(G.expenseMemory))G.expenseMemory=[];
     const lowCondCar=(G.assets.vehicles||[]).some(v=>(v.condition||70)<50);
     const lowCondHome=(G.assets.properties||[]).some(p=>p.rent===0&&(p.condition||70)<50);
     const pool=[
-      {label:'broken boiler',base:lowCondHome?3200:1800,icon:'🔧',type:null},
-      {label:'parking ticket',base:220,icon:'🚓',type:null},
-      {label:'dental emergency',base:950,icon:'🦷',type:'health'},
-      {label:'car repair',base:lowCondCar?2800:1600,icon:'🚗',type:(G.assets.vehicles||[]).length?'car':null},
+      {label:'broken boiler',base:lowCondHome?3200:1800,icon:'🔧',type:null,weight:lowCondHome?3:1},
+      {label:'parking ticket',base:220,icon:'🚓',type:null,weight:1.2},
+      {label:'dental emergency',base:950,icon:'🦷',type:'health',weight:1.4},
+      {label:'car repair',base:lowCondCar?2800:1600,icon:'🚗',type:(G.assets.vehicles||[]).length?'car':null,weight:lowCondCar?3:1.1},
+      {label:'appliance replacement',base:1250,icon:'🧺',type:null,weight:1},
+      {label:'legal paperwork fee',base:700,icon:'📄',type:null,weight:0.8},
     ].filter(e=>e.type!=='car'||(G.assets.vehicles||[]).length>0);
-    const evt=pick(pool);
+    const recent=new Set(G.expenseMemory.slice(0,3).map(e=>e.label));
+    const fresh=pool.filter(e=>!recent.has(e.label));
+    const candidates=fresh.length?fresh:pool;
+    const weighted=[];
+    candidates.forEach(e=>{for(let i=0;i<Math.max(1,Math.round((e.weight||1)*2));i++)weighted.push(e);});
+    const evt=pick(weighted);
     if(!evt)return;
+    G.expenseMemory.unshift({age:G.age||0,label:evt.label});
+    if(G.expenseMemory.length>this.EXPENSE_MEMORY_LIMIT)G.expenseMemory.length=this.EXPENSE_MEMORY_LIMIT;
     const base=annualCost(evt.base);
     const claim=evt.type?this.coveredExpense(evt.type,base):{insured:false,covered:0,outOfPocket:base};
     G.lastUnexpectedExpense=claim.outOfPocket;

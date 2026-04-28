@@ -13,6 +13,7 @@ const DIFFICULTY_PROFILES={
 
 const App={
   _ageShortcutHeld:false,
+  _starting:false,
   VERSION:13,
 
   init(){
@@ -132,7 +133,12 @@ const App={
     saved.fitness=this._n(saved.fitness,50);
     saved.fame=this._n(saved.fame,0);
     saved.pets=Array.isArray(saved.pets)?saved.pets:[];
+    saved.petHistory=Array.isArray(saved.petHistory)?saved.petHistory:[];
+    saved.petActionUses=saved.petActionUses&&typeof saved.petActionUses==='object'?saved.petActionUses:{};
+    saved.petActionYear=Number.isFinite(saved.petActionYear)?saved.petActionYear:(saved.age||0);
     saved.completedGoals=Array.isArray(saved.completedGoals)?saved.completedGoals:[];
+    saved.goalHistory=Array.isArray(saved.goalHistory)?saved.goalHistory:[];
+    saved.goalStats=saved.goalStats&&typeof saved.goalStats==='object'?saved.goalStats:{completed:0,recalibrations:0,lastCompletedAge:null};
     saved.skills=saved.skills&&typeof saved.skills==='object'?saved.skills:{};
     saved.skillPoints=this._n(saved.skillPoints,0);
     saved.stocks=saved.stocks&&typeof saved.stocks==='object'?saved.stocks:{portfolio:{},prices:null,history:{}};
@@ -199,6 +205,9 @@ const App={
     saved.hustle.bestYear=this._n(saved.hustle.bestYear,0);
     saved.hustle.totalActions=this._n(saved.hustle.totalActions,0);
     saved.hustle.ventures=saved.hustle.ventures&&typeof saved.hustle.ventures==='object'?saved.hustle.ventures:{};
+    saved.hustle.actionUses=saved.hustle.actionUses&&typeof saved.hustle.actionUses==='object'?saved.hustle.actionUses:{};
+    saved.hustle.actionYear=Number.isFinite(saved.hustle.actionYear)?saved.hustle.actionYear:(saved.age||0);
+    saved.hustle.history=Array.isArray(saved.hustle.history)?saved.hustle.history:[];
 
     if(saved.hustle.ventures.onlyfans&&!saved.hustle.ventures.premium_creator){
       saved.hustle.ventures.premium_creator=saved.hustle.ventures.onlyfans;
@@ -242,6 +251,9 @@ const App={
     saved.healthyStreak=this._n(saved.healthyStreak,0);
     saved.log=Array.isArray(saved.log)?saved.log:[];
     saved.statHistory=Array.isArray(saved.statHistory)?saved.statHistory:[];
+    saved.eventMemory=Array.isArray(saved.eventMemory)?saved.eventMemory:[];
+    saved.worldEventMemory=Array.isArray(saved.worldEventMemory)?saved.worldEventMemory:[];
+    saved.ageUpSerial=Number.isFinite(saved.ageUpSerial)?saved.ageUpSerial:0;
     saved.chapters=Array.isArray(saved.chapters)?saved.chapters:[];
     saved.legacyBonus=saved.legacyBonus||null;
 
@@ -288,6 +300,23 @@ const App={
 
     saved.activeGoals=saved.activeGoals||null;
     saved.goalSeed=Number.isFinite(saved.goalSeed)?saved.goalSeed:null;
+    saved.goalGeneratedAge=Number.isFinite(saved.goalGeneratedAge)?saved.goalGeneratedAge:(saved.age||0);
+    saved.lastGoalRecalibrateAge=Number.isFinite(saved.lastGoalRecalibrateAge)?saved.lastGoalRecalibrateAge:-999;
+
+    saved.careerHistory=Array.isArray(saved.careerHistory)?saved.careerHistory:[];
+    saved.educationHistory=Array.isArray(saved.educationHistory)?saved.educationHistory:[];
+    saved.careerEventMemory=Array.isArray(saved.careerEventMemory)?saved.careerEventMemory:[];
+    saved.careerActionUses=saved.careerActionUses&&typeof saved.careerActionUses==='object'?saved.careerActionUses:{};
+    saved.careerActionYear=Number.isFinite(saved.careerActionYear)?saved.careerActionYear:(saved.age||0);
+
+    saved.crimeHistory=Array.isArray(saved.crimeHistory)?saved.crimeHistory:[];
+    saved.crimeJobMemory=Array.isArray(saved.crimeJobMemory)?saved.crimeJobMemory:[];
+    saved.crimeEventMemory=Array.isArray(saved.crimeEventMemory)?saved.crimeEventMemory:[];
+    saved.crimeActionUses=saved.crimeActionUses&&typeof saved.crimeActionUses==='object'?saved.crimeActionUses:{};
+    saved.crimeActionYear=Number.isFinite(saved.crimeActionYear)?saved.crimeActionYear:(saved.age||0);
+
+    saved.healthActionUses=saved.healthActionUses&&typeof saved.healthActionUses==='object'?saved.healthActionUses:{};
+    saved.healthActionYear=Number.isFinite(saved.healthActionYear)?saved.healthActionYear:(saved.age||0);
 
     if(saved.rels.partner){
       saved.rels.partner.stage=saved.rels.partner.stage||(saved.rels.partner.married?'married':'dating');
@@ -353,7 +382,7 @@ const App={
       assets:{properties:[],vehicles:[]},
       sexualHealth:{std:false,sti:false,partners:0,partnerIds:[],protectedEncounters:0,unprotectedEncounters:0,lastCheckupAge:null},
       business:null,followers:0,socialEarnings:0,social:{},
-      hustle:{rep:0,earnings:0,lastGigAge:-1,lastActionAge:-1,streak:0,clients:0,ventures:{},bestYear:0,totalActions:0},
+      hustle:{rep:0,earnings:0,lastGigAge:-1,lastActionAge:-1,streak:0,clients:0,ventures:{},bestYear:0,totalActions:0,actionYear:0,actionUses:{},history:[]},
       careerBoss:null,
       conditions:[],crimes:[],inPrison:false,prisonYears:0,
       addictions:{},insurance:{},
@@ -363,125 +392,140 @@ const App={
       alimony:{amount:0,yearsLeft:0,recipient:''},pregnancy:null,
       lastLivingCosts:0,lastUnexpectedExpense:0,housingPlan:'standard',familyDebtPending:0,
       familySupport:0,familySupportReleased:false,
-      pets:[],completedGoals:[],achievements:{},
+      pets:[],petHistory:[],petActionYear:0,petActionUses:{},
+      completedGoals:[],activeGoals:null,goalSeed:null,goalGeneratedAge:0,lastGoalRecalibrateAge:-999,goalHistory:[],goalStats:{completed:0,recalibrations:0,lastCompletedAge:null},
+      achievements:{},
       skills:{},skillPoints:0,stocks:{portfolio:{},prices:null,history:{}},
       countriesVisited:[],lifetimeGambled:0,lifetimeDonated:0,
       inheritanceReceived:0,happyStreak:0,lowStressStreak:0,healthyStreak:0,
-      log:[],statHistory:[],chapters:[],legacyBonus:null,
+      log:[],statHistory:[],eventMemory:[],worldEventMemory:[],ageUpSerial:0,chapters:[],legacyBonus:null,
+      careerHistory:[],educationHistory:[],careerEventMemory:[],careerActionYear:0,careerActionUses:{},
+      crimeHistory:[],crimeJobMemory:[],crimeEventMemory:[],crimeActionYear:0,crimeActionUses:{},
+      healthActionYear:0,healthActionUses:{},
     };
   },
 
   startGame(){
-    Create.syncGenderFromName(true);
-
-    const cIdx=parseInt(document.getElementById('inp-country')?.value,10)||0;
-    const diff=document.getElementById('inp-diff')?.value||'normal';
-    const country=COUNTRIES[cIdx]||COUNTRIES[0];
-    const name=(document.getElementById('inp-name')?.value.trim())||(typeof randomNameForCountry==='function'?randomNameForCountry(country.name,Create.gender):pick(Create.gender==='female'?FNAMES:MNAMES));
-    const surname=typeof randomSurnameForCountry==='function'?randomSurnameForCountry(country.name):pick(SURNAMES);
-    const trait=Create.selectedTrait||'resilient';
-    const ambition=Create.selectedAmbition||'wealth';
-    const diffProfile=DIFFICULTY_PROFILES[diff]||DIFFICULTY_PROFILES.normal;
-
-    window.G=this._baseGame({name,surname,gender:Create.gender,country,diff,trait,ambition,diffProfile});
-    const G=window.G;
-
-    const sets={
-      easy:[r(70,95),r(70,95),r(55,80),r(55,80),r(55,80),0],
-      normal:[r(40,75),r(40,75),r(20,65),r(20,65),r(30,60),0],
-      hard:[r(20,50),r(20,50),r(10,40),r(10,40),r(15,40),0],
-      extreme:[r(8,32),r(8,32),r(5,28),r(5,28),r(10,30),0],
-      custom:[
-        parseInt(document.getElementById('cs-hap')?.value,10)||50,
-        parseInt(document.getElementById('cs-hlt')?.value,10)||50,
-        parseInt(document.getElementById('cs-smt')?.value,10)||50,
-        parseInt(document.getElementById('cs-lks')?.value,10)||50,
-        50,0
-      ],
-    };
-
-    const s=sets[diff]||sets.normal;
-    [G.happiness,G.health,G.smarts,G.looks,G.fitness,G.money]=s;
-
-    G.familySupport=sc(diffProfile.cash||0);
-    G.money=0;
-    G.stress=cl((G.stress||0)+(diffProfile.stress||0));
-
-    if(diffProfile.debt){
-      G.familyDebtPending=sc(diffProfile.debt);
-      G.missedPayments=diff==='extreme'?2:1;
-    }
-
-    const traitDef=PERSONALITY_TRAITS.find(t=>t.id===trait);
-    if(traitDef?.startBonus){
-      Object.entries(traitDef.startBonus).forEach(([k,v])=>{
-        if(k==='money')G.familySupport+=sc(v);
-        else if(k==='fitness')G.fitness=cl((G.fitness||50)+v);
-        else if(k==='skillPoints')G.skillPoints=(G.skillPoints||0)+v;
-        else if(G[k]!==undefined)G[k]=cl(G[k]+v);
-      });
-    }
-
-    const ambDef=LIFE_AMBITIONS.find(a=>a.id===ambition);
-    if(ambDef){
-      if(ambition==='healthy'){G.health=cl(G.health+8);G.fitness=cl((G.fitness||50)+8);}
-      if(ambition==='career_top')G.smarts=cl(G.smarts+10);
-      if(ambition==='traveller')G.happiness=cl(G.happiness+8);
-      if(ambition==='criminal')G.familySupport+=sc(500);
-      if(ambition==='sage')G.skillPoints=(G.skillPoints||0)+2;
-      if(ambition==='investor')G.familySupport+=sc(2000);
-      if(ambition==='renaissance')G.skillPoints=(G.skillPoints||0)+1;
-      if(ambition==='academic'){G.smarts=cl(G.smarts+6);G.skillPoints=(G.skillPoints||0)+1;}
-      if(ambition==='philanthropist')G.karma=cl((G.karma||0)+10,-100,100);
-      if(ambition==='legend'){G.happiness=cl(G.happiness+5);G.health=cl(G.health+5);}
-      if(ambition==='minimalist')G.happiness=cl(G.happiness+8);
-      if(ambition==='entrepreneur')G.smarts=cl(G.smarts+4);
-    }
-
-    if(typeof Legacy!=='undefined'&&Legacy._selectedOpt&&Legacy._selectedOpt!=='none'){
-      Legacy.applyInheritance(G,Legacy._selectedOpt,Legacy._selectedBonus);
-      Engine.log(`🌳 Legacy Inheritance: "${Legacy._selectedOpt}" bonus applied from ancestor.`,'special');
-    }
-
-    G.rels.father=Engine.npc('father','male');
-    G.rels.mother=Engine.npc('mother','female');
-    G.rels.father.age=r(22,34);
-    G.rels.mother.age=r(20,32);
-    G.rels.father.surname=G.surname;
-    G.rels.mother.surname=G.surname;
-
-    if(Math.random()>0.42){
-      const sib=Engine.npc('sibling',Math.random()>.5?'female':'male');
-      sib.age=r(0,9);
-      sib.surname=G.surname;
-      G.rels.siblings.push(sib);
-    }
-
-    Engine.log(`👶 ${G.name} ${G.surname} was born in ${G.country.flag} ${G.country.name}.`,'special');
-    Engine.log(`👨 Father: ${G.rels.father.name} · 👩 Mother: ${G.rels.mother.name}.`,'neutral');
-    if(G.rels.siblings.length)Engine.log(`👦 Sibling: ${G.rels.siblings[0].name}, age ${G.rels.siblings[0].age}.`,'neutral');
-
-    const dl={easy:'a wealthy family',normal:'an average family',hard:'a struggling family',extreme:'extremely difficult circumstances',custom:'a custom start'};
-    Engine.log(`🌍 Born into ${dl[diff]||'a family'} in ${G.country.name}.`,'neutral');
-
-    if(G.familySupport>0)Engine.log(`🏦 Your family has ${fmt(G.familySupport)} set aside for your adulthood. It is not your personal baby money yet.`, 'money');
-    if(diffProfile.debt)Engine.log(`💳 Your family is under financial pressure. If things do not improve, ${fmt(G.familyDebtPending)} may follow you into adulthood.`, 'bad');
-    if(traitDef)Engine.log(`${traitDef.icon} Trait: ${traitDef.name} — ${traitDef.desc}.`,'special');
-    if(ambDef)Engine.log(`🎯 Life Ambition: "${ambDef.name}" — ${ambDef.desc}.`,'special');
+    if(this._starting){UI.toast('New life is already being created.','neutral');return;}
+    this._starting=true;
 
     try{
-      const personalGoals=Goals.ensurePersonalGoals(G,true);
-      Engine.log(`🎯 Personal goals generated: ${personalGoals.slice(0,3).map(g=>g.name).join(', ')}${personalGoals.length>3?'...':''}`, 'special');
-    }catch(e){console.warn(e);}
+      Create.syncGenderFromName(true);
 
-    if(typeof Health!=='undefined')Health._ensureState?.(G);
-    if(typeof Hustle!=='undefined')Hustle.ensureState?.(G);
-    if(typeof Pets!=='undefined')Pets.ensureState?.(G);
+      const cIdx=parseInt(document.getElementById('inp-country')?.value,10)||0;
+      const diff=document.getElementById('inp-diff')?.value||'normal';
+      const country=COUNTRIES[cIdx]||COUNTRIES[0];
+      const name=(document.getElementById('inp-name')?.value.trim())||(typeof randomNameForCountry==='function'?randomNameForCountry(country.name,Create.gender):pick(Create.gender==='female'?FNAMES:MNAMES));
+      const surname=typeof randomSurnameForCountry==='function'?randomSurnameForCountry(country.name):pick(SURNAMES);
+      const trait=Create.selectedTrait||'resilient';
+      const ambition=Create.selectedAmbition||'wealth';
+      const diffProfile=DIFFICULTY_PROFILES[diff]||DIFFICULTY_PROFILES.normal;
 
-    this.show('game-screen');
-    UI.tab('life');
-    UI.update();
-    Save.save(G);
+      window.G=this._baseGame({name,surname,gender:Create.gender,country,diff,trait,ambition,diffProfile});
+      const G=window.G;
+
+      const sets={
+        easy:[r(70,95),r(70,95),r(55,80),r(55,80),r(55,80),0],
+        normal:[r(40,75),r(40,75),r(20,65),r(20,65),r(30,60),0],
+        hard:[r(20,50),r(20,50),r(10,40),r(10,40),r(15,40),0],
+        extreme:[r(8,32),r(8,32),r(5,28),r(5,28),r(10,30),0],
+        custom:[
+          parseInt(document.getElementById('cs-hap')?.value,10)||50,
+          parseInt(document.getElementById('cs-hlt')?.value,10)||50,
+          parseInt(document.getElementById('cs-smt')?.value,10)||50,
+          parseInt(document.getElementById('cs-lks')?.value,10)||50,
+          50,0
+        ],
+      };
+
+      const s=sets[diff]||sets.normal;
+      [G.happiness,G.health,G.smarts,G.looks,G.fitness,G.money]=s;
+
+      G.familySupport=sc(diffProfile.cash||0);
+      G.money=0;
+      G.stress=cl((G.stress||0)+(diffProfile.stress||0));
+
+      if(diffProfile.debt){
+        G.familyDebtPending=sc(diffProfile.debt);
+        G.missedPayments=diff==='extreme'?2:1;
+      }
+
+      const traitDef=PERSONALITY_TRAITS.find(t=>t.id===trait);
+      if(traitDef?.startBonus){
+        Object.entries(traitDef.startBonus).forEach(([k,v])=>{
+          if(k==='money')G.familySupport+=sc(v);
+          else if(k==='fitness')G.fitness=cl((G.fitness||50)+v);
+          else if(k==='skillPoints')G.skillPoints=(G.skillPoints||0)+v;
+          else if(G[k]!==undefined)G[k]=cl(G[k]+v);
+        });
+      }
+
+      const ambDef=LIFE_AMBITIONS.find(a=>a.id===ambition);
+      if(ambDef){
+        if(ambition==='healthy'){G.health=cl(G.health+8);G.fitness=cl((G.fitness||50)+8);}
+        if(ambition==='career_top')G.smarts=cl(G.smarts+10);
+        if(ambition==='traveller')G.happiness=cl(G.happiness+8);
+        if(ambition==='criminal')G.familySupport+=sc(500);
+        if(ambition==='sage')G.skillPoints=(G.skillPoints||0)+2;
+        if(ambition==='investor')G.familySupport+=sc(2000);
+        if(ambition==='renaissance')G.skillPoints=(G.skillPoints||0)+1;
+        if(ambition==='academic'){G.smarts=cl(G.smarts+6);G.skillPoints=(G.skillPoints||0)+1;}
+        if(ambition==='philanthropist')G.karma=cl((G.karma||0)+10,-100,100);
+        if(ambition==='legend'){G.happiness=cl(G.happiness+5);G.health=cl(G.health+5);}
+        if(ambition==='minimalist')G.happiness=cl(G.happiness+8);
+        if(ambition==='entrepreneur')G.smarts=cl(G.smarts+4);
+      }
+
+      if(typeof Legacy!=='undefined'&&Legacy._selectedOpt&&Legacy._selectedOpt!=='none'){
+        Legacy.applyInheritance(G,Legacy._selectedOpt,Legacy._selectedBonus);
+        Engine.log(`🌳 Legacy Inheritance: "${Legacy._selectedOpt}" bonus applied from ancestor.`,'special');
+      }
+
+      G.rels.father=Engine.npc('father','male');
+      G.rels.mother=Engine.npc('mother','female');
+      G.rels.father.age=r(22,34);
+      G.rels.mother.age=r(20,32);
+      G.rels.father.surname=G.surname;
+      G.rels.mother.surname=G.surname;
+
+      if(Math.random()>0.42){
+        const sib=Engine.npc('sibling',Math.random()>.5?'female':'male');
+        sib.age=r(0,9);
+        sib.surname=G.surname;
+        G.rels.siblings.push(sib);
+      }
+
+      Engine.log(`👶 ${G.name} ${G.surname} was born in ${G.country.flag} ${G.country.name}.`,'special');
+      Engine.log(`👨 Father: ${G.rels.father.name} · 👩 Mother: ${G.rels.mother.name}.`,'neutral');
+      if(G.rels.siblings.length)Engine.log(`👦 Sibling: ${G.rels.siblings[0].name}, age ${G.rels.siblings[0].age}.`,'neutral');
+
+      const dl={easy:'a wealthy family',normal:'an average family',hard:'a struggling family',extreme:'extremely difficult circumstances',custom:'a custom start'};
+      Engine.log(`🌍 Born into ${dl[diff]||'a family'} in ${G.country.name}.`,'neutral');
+
+      if(G.familySupport>0)Engine.log(`🏦 Your family has ${fmt(G.familySupport)} set aside for your adulthood. It is not your personal baby money yet.`, 'money');
+      if(diffProfile.debt)Engine.log(`💳 Your family is under financial pressure. If things do not improve, ${fmt(G.familyDebtPending)} may follow you into adulthood.`, 'bad');
+      if(traitDef)Engine.log(`${traitDef.icon} Trait: ${traitDef.name} — ${traitDef.desc}.`,'special');
+      if(ambDef)Engine.log(`🎯 Life Ambition: "${ambDef.name}" — ${ambDef.desc}.`,'special');
+
+      try{
+        const personalGoals=Goals.ensurePersonalGoals(G,true);
+        Engine.log(`🎯 Personal goals generated: ${personalGoals.slice(0,3).map(g=>g.name).join(', ')}${personalGoals.length>3?'...':''}`, 'special');
+      }catch(e){console.warn(e);}
+
+      if(typeof Health!=='undefined')Health._ensureState?.(G);
+      if(typeof Hustle!=='undefined')Hustle.ensureState?.(G);
+      if(typeof Pets!=='undefined')Pets.ensureState?.(G);
+
+      this.show('game-screen');
+      UI.tab('life');
+      UI.update();
+      Save.save(G);
+    }catch(e){
+      console.warn('startGame failed',e);
+      UI.toast('New life could not be created. Check console for the exact error.','bad');
+    }finally{
+      this._starting=false;
+    }
   },
 
   showHOF(){

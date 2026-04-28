@@ -1,4 +1,4 @@
-/* js/crime.js — LifeSim v13: Consequences & Redemption */
+/* js/crime.js — LifeSim v13.5: Underworld, Gangs & Redemption */
 const CRIME_JOBS={
   shoplift:{tier:'Petty',icon:'🛍️',label:'Shoplifting',reward:[40,450],catch:.14,sentence:[0,1],need:null,heat:4,karma:[1,3],prep:'Low',minAge:16,rep:1,stress:1,desc:'Small theft with low payout and low heat.'},
   pickpocket:{tier:'Petty',icon:'👛',label:'Pickpocketing',reward:[60,650],catch:.19,sentence:[0,1],need:null,heat:6,karma:[2,4],prep:'Low',minAge:16,rep:2,stress:2,desc:'Fast cash, but crowded places mean witnesses.'},
@@ -22,10 +22,39 @@ const CRIME_JOBS={
   smuggling:{tier:'Serious',icon:'\u{1F69A}',label:'Smuggling Run',reward:[2200,18000],catch:.33,sentence:[2,8],need:null,heat:17,karma:[6,11],prep:'High',minAge:18,rep:11,stress:8,desc:'Move illegal goods across borders. Good payoff, good chance of attention.'},
   loan_shark:{tier:'Serious',icon:'\u{1F4B8}',label:'Loan Sharking',reward:[1000,14000],catch:.28,sentence:[2,7],need:null,heat:15,karma:[7,12],prep:'Medium',minAge:18,rep:12,stress:7,desc:'Collections are profitable, but victims and witnesses create long-term trouble.'},
   casino_skim:{tier:'Extreme',icon:'\u{1F3B0}',label:'Casino Skim',reward:[12000,70000],catch:.47,sentence:[4,14],need:'hacking',heat:27,karma:[9,17],prep:'Extreme',minAge:21,rep:20,stress:11,desc:'A surgical blend of coding, fraud, and nerves. Big money if you stay invisible.'},
+
+  black_market:{tier:'Organized',icon:'🧳',label:'Black Market Deal',reward:[3500,26000],catch:.32,sentence:[2,9],needGang:true,need:null,heat:19,karma:[6,13],prep:'High',minAge:18,rep:12,gangRespect:6,war:4,stress:8,desc:'An organized underworld deal. Gang backing improves the payout but draws rivals.'},
+  protection_ring:{tier:'Organized',icon:'🧱',label:'Protection Ring',reward:[2500,22000],catch:.36,sentence:[2,8],needGang:true,need:null,heat:21,karma:[8,15],prep:'High',minAge:18,rep:14,gangRespect:7,war:6,stress:9,desc:'Territory-based pressure. Strong gang loyalty helps, but heat and karma damage rise.'},
+  cargo_hijack:{tier:'Organized',icon:'🚛',label:'Cargo Hijack',reward:[8000,52000],catch:.43,sentence:[3,12],needGang:true,need:null,heat:25,karma:[9,16],prep:'Extreme',minAge:21,rep:18,gangRespect:9,war:8,stress:12,desc:'Large crew operation with high reward, high police pressure, and rival attention.'},
+  underground_casino:{tier:'Organized',icon:'🎲',label:'Underground Casino',reward:[6000,48000],catch:.34,sentence:[2,10],needGang:true,need:'smarts',heat:22,karma:[7,14],prep:'High',minAge:21,rep:16,gangRespect:8,war:5,stress:9,desc:'A controlled gambling operation. Smarts, fronts, and territory improve the outcome.'},
+  luxury_theft_ring:{tier:'Organized',icon:'💎',label:'Luxury Theft Ring',reward:[10000,76000],catch:.46,sentence:[4,14],needGang:true,need:'smarts',heat:29,karma:[10,18],prep:'Extreme',minAge:21,rep:22,gangRespect:10,war:9,stress:13,desc:'A high-end organized theft network. Requires status, planning, and a serious crew.'},
+};
+
+const CRIME_GANGS={
+  iron_wolves:{
+    icon:'🐺',name:'Iron Wolves',color:'var(--red)',vibe:'Street power and territory control',
+    desc:'Fast respect, stronger physical jobs, more rival pressure.',requireRep:8,requireAge:18,
+    perk:{reward:.10,risk:.04,heat:.05,war:.16,territory:.15,fitness:.06},rival:'velvet_cartel'
+  },
+  neon_vipers:{
+    icon:'🐍',name:'Neon Vipers',color:'var(--accent)',vibe:'Cyber scams, clubs, and quiet leverage',
+    desc:'Better fraud and hacking outcomes, lower direct heat, weaker turf power.',requireRep:10,requireAge:18,
+    perk:{reward:.08,risk:.08,heat:-.04,war:.08,territory:.05,hacking:.10},rival:'dockyard_union'
+  },
+  velvet_cartel:{
+    icon:'🦚',name:'Velvet Cartel',color:'var(--pink, #fb7185)',vibe:'Luxury rackets and elite connections',
+    desc:'Higher profits and better cleanup, but expensive loyalty politics.',requireRep:14,requireAge:21,
+    perk:{reward:.16,risk:.03,heat:.02,war:.10,territory:.08,legal:.08},rival:'iron_wolves'
+  },
+  dockyard_union:{
+    icon:'⚓',name:'Dockyard Union',color:'var(--cyan, #38bdf8)',vibe:'Smuggling routes and cargo influence',
+    desc:'Strong organized jobs and territory income, more customs attention.',requireRep:12,requireAge:18,
+    perk:{reward:.12,risk:.02,heat:.07,war:.12,territory:.16,smuggling:.12},rival:'neon_vipers'
+  },
 };
 
 const Crime={
-  VERSION:13,
+  VERSION:13.5,
   COSTS:{
     scout:900,
     burner:1800,
@@ -37,7 +66,36 @@ const Crime={
     community:0,
     reform:2200,
     appeal:9000,
+    gangFront:25000,
+    gangTruce:7000,
+    gangExit:5000,
   },
+
+  ACTION_LIMITS:{
+    crime:3,
+    scout:2,
+    burner:2,
+    crew:1,
+    safehouse:1,
+    layLow:2,
+    lawyer:1,
+    community:2,
+    reform:2,
+    bribe:1,
+    expunge:1,
+    prisonRoutine:3,
+    prisonLegal:1,
+    escape:1,
+    gangJoin:1,
+    gangDues:1,
+    gangExpand:1,
+    gangDefend:2,
+    gangFront:1,
+    gangTruce:1,
+    gangExit:1,
+  },
+
+  MEMORY_LIMIT:16,
 
   render(){
     const G=window.G;if(!G)return;
@@ -91,6 +149,9 @@ const Crime={
         ${this._metricBox('Reform Score',Math.round(G.reformScore||0)+'%','Improves parole and cleanup',this._scoreColor(G.reformScore||0))}
       </div>
 
+      ${this._advisorHTML()}
+      ${this._gangHTML()}
+
       <div class="sec">Setup / Edge</div>
       <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:12px">
         ${this._metricBox('Intel',Math.round(intel)+'%','Cuts arrest chance',this._scoreColor(intel))}
@@ -109,8 +170,8 @@ const Crime={
       ${this._recordHTML()}
     `;
 
-    ['Petty','Fraud','Serious','Extreme'].forEach(tier=>{
-      h+=`<div class="sec">${tier==='Extreme'?'💀':tier==='Fraud'?'💻':tier==='Serious'?'💰':'🧤'} ${tier} Crime</div><div class="act-grid">`;
+    ['Petty','Fraud','Serious','Organized','Extreme'].forEach(tier=>{
+      h+=`<div class="sec">${tier==='Extreme'?'💀':tier==='Organized'?'🏴':tier==='Fraud'?'💻':tier==='Serious'?'💰':'🧤'} ${tier} Crime</div><div class="act-grid">`;
       Object.entries(CRIME_JOBS).filter(([,c])=>c.tier===tier).forEach(([id,c])=>{
         h+=this._crimeCard(id,c);
       });
@@ -132,6 +193,438 @@ const Crime={
     el.innerHTML=h;
   },
 
+  _advisorHTML(){
+    const G=window.G;
+    const heat=G.crimeHeat||0;
+    const intel=G.crimeIntel||0;
+    const reform=G.reformScore||0;
+    const gang=this._activeGang();
+    let icon='🧭',title='Smart Move',body='Keep heat low, build intel, and avoid repeating the same job too often.',tone='var(--accent)',action='Crime.scoutTargets()',btn='Scout';
+
+    if(heat>=82){icon='🚨';title='Critical Heat';body='Heat is too high. Lay low before one more mistake turns into prison time.';tone='var(--red)';action='Crime.layLow()';btn='Lay Low';}
+    else if(G.gangId&&(G.gangWarHeat||0)>=68){icon='🏴';title='Gang War Warning';body='Rival pressure is high. Defend turf or negotiate a truce before it damages your life.';tone='var(--red)';action="Crime.gangTask('defend')";btn='Defend';}
+    else if(reform>=65&&(G.crimes||[]).length){icon='🕊️';title='Clean Slate Window';body='Your reform score is strong. This is a good moment to try expungement.';tone='var(--green)';action='Crime.expunge()';btn='Expunge';}
+    else if(!G.gangId&&(G.underworldRep||0)>=12&&(G.age||0)>=18){icon='🏴';title='Gang Path Available';body='You have enough reputation to join a gang, unlocking organized crime, territory, and fronts.';tone='var(--orange)';action="Crime.joinGang('iron_wolves')";btn='Choose Below';}
+    else if(gang&&intel>=65&&heat<55){icon='👑';title='Power Window';body='Intel is high and heat is controlled. Organized moves are stronger right now.';tone=gang.color;action="Crime.do('black_market')";btn='Black Market';}
+
+    return `<div class="info-box" style="margin:0 0 12px;border-color:${tone}55;background:${tone}10;display:flex;gap:10px;align-items:center;justify-content:space-between">
+      <div style="display:flex;gap:10px;align-items:flex-start;min-width:0">
+        <div style="font-size:24px;line-height:1">${icon}</div>
+        <div style="min-width:0">
+          <div style="font-weight:950;color:${tone};font-size:12px;text-transform:uppercase;letter-spacing:.8px">${this.esc(title)}</div>
+          <p style="margin:3px 0 0;color:var(--muted);font-size:12px;font-weight:750">${this.esc(body)}</p>
+        </div>
+      </div>
+      <button type="button" class="crit-go" onclick="${this.attr(action)}" style="white-space:nowrap">${this.esc(btn)}</button>
+    </div>`;
+  },
+
+  _gangHTML(){
+    const G=window.G;
+    const gang=this._activeGang();
+
+    if(!gang){
+      const canSee=(G.age||0)>=18||(G.underworldRep||0)>=5;
+      if(!canSee)return'';
+      let h=`<div class="sec">🏴 Gangs / Syndicates</div>
+      <div class="info-box" style="margin-bottom:10px">
+        <p style="margin:0;color:var(--muted);font-size:12px;font-weight:750">Join a fictional underworld faction to unlock territory, gang loyalty, front businesses, organized jobs, passive yearly income, and rival pressure.</p>
+      </div>
+      <div class="act-grid" style="margin-bottom:12px">`;
+      Object.entries(CRIME_GANGS).forEach(([id,g])=>{h+=this._gangJoinCard(id,g);});
+      h+='</div>';
+      return h;
+    }
+
+    const rank=this._gangRankLabel(G.gangRank||1);
+    const standing=this._gangStanding();
+    const war=G.gangWarHeat||0;
+    const warColor=war>=70?'var(--red)':war>=40?'var(--orange)':'var(--green)';
+    const yearly=this._gangProjectedIncome();
+
+    return `<div class="sec">🏴 ${this.esc(gang.name)} Syndicate</div>
+      <div class="fame-card" style="text-align:left;overflow:hidden;position:relative;margin-bottom:10px;border-color:${gang.color}44">
+        <div style="position:absolute;inset:-40px -40px auto auto;width:150px;height:150px;border-radius:50%;background:${gang.color}22;filter:blur(18px);pointer-events:none"></div>
+        <div style="display:flex;gap:12px;align-items:center;position:relative;margin-bottom:12px">
+          <div style="width:58px;height:58px;border-radius:18px;background:${gang.color}22;border:1px solid ${gang.color}55;display:flex;align-items:center;justify-content:center;font-size:30px;box-shadow:0 8px 24px rgba(0,0,0,.22)">${this.esc(gang.icon)}</div>
+          <div style="flex:1;min-width:0">
+            <div style="font-size:20px;font-weight:950;color:${gang.color};line-height:1">${this.esc(gang.name)}</div>
+            <div style="font-size:11px;font-weight:950;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-top:4px">${this.esc(rank)} · ${this.esc(standing.label)}</div>
+            <div style="font-size:12px;color:var(--txt);font-weight:800;margin-top:5px">${this.esc(gang.vibe)}</div>
+          </div>
+        </div>
+        <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;position:relative">
+          ${this._miniBar('Loyalty',G.gangLoyalty||0,'Trust inside the gang',this._scoreColor(G.gangLoyalty||0))}
+          ${this._miniBar('Respect',G.gangRespect||0,'Rank progression',this._scoreColor(G.gangRespect||0))}
+          ${this._miniBar('Territory',G.gangTerritory||0,'Income + visibility',this._scoreColor(G.gangTerritory||0))}
+          ${this._miniBar('War Heat',war,'Rival pressure',warColor)}
+        </div>
+        <div style="margin-top:10px;font-size:11px;color:var(--muted);font-weight:800">🏪 Fronts ${G.gangFronts||0}/8 · 💵 Projected yearly cut ${fmt(yearly)} · 👑 Rank ${G.gangRank||1}/5</div>
+      </div>
+
+      <div class="act-grid" style="margin-bottom:12px">
+        ${this._actionCard('💼','Collect Gang Dues',`~${fmt(this._gangDuesValue())}`,'Money now, heat and karma cost',`Crime.gangTask('dues')`,!this._hasGang()||this._usesLeft('gangDues')<=0,this._usesLeft('gangDues')<=0?'Used this year':'',true)}
+        ${this._actionCard('🗺️','Expand Territory','Respect + territory','Risky move, raises war heat',`Crime.gangTask('expand')`,!this._hasGang()||this._usesLeft('gangExpand')<=0||war>=90,this._usesLeft('gangExpand')<=0?'Used this year':war>=90?'War heat too high':'',true)}
+        ${this._actionCard('🛡️','Defend Turf','Lower war heat','Costs stress, improves loyalty',`Crime.gangTask('defend')`,!this._hasGang()||this._usesLeft('gangDefend')<=0,this._usesLeft('gangDefend')<=0?'Used this year':'')}
+        ${this._actionCard('🏪','Invest Front',`${fmt(this._cost('gangFront'))}`,'Passive income + lower heat',`Crime.gangTask('front')`,(G.money||0)<this._cost('gangFront')||this._usesLeft('gangFront')<=0||(G.gangFronts||0)>=8,(G.money||0)<this._cost('gangFront')?`Need ${fmt(this._cost('gangFront'))}`:(G.gangFronts||0)>=8?'Fronts maxed':'Used this year')}
+        ${this._actionCard('🕊️','Negotiate Truce',`${fmt(this._cost('gangTruce'))}`,'Lower rival pressure',`Crime.gangTask('truce')`,(G.money||0)<this._cost('gangTruce')||this._usesLeft('gangTruce')<=0||war<15,(G.money||0)<this._cost('gangTruce')?`Need ${fmt(this._cost('gangTruce'))}`:war<15?'No truce needed':'Used this year')}
+        ${this._actionCard('🚪','Cut Ties',`${fmt(this._cost('gangExit'))}`,'Leave gang, lose protection',`Crime.leaveGang()`,(G.money||0)<this._cost('gangExit')||this._usesLeft('gangExit')<=0,(G.money||0)<this._cost('gangExit')?`Need ${fmt(this._cost('gangExit'))}`:'Used this year',true)}
+      </div>
+      ${this._gangHistoryHTML()}`;
+  },
+
+  _gangJoinCard(id,g){
+    const G=window.G;
+    const lock=this._gangJoinLocked(id,g);
+    const onclick=lock?`UI.toast('${this.attr(lock)}')`:`Crime.joinGang('${id}')`;
+    return `<div class="card ${lock?'locked':''}" onclick="${onclick}" title="${this.esc(g.desc)}" style="border-color:${g.color}33">
+      <span class="ci">${lock?'🔒':this.esc(g.icon)}</span>
+      <span class="cn" style="color:${g.color}">${this.esc(g.name)}</span>
+      <span class="cd">${lock?this.esc(lock):this.esc(g.vibe)}</span>
+      <span class="cd" style="opacity:.75;font-size:10px">Need age ${g.requireAge}+ · rep ${g.requireRep}+</span>
+    </div>`;
+  },
+
+  _gangJoinLocked(id,g){
+    const G=window.G;
+    if(G.gangId)return'Already in a gang';
+    if((G.age||0)<g.requireAge)return`Age ${g.requireAge}+`;
+    if((G.underworldRep||0)<g.requireRep)return`Need ${g.requireRep} underworld rep`;
+    if((G.reformScore||0)>75)return'Reform path too strong';
+    if((G.health||0)<25)return'Too unhealthy';
+    return'';
+  },
+
+  joinGang(id){
+    const G=window.G;this._ensure();
+    const gang=CRIME_GANGS[id];
+    if(!gang){UI.toast('Unknown gang.','bad');return;}
+    if(!this._canUseAction('gangJoin'))return;
+    const lock=this._gangJoinLocked(id,gang);
+    if(lock){UI.toast(lock,'bad');return;}
+
+    this._markAction('gangJoin');
+    G.gangId=id;
+    G.gangRank=1;
+    G.gangLoyalty=cl(48+r(4,12),0,100);
+    G.gangRespect=cl(18+r(3,9),0,100);
+    G.gangTerritory=cl(8+r(2,8),0,100);
+    G.gangWarHeat=cl(r(8,22),0,100);
+    G.gangFronts=0;
+    G.gangJoinedAge=G.age||0;
+    G.underworldRep=cl((G.underworldRep||0)+r(4,9),0,100);
+    G.reformScore=cl((G.reformScore||0)-r(4,10),0,100);
+    G.stress=cl((G.stress||0)+r(2,5));
+    this._addGangHistory(`Joined ${gang.name}`,`Rank ${this._gangRankLabel(G.gangRank)} · loyalty ${Math.round(G.gangLoyalty)}%`,'special');
+    G.lastCrimeOutcome={text:`${gang.icon} You joined ${gang.name}. Organized crime, territory, and gang politics unlocked.`,type:'special',age:G.age};
+    Engine.log(`${gang.icon} Joined ${gang.name}. Territory game unlocked.`,'special');
+    UI.update();this.render();
+  },
+
+  leaveGang(){
+    const G=window.G;this._ensure();
+    const gang=this._activeGang();
+    if(!gang){UI.toast('You are not in a gang.');return;}
+    if(!this._canUseAction('gangExit'))return;
+    const c=this._cost('gangExit');
+    if((G.money||0)<c){UI.toast(`Need ${fmt(c)}!`);return;}
+
+    G.money-=c;
+    this._markAction('gangExit');
+    const oldName=gang.name;
+    const backlash=Math.max(0,Math.round((G.gangRespect||0)/6+(G.gangTerritory||0)/8));
+    G.crimeHeat=cl((G.crimeHeat||0)+backlash,0,100);
+    G.underworldRep=cl((G.underworldRep||0)-r(5,14),0,100);
+    G.stress=cl((G.stress||0)+r(4,10));
+    G.gangId='';
+    G.gangRank=0;G.gangLoyalty=0;G.gangRespect=0;G.gangTerritory=0;G.gangWarHeat=0;G.gangFronts=0;G.gangCashFlow=0;G.gangJoinedAge=0;
+    this._addGangHistory(`Cut ties with ${oldName}`,'Protection gone. Heat increased from backlash.','bad');
+    G.lastCrimeOutcome={text:`You cut ties with ${oldName}. Protection is gone and some heat followed you.`,type:'bad',age:G.age};
+    Engine.log(`🚪 You left ${oldName}. The underworld does not forget instantly.`,'bad');
+    UI.update();this.render();
+  },
+
+  gangTask(task){
+    const G=window.G;this._ensure();
+    const gang=this._activeGang();
+    if(!gang){UI.toast('Join a gang first.','bad');return;}
+    if(G.inPrison){UI.toast('Not while in prison.','bad');return;}
+
+    if(task==='dues'){
+      if(!this._canUseAction('gangDues'))return;
+      this._markAction('gangDues');
+      const money=this._gangDuesValue();
+      G.money=(G.money||0)+money;
+      G.crimeHeat=cl((G.crimeHeat||0)+r(4,10),0,100);
+      G.gangLoyalty=cl((G.gangLoyalty||0)+r(2,6),0,100);
+      G.gangRespect=cl((G.gangRespect||0)+r(1,4),0,100);
+      G.karma=cl((G.karma||0)-r(3,8),-100,100);
+      G.stress=cl((G.stress||0)+r(1,4));
+      this._gangPromoteCheck();
+      this._addGangHistory('Collected dues',`Earned ${fmt(money)} · heat increased`,'neutral');
+      Engine.log(`💼 Gang dues brought in ${fmt(money)}, but heat increased.`,'crime');
+    }else if(task==='expand'){
+      if(!this._canUseAction('gangExpand'))return;
+      if((G.gangWarHeat||0)>=90){UI.toast('War heat too high. Defend or negotiate first.','bad');return;}
+      this._markAction('gangExpand');
+      const chance=this._gangMoveChance('expand');
+      G.stress=cl((G.stress||0)+r(3,8));
+      G.gangWarHeat=cl((G.gangWarHeat||0)+r(8,18),0,100);
+      G.crimeHeat=cl((G.crimeHeat||0)+r(4,11),0,100);
+      if(Math.random()<chance){
+        const gain=r(5,13)+Math.floor((gang.perk?.territory||0)*20);
+        G.gangTerritory=cl((G.gangTerritory||0)+gain,0,100);
+        G.gangRespect=cl((G.gangRespect||0)+r(5,12),0,100);
+        G.underworldRep=cl((G.underworldRep||0)+r(2,6),0,100);
+        G.gangLoyalty=cl((G.gangLoyalty||0)+r(1,5),0,100);
+        this._gangPromoteCheck();
+        this._addGangHistory('Expanded territory',`Territory +${gain}% · respect grew`,'good');
+        Engine.log(`🗺️ Territory expanded. ${gang.name} respects you more.`,'good');
+      }else{
+        G.health=cl((G.health||50)-r(3,10));
+        G.gangRespect=cl((G.gangRespect||0)-r(3,8),0,100);
+        G.gangLoyalty=cl((G.gangLoyalty||0)-r(1,6),0,100);
+        this._addGangHistory('Territory push failed','Rivals resisted. Health and respect took damage.','bad');
+        Engine.log('🏴 Territory push failed. Rivals pushed back hard.','bad');
+      }
+    }else if(task==='defend'){
+      if(!this._canUseAction('gangDefend'))return;
+      this._markAction('gangDefend');
+      const drop=r(10,22)+Math.floor((G.gangLoyalty||0)/12);
+      G.gangWarHeat=cl((G.gangWarHeat||0)-drop,0,100);
+      G.gangLoyalty=cl((G.gangLoyalty||0)+r(3,8),0,100);
+      G.gangRespect=cl((G.gangRespect||0)+r(1,5),0,100);
+      G.stress=cl((G.stress||0)+r(2,6));
+      if(Math.random()<.18){G.health=cl((G.health||50)-r(1,6));}
+      this._gangPromoteCheck();
+      this._addGangHistory('Defended turf',`War heat -${drop}% · loyalty improved`,'good');
+      Engine.log('🛡️ You defended turf. Rival pressure cooled down.','good');
+    }else if(task==='front'){
+      if(!this._canUseAction('gangFront'))return;
+      const c=this._cost('gangFront');
+      if((G.money||0)<c){UI.toast(`Need ${fmt(c)}!`);return;}
+      if((G.gangFronts||0)>=8){UI.toast('Front businesses are maxed.');return;}
+      this._markAction('gangFront');
+      G.money-=c;
+      G.gangFronts=(G.gangFronts||0)+1;
+      G.gangRespect=cl((G.gangRespect||0)+r(4,9),0,100);
+      G.crimeHeat=cl((G.crimeHeat||0)-r(3,8),0,100);
+      G.gangWarHeat=cl((G.gangWarHeat||0)-r(1,5),0,100);
+      this._gangPromoteCheck();
+      this._addGangHistory('Opened front business',`Fronts ${G.gangFronts}/8 · heat eased`,'special');
+      Engine.log('🏪 Front business opened. Cleaner income and lower visibility.','special');
+    }else if(task==='truce'){
+      if(!this._canUseAction('gangTruce'))return;
+      const c=this._cost('gangTruce');
+      if((G.money||0)<c){UI.toast(`Need ${fmt(c)}!`);return;}
+      if((G.gangWarHeat||0)<15){UI.toast('No truce needed right now.');return;}
+      this._markAction('gangTruce');
+      G.money-=c;
+      const drop=r(20,38)+Math.floor((G.smarts||50)/10);
+      G.gangWarHeat=cl((G.gangWarHeat||0)-drop,0,100);
+      G.gangRespect=cl((G.gangRespect||0)+r(-2,4),0,100);
+      G.stress=cl((G.stress||0)-r(2,6));
+      this._addGangHistory('Negotiated truce',`War heat -${drop}%`,'good');
+      Engine.log('🕊️ Truce talks lowered rival pressure.','good');
+    }
+
+    this._checkCrimeAchievements();
+    UI.update();this.render();
+  },
+
+  _hasGang(){return !!(window.G&&window.G.gangId&&CRIME_GANGS[window.G.gangId]);},
+
+  _activeGang(){
+    const G=window.G;if(!G||!G.gangId)return null;
+    return CRIME_GANGS[G.gangId]||null;
+  },
+
+  _gangRankLabel(rank){
+    return ['Outsider','Runner','Enforcer','Captain','Underboss','Boss'][Math.max(0,Math.min(5,Math.round(rank||0)))]||'Runner';
+  },
+
+  _gangStanding(){
+    const G=window.G;
+    const score=((G.gangLoyalty||0)*.42)+((G.gangRespect||0)*.42)+((G.gangTerritory||0)*.16)-((G.gangWarHeat||0)*.20);
+    if(score>=78)return{label:'Feared & Trusted',color:'var(--green)'};
+    if(score>=55)return{label:'Solid Position',color:'var(--yellow)'};
+    if(score>=32)return{label:'Unstable',color:'var(--orange)'};
+    return{label:'At Risk',color:'var(--red)'};
+  },
+
+  _gangDuesValue(){
+    const G=window.G;
+    const gang=this._activeGang();
+    if(!gang)return 0;
+    const base=sc(r(350,1250));
+    const territory=1+Math.min(.90,(G.gangTerritory||0)/110);
+    const rank=1+Math.min(.55,(G.gangRank||0)*.11);
+    const fronts=1+Math.min(.35,(G.gangFronts||0)*.055);
+    const loyalty=1+Math.min(.20,(G.gangLoyalty||0)/500);
+    return Math.floor(base*territory*rank*fronts*loyalty);
+  },
+
+  _gangProjectedIncome(){
+    const G=window.G;
+    if(!this._activeGang())return 0;
+    const frontIncome=(G.gangFronts||0)*sc(650+r(0,450));
+    const territoryIncome=Math.floor(sc(25)*(G.gangTerritory||0)*(1+(G.gangRank||0)*.08));
+    return Math.max(0,frontIncome+territoryIncome);
+  },
+
+  _gangMoveChance(kind){
+    const G=window.G;
+    let chance=.45+(G.underworldRep||0)/260+(G.gangLoyalty||0)/360+(G.gangRespect||0)/420+(G.crimeCrew||0)*.035;
+    if(kind==='expand')chance-=Math.min(.22,(G.gangWarHeat||0)/360);
+    if((G.fitness||50)>65)chance+=.04;
+    if((G.smarts||50)>70)chance+=.04;
+    if(G.trait==='lucky')chance+=.05;
+    if(G.trait==='reckless')chance-=.04;
+    return Math.max(.12,Math.min(.86,chance));
+  },
+
+  _gangPromoteCheck(){
+    const G=window.G;if(!G||!G.gangId)return;
+    const needed=[0,25,45,64,82,999];
+    const rank=Math.max(1,Math.min(5,Math.round(G.gangRank||1)));
+    if(rank<5&&(G.gangRespect||0)>=needed[rank]&&(G.gangLoyalty||0)>=35){
+      G.gangRank=rank+1;
+      G.happiness=cl((G.happiness||50)+r(5,12));
+      G.underworldRep=cl((G.underworldRep||0)+r(4,10),0,100);
+      this._addGangHistory('Promotion',`New rank: ${this._gangRankLabel(G.gangRank)}`,'special');
+      Engine.log(`👑 Gang promotion: ${this._gangRankLabel(G.gangRank)}.`,'special');
+    }
+  },
+
+  _afterSuccessfulCrime(type,c,reward){
+    const G=window.G;if(!G)return;
+    if(c.needGang&&G.gangId){
+      G.gangRespect=cl((G.gangRespect||0)+r(2,c.gangRespect||7),0,100);
+      G.gangLoyalty=cl((G.gangLoyalty||0)+r(1,5),0,100);
+      G.gangWarHeat=cl((G.gangWarHeat||0)+r(1,c.war||6),0,100);
+      if(Math.random()<.35)G.gangTerritory=cl((G.gangTerritory||0)+r(1,4),0,100);
+      this._addGangHistory(`${c.label} succeeded`,`Gang cut strengthened your position`,'good');
+      this._gangPromoteCheck();
+    }else if(G.gangId&&reward>sc(6000)&&Math.random()<.30){
+      G.gangRespect=cl((G.gangRespect||0)+r(1,4),0,100);
+      G.gangLoyalty=cl((G.gangLoyalty||0)+r(-1,2),0,100);
+    }
+  },
+
+  _afterCaughtCrime(type,c,yrs){
+    const G=window.G;if(!G||!G.gangId)return;
+    G.gangRespect=cl((G.gangRespect||0)-r(3,10),0,100);
+    G.gangLoyalty=cl((G.gangLoyalty||0)-r(2,8),0,100);
+    G.gangWarHeat=cl((G.gangWarHeat||0)+r(4,12),0,100);
+    if(yrs>0){
+      G.gangTerritory=cl((G.gangTerritory||0)-r(3,10),0,100);
+      G.gangFronts=Math.max(0,(G.gangFronts||0)-(Math.random()<.35?1:0));
+    }
+    this._addGangHistory(`${c.label} exposed`,'Respect and territory took damage','bad');
+  },
+
+  _gangTick(){
+    const G=window.G;if(!G||!G.gangId)return;
+    const gang=this._activeGang();if(!gang)return;
+
+    if(G.inPrison){
+      G.gangLoyalty=cl((G.gangLoyalty||0)-r(1,4),0,100);
+      if(Math.random()<.18)G.gangRespect=cl((G.gangRespect||0)+r(0,3),0,100);
+      return;
+    }
+
+    if((G.gangWarHeat||0)>0)G.gangWarHeat=cl((G.gangWarHeat||0)-r(2,7),0,100);
+    if((G.gangLoyalty||0)>0&&Math.random()<.35)G.gangLoyalty=cl((G.gangLoyalty||0)-1,0,100);
+
+    const income=this._gangProjectedIncome();
+    if(income>0){
+      const finalIncome=Math.floor(income*(.55+Math.min(.25,(G.gangLoyalty||0)/500)));
+      G.money=(G.money||0)+finalIncome;
+      G.gangCashFlow=(G.gangCashFlow||0)+finalIncome;
+      Engine.log(`🏪 ${gang.name} fronts generated ${fmt(finalIncome)} this year.`,'good');
+    }
+
+    if((G.gangLoyalty||0)<18&&Math.random()<.12){
+      G.stress=cl((G.stress||0)+r(4,9));
+      G.gangRespect=cl((G.gangRespect||0)-r(2,7),0,100);
+      Engine.log('🏴 Low gang loyalty created internal pressure. Your position is weaker.','bad');
+    }
+
+    if((G.gangTerritory||0)>55&&Math.random()<.07){
+      G.crimeHeat=cl((G.crimeHeat||0)+r(3,8),0,100);
+      Engine.log('🚓 Police noticed your growing territory footprint. Heat increased.','bad');
+    }
+
+    this._rollGangEvent();
+  },
+
+  _rollGangEvent(){
+    const G=window.G;if(!G||!G.gangId||G.inPrison)return;
+    const gang=this._activeGang();if(!gang)return;
+    const pool=[];
+
+    pool.push({id:'gang_loyalty_test',chance:.045,run:()=>{
+      const pass=(G.gangLoyalty||0)+(G.gangRespect||0)/2+r(0,30)>70;
+      if(pass){
+        G.gangRespect=cl((G.gangRespect||0)+r(3,8),0,100);
+        G.gangLoyalty=cl((G.gangLoyalty||0)+r(2,6),0,100);
+        Engine.log(`🏴 ${gang.name} tested your loyalty. You passed and gained respect.`,'good');
+      }else{
+        G.stress=cl((G.stress||0)+r(5,11));
+        G.gangRespect=cl((G.gangRespect||0)-r(4,10),0,100);
+        Engine.log(`🏴 ${gang.name} questioned your loyalty. Respect dropped.`,'bad');
+      }
+    }});
+
+    if((G.gangWarHeat||0)>35){
+      pool.push({id:'rival_flashpoint',chance:.06,run:()=>{
+        G.gangWarHeat=cl((G.gangWarHeat||0)+r(5,14),0,100);
+        G.stress=cl((G.stress||0)+r(3,8));
+        if(Math.random()<.22)G.health=cl((G.health||50)-r(2,8));
+        Engine.log(`⚠️ Rival flashpoint with ${CRIME_GANGS[gang.rival]?.name||'a rival crew'}. War heat rose.`,'bad');
+      }});
+    }
+
+    if((G.gangFronts||0)>0){
+      pool.push({id:'front_success',chance:.055,run:()=>{
+        const bonus=sc(r(600,2200))*(G.gangFronts||1);
+        G.money=(G.money||0)+bonus;
+        G.crimeHeat=cl((G.crimeHeat||0)-r(1,5),0,100);
+        Engine.log(`🏪 A front business performed well. Bonus ${fmt(bonus)} and heat eased.`,'good');
+      }});
+    }
+
+    for(const evt of pool.filter(e=>!this._recentEvent(e.id,5))){
+      if(Math.random()<evt.chance){this._rememberEvent(evt.id);evt.run();return;}
+    }
+  },
+
+  _gangHistoryHTML(){
+    const G=window.G;
+    const hist=(G.gangHistory||[]).slice(-4).reverse();
+    if(!hist.length)return'';
+    return `<div class="log-list" style="margin-bottom:8px">${hist.map(x=>`<div class="log-entry ${x.type==='bad'?'bad':'neutral'}"><div class="log-age" style="color:${x.type==='bad'?'var(--red)':x.type==='special'?'var(--accent)':'var(--green)'}">Age ${this.esc(x.age)}</div><div class="log-txt">${this.esc(x.title)} — ${this.esc(x.detail)}</div></div>`).join('')}</div>`;
+  },
+
+  _addGangHistory(title,detail,type='neutral'){
+    const G=window.G;if(!G)return;
+    if(!Array.isArray(G.gangHistory))G.gangHistory=[];
+    G.gangHistory.push({age:G.age||0,title,detail,type});
+    if(G.gangHistory.length>18)G.gangHistory=G.gangHistory.slice(-18);
+  },
+
+  _miniBar(label,value,sub,color){
+    const v=this.clamp(value);
+    return `<div class="nw-box" style="margin-bottom:0;padding:10px">
+      <div class="nw-lbl">${this.esc(label)}</div>
+      <div style="display:flex;align-items:center;gap:8px;margin:4px 0">
+        <div style="flex:1;height:7px;background:var(--s3);border-radius:999px;overflow:hidden"><div style="width:${v}%;height:100%;background:${color};border-radius:999px"></div></div>
+        <div style="font-size:12px;font-weight:950;color:${color};min-width:34px;text-align:right">${Math.round(v)}%</div>
+      </div>
+      <div class="nw-sub">${this.esc(sub)}</div>
+    </div>`;
+  },
+
   _renderPrison(){
     const G=window.G;
     this._normalizePrison(G);
@@ -151,6 +644,7 @@ const Crime={
       <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:12px">
         ${this._metricBox('Sentence',years+' yr'+(years!==1?'s':''),'Age '+G.age,'var(--red)')}
         ${this._metricBox('Prison Rep',Math.round(rep)+'%','Helps networks, hurts reform',this._scoreColor(rep))}
+        ${this._metricBox('Gang Status',this._activeGang()?this._activeGang().name:'None',this._activeGang()?('Loyalty '+Math.round(G.gangLoyalty||0)+'%'):'No protection',this._activeGang()?this._activeGang().color:'var(--muted)')}
         ${this._metricBox('Reform Score',Math.round(reform)+'%','Helps parole',this._scoreColor(reform))}
         ${this._metricBox('Stress',Math.round(G.stress||0)+'%','Prison is mentally heavy',(G.stress||0)>70?'var(--red)':'var(--orange)')}
       </div>
@@ -273,8 +767,33 @@ const Crime={
     if(!Number.isFinite(G.burnerPhones))G.burnerPhones=0;
     if(!Number.isFinite(G.safehouseYears))G.safehouseYears=0;
     if(!Array.isArray(G.crimeHistory))G.crimeHistory=[];
+    if(!Array.isArray(G.crimeJobMemory))G.crimeJobMemory=[];
+    if(!Array.isArray(G.crimeEventMemory))G.crimeEventMemory=[];
+    if(!Array.isArray(G.gangHistory))G.gangHistory=[];
+    if(!G.crimeActionUses||typeof G.crimeActionUses!=='object')G.crimeActionUses={};
+    if(!Number.isFinite(G.crimeActionYear))G.crimeActionYear=G.age||0;
 
     G.inPrison=!!G.inPrison;
+    if(typeof G.gangId!=='string')G.gangId='';
+    if(G.gangId&&!CRIME_GANGS[G.gangId])G.gangId='';
+    if(!Number.isFinite(G.gangRank))G.gangRank=0;
+    if(!Number.isFinite(G.gangLoyalty))G.gangLoyalty=0;
+    if(!Number.isFinite(G.gangRespect))G.gangRespect=0;
+    if(!Number.isFinite(G.gangTerritory))G.gangTerritory=0;
+    if(!Number.isFinite(G.gangWarHeat))G.gangWarHeat=0;
+    if(!Number.isFinite(G.gangFronts))G.gangFronts=0;
+    if(!Number.isFinite(G.gangCashFlow))G.gangCashFlow=0;
+    if(!Number.isFinite(G.gangJoinedAge))G.gangJoinedAge=0;
+    G.gangRank=this.clamp(Math.round(G.gangRank),0,5);
+    G.gangLoyalty=this.clamp(G.gangLoyalty,0,100);
+    G.gangRespect=this.clamp(G.gangRespect,0,100);
+    G.gangTerritory=this.clamp(G.gangTerritory,0,100);
+    G.gangWarHeat=this.clamp(G.gangWarHeat,0,100);
+    G.gangFronts=this.clamp(Math.round(G.gangFronts),0,8);
+    G.gangCashFlow=Math.max(0,Math.round(G.gangCashFlow||0));
+    if(!G.gangId){
+      G.gangRank=0;G.gangLoyalty=0;G.gangRespect=0;G.gangTerritory=0;G.gangWarHeat=0;G.gangFronts=0;G.gangCashFlow=0;G.gangJoinedAge=0;
+    }
     G.prisonYears=this._prisonYears(G);
     G.crimeIntel=this.clamp(G.crimeIntel,0,100);
     G.crimeCrew=this.clamp(G.crimeCrew,0,3);
@@ -284,23 +803,97 @@ const Crime={
     if(!Number.isFinite(G.prisonYearsServed))G.prisonYearsServed=0;
     if(!Number.isFinite(G.prisonStartAge))G.prisonStartAge=G.inPrison?G.age:null;
     if(!Number.isFinite(G.prisonLastTickAge))G.prisonLastTickAge=null;
+    this._resetActionYearIfNeeded();
+  },
+
+  _resetActionYearIfNeeded(){
+    const G=window.G;if(!G)return;
+    if(!Number.isFinite(G.crimeActionYear))G.crimeActionYear=G.age||0;
+    if(!G.crimeActionUses||typeof G.crimeActionUses!=='object')G.crimeActionUses={};
+    if(G.crimeActionYear!==(G.age||0)){
+      G.crimeActionYear=G.age||0;
+      G.crimeActionUses={};
+    }
+  },
+
+  _usesLeft(action){
+    const G=window.G;if(!G)return 0;
+    this._resetActionYearIfNeeded();
+    const limit=this.ACTION_LIMITS[action]??99;
+    const used=G.crimeActionUses?.[action]||0;
+    return Math.max(0,limit-used);
+  },
+
+  _canUseAction(action,msg='That crime action is already used enough this year. Age up to refresh.'){
+    if(this._usesLeft(action)<=0){UI.toast(msg,'bad');return false;}
+    return true;
+  },
+
+  _markAction(action){
+    const G=window.G;if(!G)return;
+    this._resetActionYearIfNeeded();
+    G.crimeActionUses[action]=(G.crimeActionUses[action]||0)+1;
+  },
+
+  _repeatPressure(type){
+    const G=window.G;if(!G)return 0;
+    return (G.crimeJobMemory||[]).slice(0,5).filter(x=>x.type===type).length;
+  },
+
+  _rememberCrimeAction(type,label,result){
+    const G=window.G;if(!G)return;
+    if(!Array.isArray(G.crimeJobMemory))G.crimeJobMemory=[];
+    G.crimeJobMemory.unshift({age:G.age||0,type,label,result});
+    if(G.crimeJobMemory.length>this.MEMORY_LIMIT)G.crimeJobMemory.length=this.MEMORY_LIMIT;
+  },
+
+  _recentEvent(id,windowSize=4){
+    const G=window.G;if(!G)return false;
+    return (G.crimeEventMemory||[]).slice(0,windowSize).some(e=>e.id===id);
+  },
+
+  _rememberEvent(id){
+    const G=window.G;if(!G)return;
+    if(!Array.isArray(G.crimeEventMemory))G.crimeEventMemory=[];
+    G.crimeEventMemory.unshift({age:G.age||0,id});
+    if(G.crimeEventMemory.length>this.MEMORY_LIMIT)G.crimeEventMemory.length=this.MEMORY_LIMIT;
+  },
+
+  _chargePenalty(label,amount){
+    const G=window.G;
+    const due=Math.max(0,Math.round(amount||0));
+    if(!G||!due)return;
+    if(typeof Assets!=='undefined'&&Assets.chargeExpense){
+      Assets.chargeExpense(label,due,{icon:'⚖️',toCollections:true,collectionMult:1.12,creditPenalty:12,stress:4,happiness:3,logMiss:true,missType:'bad'});
+      return;
+    }
+    if((G.money||0)>=due){G.money-=due;return;}
+    const paid=Math.max(0,G.money||0);
+    const missed=due-paid;
+    G.money=0;
+    G.debtCollections=(G.debtCollections||0)+Math.round(missed*1.12);
   },
 
   _locked(id,c){
     const G=window.G;
     if((G.age||0)<(c.minAge||16))return`Age ${c.minAge}+`;
+    if(c.needGang&&!G.gangId)return'Join a gang first';
+    if(c.needGang&&(G.gangRank||0)<1)return'Need gang rank 1+';
+    if(c.needGang&&(G.underworldRep||0)<12)return'Need 12 underworld rep';
     if(id==='hacking'&&(G.smarts<60&&(G.skills?.coding||0)<35))return'Need 60 smarts or coding 35';
     if(c.need==='smarts'&&G.smarts<35)return'Need 35 smarts';
     if(c.need==='fitness'&&(G.fitness||50)<35)return'Need 35 fitness';
     if((id==='smuggling'||id==='loan_shark')&&(G.underworldRep||0)<10)return'Need 10 underworld rep';
     if(id==='casino_skim'&&((G.underworldRep||0)<20||((G.skills?.coding||0)<35&&(G.smarts||0)<60)))return'Need 20 rep and coding 35 or smarts 60';
+    if((id==='cargo_hijack'||id==='luxury_theft_ring')&&(G.gangRank||0)<2)return'Need gang rank 2+';
+    if(id==='underground_casino'&&(G.gangFronts||0)<1)return'Need 1 front business';
     if(id==='bank'&&(G.underworldRep||0)<25)return'Need 25 underworld rep';
     if(id==='art_heist'&&(G.underworldRep||0)<18)return'Need 18 underworld rep';
     if((G.health||0)<15)return'Too unhealthy';
     return'';
   },
 
-  _caughtChance(c){
+  _caughtChance(c,type=null){
     const G=window.G;
     let chance=c.catch;
     chance*=((G.country?.crimeRate||.35)*2.35);
@@ -315,22 +908,43 @@ const Crime={
     chance*=(1-Math.min(.12,(G.reformScore||0)/800));
     chance*=(1-Math.min(.18,(G.crimeIntel||0)/420));
     chance*=(1-Math.min(.12,(G.crimeCrew||0)*.04));
+    const gang=this._activeGang();
+    if(gang){
+      chance*=1-Math.min(.14,(gang.perk?.risk||0)+((G.gangLoyalty||0)/1200));
+      chance*=1+Math.min(.18,(G.gangTerritory||0)/650);
+      chance*=1+Math.min(.20,(G.gangWarHeat||0)/330);
+      if(c.need==='hacking')chance*=1-Math.min(.12,gang.perk?.hacking||0);
+      if(type&&['smuggling','cargo_hijack'].includes(type))chance*=1-Math.min(.12,gang.perk?.smuggling||0);
+      if(c.needGang)chance*=1-Math.min(.10,(G.gangRank||0)*.018+(G.gangRespect||0)/1500);
+    }
     if((G.safehouseYears||0)>0)chance*=.93;
     if(this._burnerApplies(c)&&((G.burnerPhones||0)>0))chance*=.82;
     if(c.need==='fitness'&&(G.fitness||50)>70)chance*=.88;
     if(c.need==='hacking'&&((G.skills?.coding||0)>50||G.smarts>80))chance*=.82;
     if(G.lawyerRetainer>0)chance*=.96;
+    if(type)chance*=1+Math.min(.35,this._repeatPressure(type)*.11);
     return Math.max(.03,Math.min(.92,chance));
   },
 
-  _rewardFor(c){
+  _rewardFor(c,type=null){
     const G=window.G;
     const base=sc(r(c.reward[0],c.reward[1]));
     const repMult=1+Math.min(.35,(G.underworldRep||0)/260);
     const smartMult=c.need==='smarts'||c.need==='hacking'?1+Math.max(0,(G.smarts-55))/300:1;
     const intelMult=1+Math.min(.12,(G.crimeIntel||0)/500);
     const crewMult=1+Math.min(.24,(G.crimeCrew||0)*.08);
-    return Math.max(0,Math.floor(base*repMult*smartMult*intelMult*crewMult));
+    const gang=this._activeGang();
+    let gangMult=1;
+    if(gang){
+      gangMult+=Math.min(.30,gang.perk?.reward||0);
+      gangMult+=Math.min(.16,(G.gangRank||0)*.025);
+      gangMult+=Math.min(.14,(G.gangTerritory||0)/700);
+      gangMult+=Math.min(.08,(G.gangRespect||0)/1100);
+      if(type&&['smuggling','cargo_hijack'].includes(type))gangMult+=Math.min(.10,gang.perk?.smuggling||0);
+      if(c.need==='hacking')gangMult+=Math.min(.08,gang.perk?.hacking||0);
+    }
+    const repeatPenalty=type?Math.max(.72,1-this._repeatPressure(type)*.08):1;
+    return Math.max(0,Math.floor(base*repMult*smartMult*intelMult*crewMult*gangMult*repeatPenalty));
   },
 
   do(type){
@@ -341,13 +955,15 @@ const Crime={
 
     const c=CRIME_JOBS[type];if(!c)return;
     const locked=this._locked(type,c);if(locked){UI.toast(locked);return;}
+    if(!this._canUseAction('crime'))return;
+    this._markAction('crime');
 
     if(type==='bank'){
       if(!G.achievements)G.achievements={};
       G.achievements.bank_robbed=true;
     }
 
-    const caughtChance=this._caughtChance(c);
+    const caughtChance=this._caughtChance(c,type);
     const caught=Math.random()<caughtChance;
     const heatBefore=G.crimeHeat||0;
     const heatGain=this._heatGainFor(c);
@@ -362,16 +978,19 @@ const Crime={
     if(caught){
       this._handleCaught(type,c,caughtChance);
     }else{
-      const reward=this._rewardFor(c);
+      const reward=this._rewardFor(c,type);
       G.money+=reward;
       G.happiness=cl(G.happiness+r(2,8));
       G.underworldRep=cl((G.underworldRep||0)+(c.rep||Math.ceil(c.heat/3)),0,100);
       G.karma=cl((G.karma||0)-r(c.karma[0],c.karma[1]),-100,100);
       G.reformScore=cl((G.reformScore||0)-r(0,3),0,100);
+      this._afterSuccessfulCrime(type,c,reward);
 
-      const msg=`${c.icon} ${c.label} succeeded. Earned ${fmt(reward)}. Heat ${Math.round(heatBefore)}% → ${Math.round(G.crimeHeat)}%.`;
+      const gangText=c.needGang&&G.gangId?` · Gang respect ${Math.round(G.gangRespect||0)}%`:'';
+      const msg=`${c.icon} ${c.label} succeeded. Earned ${fmt(reward)}. Heat ${Math.round(heatBefore)}% → ${Math.round(G.crimeHeat)}%${gangText}.`;
       G.lastCrimeOutcome={text:msg,type:'good',age:G.age};
       this._addHistory({age:G.age,label:c.label,result:'Succeeded',money:reward,heat:G.crimeHeat,type:'good'});
+      this._rememberCrimeAction(type,c.label,'success');
       Engine.log(msg,'crime');
     }
 
@@ -402,16 +1021,18 @@ const Crime={
     G.karma=cl((G.karma||0)-r(c.karma[0],c.karma[1]),-100,100);
     G.crimeStreak=0;
     G.crimeIntel=cl((G.crimeIntel||0)-r(10,18),0,100);
+    this._afterCaughtCrime(type,c,yrs);
 
     if(!G.achievements)G.achievements={};
     G.achievements.jailbird=true;
 
     if(yrs===0){
-      G.money=Math.max(0,(G.money||0)-fine);
+      this._chargePenalty(`${c.label} fine`,fine);
       G.crimeHeat=cl((G.crimeHeat||0)+8,0,100);
       const msg=`👮 Caught for ${c.label}. ${lawyer?'Your lawyer helped. ':''}Fined ${fmt(fine)} and released.`;
       G.lastCrimeOutcome={text:msg,type:'bad',age:G.age};
       this._addHistory({age:G.age,label:c.label,result:'Caught + fined',money:-fine,heat:G.crimeHeat,type:'bad'});
+      this._rememberCrimeAction(type,c.label,'caught');
       Engine.log(msg,'crime');
     }else{
       G.inPrison=true;
@@ -434,6 +1055,7 @@ const Crime={
       const msg=`🚔 Arrested for ${c.label}. ${lawyer?'Your lawyer reduced the damage. ':''}Sentenced to ${yrs} year${yrs!==1?'s':''}.`;
       G.lastCrimeOutcome={text:msg,type:'bad',age:G.age};
       this._addHistory({age:G.age,label:c.label,result:'Prison',money:0,heat:G.crimeHeat,type:'bad'});
+      this._rememberCrimeAction(type,c.label,'prison');
       Engine.log(msg,'crime');
     }
 
@@ -442,11 +1064,13 @@ const Crime={
 
   scoutTargets(){
     const G=window.G;this._ensure();
+    if(!this._canUseAction('scout'))return;
     const c=this._cost('scout');
     if((G.money||0)<c){UI.toast(`Need ${fmt(c)}!`);return;}
     if((G.crimeIntel||0)>=94){UI.toast('Your intel is already very high.');return;}
 
     G.money-=c;
+    this._markAction('scout');
     G.crimeIntel=cl((G.crimeIntel||0)+r(12,22),0,100);
     G.smarts=cl((G.smarts||0)+r(1,3));
     G.stress=cl((G.stress||0)+r(1,4));
@@ -458,11 +1082,13 @@ const Crime={
 
   buyBurner(){
     const G=window.G;this._ensure();
+    if(!this._canUseAction('burner'))return;
     const c=this._cost('burner');
     if((G.money||0)<c){UI.toast(`Need ${fmt(c)}!`);return;}
     if((G.burnerPhones||0)>=3){UI.toast('You already have the maximum number of burner kits.');return;}
 
     G.money-=c;
+    this._markAction('burner');
     G.burnerPhones=(G.burnerPhones||0)+1;
     G.lastCrimeOutcome={text:'You bought a burner kit. Digital jobs will be harder to trace.',type:'neutral',age:G.age};
     Engine.log('Burner kit secured. Fraud jobs will be quieter for a while.','good');
@@ -472,12 +1098,14 @@ const Crime={
 
   recruitCrew(){
     const G=window.G;this._ensure();
+    if(!this._canUseAction('crew'))return;
     const c=this._cost('crew');
     if((G.money||0)<c){UI.toast(`Need ${fmt(c)}!`);return;}
     if((G.underworldRep||0)<15){UI.toast('Need 15 underworld rep.');return;}
     if((G.crimeCrew||0)>=3){UI.toast('Your crew is already at full strength.');return;}
 
     G.money-=c;
+    this._markAction('crew');
     G.crimeCrew=(G.crimeCrew||0)+1;
     G.underworldRep=cl((G.underworldRep||0)+r(1,3),0,100);
     G.happiness=cl(G.happiness+r(2,5));
@@ -489,11 +1117,13 @@ const Crime={
 
   setupSafehouse(){
     const G=window.G;this._ensure();
+    if(!this._canUseAction('safehouse'))return;
     const c=this._cost('safehouse');
     if((G.money||0)<c){UI.toast(`Need ${fmt(c)}!`);return;}
     if((G.safehouseYears||0)>0){UI.toast('A safehouse is already active.');return;}
 
     G.money-=c;
+    this._markAction('safehouse');
     G.safehouseYears=3;
     G.crimeHeat=cl((G.crimeHeat||0)-r(4,9),0,100);
     G.stress=cl((G.stress||0)-r(2,6));
@@ -505,6 +1135,8 @@ const Crime={
 
   layLow(){
     const G=window.G;this._ensure();
+    if(!this._canUseAction('layLow'))return;
+    this._markAction('layLow');
     const drop=r(15,28)+Math.floor((G.reformScore||0)/12);
     G.crimeHeat=cl((G.crimeHeat||0)-drop,0,100);
     G.happiness=cl(G.happiness-r(3,8));
@@ -518,11 +1150,13 @@ const Crime={
 
   lawyer(){
     const G=window.G;this._ensure();
+    if(!this._canUseAction('lawyer'))return;
     const c=sc(2500);
     if((G.money||0)<c){UI.toast(`Need ${fmt(c)}!`);return;}
     if((G.lawyerRetainer||0)>0){UI.toast('You already have a lawyer on retainer.');return;}
 
     G.money-=c;
+    this._markAction('lawyer');
     G.lawyerRetainer=1;
     G.stress=cl((G.stress||0)-3);
 
@@ -533,6 +1167,8 @@ const Crime={
 
   communityService(){
     const G=window.G;this._ensure();
+    if(!this._canUseAction('community'))return;
+    this._markAction('community');
     G.crimeHeat=cl((G.crimeHeat||0)-r(8,18),0,100);
     G.karma=cl((G.karma||0)+r(4,9),-100,100);
     G.reformScore=cl((G.reformScore||0)+r(6,12),0,100);
@@ -546,10 +1182,12 @@ const Crime={
 
   reform(){
     const G=window.G;this._ensure();
+    if(!this._canUseAction('reform'))return;
     const c=sc(900);
     if((G.money||0)<c){UI.toast(`Need ${fmt(c)}!`);return;}
 
     G.money-=c;
+    this._markAction('reform');
     G.reformScore=cl((G.reformScore||0)+r(10,18),0,100);
     G.stress=cl((G.stress||0)-r(4,10));
     G.smarts=cl(G.smarts+r(1,3));
@@ -565,6 +1203,12 @@ const Crime={
     if(!G.inPrison&&act!=='appeal'){UI.toast('You are not in prison.');return;}
     this._normalizePrison(G);
     if(!G.inPrison&&act!=='appeal'){UI.toast('You are not in prison.');return;}
+
+    const actionKey=act==='escape'?'escape':(['appeal','parole'].includes(act)?'prisonLegal':'prisonRoutine');
+    if(actionKey==='prisonRoutine'){
+      if(!this._canUseAction('prisonRoutine','You used enough prison routine actions this year. Age up to refresh.'))return;
+      this._markAction('prisonRoutine');
+    }
 
     if(act==='study'){
       G.smarts=cl(G.smarts+r(3,7));
@@ -602,6 +1246,8 @@ const Crime={
     }else if(act==='appeal'){
       const c=sc(5000);
       if((G.money||0)<c){UI.toast('Need '+fmt(c)+'!');return;}
+      if(!this._canUseAction('prisonLegal','You used your legal move this year. Age up to refresh.'))return;
+      this._markAction('prisonLegal');
 
       G.money-=c;
       const chance=.35+(G.smarts||50)/260+(G.lawyerRetainer?0.12:0);
@@ -618,6 +1264,8 @@ const Crime={
       G.lawyerRetainer=0;
     }else if(act==='parole'){
       if((G.prisonYears||0)<2){UI.toast('Need at least 2 years remaining.');return;}
+      if(!this._canUseAction('prisonLegal','You used your legal move this year. Age up to refresh.'))return;
+      this._markAction('prisonLegal');
 
       if(Math.random()<this._paroleChance()){
         this._releaseFromPrison('parole');
@@ -631,6 +1279,8 @@ const Crime={
       G.stress=cl((G.stress||0)+r(2,6));
       Engine.log('🤝 Prison contacts increased your underworld reputation.','neutral');
     }else if(act==='escape'){
+      if(!this._canUseAction('escape','You already tried to escape this year. Age up to refresh.'))return;
+      this._markAction('escape');
       const chance=(G.trait==='lucky'?0.18:0.11)+Math.max(0,(G.fitness||50)-60)/400;
 
       if(Math.random()<chance){
@@ -649,12 +1299,14 @@ const Crime={
 
   bribe(){
     const G=window.G;this._ensure();
+    if(!this._canUseAction('bribe'))return;
     const c=sc(3500);
 
     if((G.money||0)<c){UI.toast(`Need ${fmt(c)}!`);return;}
     if(!G.inPrison&&!(G.crimes||[]).length&&!(G.crimeHeat>0)){UI.toast('No trouble to bribe away!');return;}
 
     G.money-=c;
+    this._markAction('bribe');
     const chance=.52+((G.country?.crimeRate||.35)-.25)*.35-(G.crimeHeat||0)/250+(G.underworldRep||0)/500;
 
     if(Math.random()<chance){
@@ -685,12 +1337,14 @@ const Crime={
 
   expunge(){
     const G=window.G;this._ensure();
+    if(!this._canUseAction('expunge'))return;
     const c=sc(8000);
 
     if((G.money||0)<c){UI.toast(`Need ${fmt(c)}!`);return;}
     if(!(G.crimes||[]).length){UI.toast('No record to expunge!');return;}
 
     G.money-=c;
+    this._markAction('expunge');
     const success=Math.random()<(.72+(G.reformScore||0)/300-Math.min(.22,(G.crimeHeat||0)/300));
 
     if(success){
@@ -726,6 +1380,8 @@ const Crime={
 
     if((G.crimeIntel||0)>0)G.crimeIntel=cl((G.crimeIntel||0)-r(6,12),0,100);
 
+    this._gangTick();
+
     if(G.lawyerRetainer>0&&Math.random()<.08)G.lawyerRetainer=0;
 
     if(G.inPrison){
@@ -735,9 +1391,53 @@ const Crime={
 
     if((G.crimeHeat||0)>80&&Math.random()<(hadSafehouse?0.05:0.08)){
       const fine=sc(r(500,2500));
-      G.money=Math.max(0,(G.money||0)-fine);
+      this._chargePenalty('police pressure legal costs',fine);
       G.crimeHeat=cl((G.crimeHeat||0)+5,0,100);
       Engine.log(`🚓 Police pressure followed you this year. Legal costs: ${fmt(fine)}.`,'bad');
+    }
+
+    this._rollCrimePressureEvent();
+  },
+
+  _rollCrimePressureEvent(){
+    const G=window.G;if(!G||G.inPrison)return;
+    const pool=[];
+    if((G.crimeHeat||0)>55){
+      pool.push({id:'heat_watch',chance:.10,run:()=>{
+        G.stress=cl((G.stress||0)+r(3,7));
+        Engine.log('🚓 You noticed more police attention around your usual places. The heat is still following you.','bad');
+      }});
+    }
+    if((G.reformScore||0)>50&&(G.crimeHeat||0)>10){
+      pool.push({id:'reform_help',chance:.08,run:()=>{
+        G.crimeHeat=cl((G.crimeHeat||0)-r(4,9),0,100);
+        G.happiness=cl((G.happiness||50)+r(2,5));
+        Engine.log('🕊️ Your reform efforts made people a little more willing to give you space. Heat eased.','good');
+      }});
+    }
+    if((G.underworldRep||0)>45){
+      pool.push({id:'underworld_pull',chance:.06,run:()=>{
+        G.stress=cl((G.stress||0)+r(2,5));
+        G.underworldRep=cl((G.underworldRep||0)+r(-2,3),0,100);
+        Engine.log('🕶️ Old contacts tried to pull you back into the underworld. Reputation has gravity.','neutral');
+      }});
+    }
+    if(G.gangId&&(G.gangWarHeat||0)>55){
+      pool.push({id:'gang_rival_pressure',chance:.10,run:()=>{
+        G.stress=cl((G.stress||0)+r(4,9));
+        G.gangLoyalty=cl((G.gangLoyalty||0)+r(-3,4),0,100);
+        Engine.log('🏴 Rival pressure shook your gang network. War heat is becoming dangerous.','bad');
+      }});
+    }
+    if(G.gangId&&(G.gangLoyalty||0)>70&&(G.crimeHeat||0)>30){
+      pool.push({id:'gang_warning',chance:.07,run:()=>{
+        G.crimeHeat=cl((G.crimeHeat||0)-r(3,8),0,100);
+        G.gangRespect=cl((G.gangRespect||0)+r(1,4),0,100);
+        Engine.log('🕶️ Your gang warned you before trouble got too close. Heat eased slightly.','good');
+      }});
+    }
+    for(const evt of pool.filter(e=>!this._recentEvent(e.id,4))){
+      if(Math.random()<evt.chance){this._rememberEvent(evt.id);evt.run();return;}
     }
   },
 
@@ -755,6 +1455,7 @@ const Crime={
     const G=window.G;
     const heat=G.crimeHeat||0;
     let score=heat+(G.crimes||[]).length*4-Math.floor((G.reformScore||0)/4);
+    if(G.gangId)score+=Math.floor((G.gangWarHeat||0)/5)+Math.floor((G.gangTerritory||0)/12);
     score=this.clamp(score,0,100);
 
     if(score>=75)return{label:'Severe',sub:'Expect police pressure',color:'var(--red)'};
@@ -790,6 +1491,14 @@ const Crime={
       h+=`<div class="crit-banner"><span class="crit-banner-ico">\u{1F575}\uFE0F</span><div class="crit-banner-txt">Your intel network is hot. This is a strong moment for a higher-tier job.</div></div>`;
     }
 
+    if(G.gangId&&(G.gangWarHeat||0)>=70&&!G.inPrison){
+      h+=`<div class="crit-banner red"><span class="crit-banner-ico">🏴</span><div class="crit-banner-txt">Gang war heat is critical. Defend turf or negotiate before it explodes.</div><button type="button" class="crit-go" onclick="Crime.gangTask('defend')">Defend</button></div>`;
+    }
+
+    if(G.gangId&&(G.gangRespect||0)>=85&&!G.inPrison){
+      h+=`<div class="crit-banner"><span class="crit-banner-ico">👑</span><div class="crit-banner-txt">Your gang respect is elite. Organized jobs and territory moves are stronger now.</div></div>`;
+    }
+
     return h;
   },
 
@@ -810,22 +1519,31 @@ const Crime={
     let heat=c.heat||0;
     if((G.safehouseYears||0)>0)heat=Math.max(1,heat-2);
     if((G.crimeCrew||0)>0)heat=Math.max(1,heat-Math.min(3,G.crimeCrew||0));
+    const gang=this._activeGang();
+    if(gang){
+      heat=Math.max(1,Math.round(heat*(1+(gang.perk?.heat||0))));
+      if(c.needGang)heat=Math.max(1,heat-Math.min(4,(G.gangRank||0)));
+      if((G.gangFronts||0)>0)heat=Math.max(1,heat-Math.min(3,G.gangFronts||0));
+    }
     if((G.burnerPhones||0)>0&&this._burnerApplies(c))heat=Math.max(1,heat-4);
     return heat;
   },
 
   _crimeCard(id,c){
-    const locked=this._locked(id,c);
-    const risk=Math.round(this._caughtChance(c)*100);
+    const baseLocked=this._locked(id,c);
+    const moveLocked=this._usesLeft('crime')<=0?'No crime moves left this year':'';
+    const locked=baseLocked||moveLocked;
+    const risk=Math.round(this._caughtChance(c,id)*100);
     const reward=`${fmt(sc(c.reward[0]))}-${fmt(sc(c.reward[1]))}`;
     const riskColor=risk>=55?'var(--red)':risk>=30?'var(--orange)':'var(--yellow)';
+    const gangLine=c.needGang?` · Gang +${c.gangRespect||0} respect`:'';
     const onclick=locked?`UI.toast('${this.attr(locked)}')`:`Crime.do('${id}')`;
 
     return`<div class="card danger ${locked?'locked':''}" onclick="${onclick}" title="${this.esc(c.desc||c.label)}">
       <span class="ci">${locked?'🔒':this.esc(c.icon)}</span>
       <span class="cn">${this.esc(c.label)}</span>
       <span class="cd">${locked?this.esc(locked):`${reward} · <span style=&quot;color:${riskColor};font-weight:900&quot;>${risk}% caught</span>`}</span>
-      <span class="cd" style="opacity:.75;font-size:10px">Heat +${c.heat} · ${this.esc(c.prep)} prep</span>
+      <span class="cd" style="opacity:.75;font-size:10px">Heat +${c.heat} · ${this.esc(c.prep)} prep${gangLine}${this._repeatPressure(id)?' · repeat risk':''}</span>
     </div>`;
   },
 
@@ -882,6 +1600,9 @@ const Crime={
     if((G.underworldRep||0)>=75)G.achievements.underworld_legend=true;
     if((G.reformScore||0)>=80)G.achievements.reformed=true;
     if(type==='art_heist')G.achievements.art_heist=true;
+    if((G.gangRank||0)>=5)G.achievements.gang_boss=true;
+    if((G.gangTerritory||0)>=75)G.achievements.turf_king=true;
+    if(type&&CRIME_JOBS[type]?.needGang)G.achievements.organized_crime=true;
 
     Engine.checkAch();
   },

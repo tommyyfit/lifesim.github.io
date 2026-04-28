@@ -3,9 +3,15 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="description" content="LifeSim v13 — a browser-based life simulation game where every choice shapes your legacy.">
+<meta name="description" content="LifeSim v14 — a premium browser-based life simulation game where every choice shapes your money, health, relationships, legacy, career, crime path, gangs, and dynasty.">
 <meta name="theme-color" content="#7c6fff">
-<title>LifeSim v13</title>
+<meta name="color-scheme" content="dark light">
+<meta name="application-name" content="LifeSim v14">
+<meta name="author" content="LifeSim">
+<meta property="og:title" content="LifeSim v14">
+<meta property="og:description" content="Every choice shapes your story, empire, underworld, and legacy.">
+<meta property="og:type" content="website">
+<title>LifeSim v14 — Legacy & Underworld</title>
 
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
@@ -18,17 +24,36 @@
 </head>
 
 <body>
-<div id="app" data-version="13.0">
+<noscript>
+  <div style="position:fixed;inset:0;z-index:99999;display:flex;align-items:center;justify-content:center;background:#070713;color:#fff;font-family:system-ui,sans-serif;padding:24px;text-align:center">
+    <div style="max-width:520px">
+      <div style="font-size:42px;margin-bottom:10px">⚠️</div>
+      <h1 style="margin:0 0 8px;font-size:24px">JavaScript is required</h1>
+      <p style="margin:0;color:#cbd5e1;line-height:1.6">LifeSim v14 runs fully in your browser. Please enable JavaScript to play.</p>
+    </div>
+  </div>
+</noscript>
+
+<a href="#game-content" class="skip-link" style="position:absolute;left:-999px;top:auto;width:1px;height:1px;overflow:hidden">Skip to game content</a>
+
+<div id="app" data-version="14.0">
 
 <!-- SPLASH -->
 <div id="splash-screen" class="screen active" aria-label="Main menu">
   <div class="splash-glow" aria-hidden="true"></div>
 
   <div class="splash-logo">
+    <div class="ver-badge" style="margin-bottom:12px">v14.0 — LEGACY &amp; UNDERWORLD EDITION</div>
     <span class="logo-emoji" aria-hidden="true">🌍</span>
     <h1>LifeSim</h1>
-    <p class="tagline">Every choice echoes through eternity</p>
-    <div class="ver-badge">v13.0 — REFORGED EDITION</div>
+    <p class="tagline">Every choice becomes your legacy</p>
+
+    <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:10px">
+      <span class="ver-badge" style="font-size:10px">🏴 Gangs</span>
+      <span class="ver-badge" style="font-size:10px">👑 Legacy</span>
+      <span class="ver-badge" style="font-size:10px">📊 Life Stats</span>
+      <span class="ver-badge" style="font-size:10px">💼 Careers</span>
+    </div>
   </div>
 
   <div class="splash-menu" role="menu" aria-label="Main menu actions">
@@ -39,17 +64,19 @@
   </div>
 
   <div class="splash-features" aria-label="Version highlights">
-    <span>🛠️ Fixed Achievements</span>
-    <span>🔐 Safer UI Rendering</span>
-    <span>🌳 Dynasty System</span>
+    <span>🏴 Gangs &amp; Territory</span>
+    <span>🧠 Smarter Life Choices</span>
+    <span>🌳 Dynasty Legacy</span>
     <span>📊 Stat Charts</span>
     <span>🎭 Life Chapters</span>
     <span>🏅 Prestige Rank</span>
+    <span>🚔 Crime Consequences</span>
+    <span>💼 Wealth Paths</span>
   </div>
 
   <div id="prestige-panel" style="margin:8px auto 0;max-width:480px;text-align:center;padding:6px 12px;background:var(--s1);border-radius:20px;border:1.5px solid var(--b1)"></div>
 
-  <div class="splash-foot">LifeSim v13 — Reforged Edition · 2026</div>
+  <div class="splash-foot">LifeSim v14 — Legacy &amp; Underworld Edition · 2026</div>
 </div>
 
 <!-- CREATE -->
@@ -57,17 +84,25 @@
   <div class="topbar">
     <button type="button" class="back-btn" onclick="App.show('splash-screen')">← Back</button>
     <span class="topbar-title">👶 Create Your Life</span>
-    <span></span>
+    <span class="ver-badge" style="font-size:10px">v14</span>
   </div>
 
   <div class="create-scroll">
+    <div style="max-width:980px;margin:0 auto 12px;text-align:center">
+      <div style="font-size:11px;font-weight:900;color:var(--muted);text-transform:uppercase;letter-spacing:1.2px;margin-bottom:6px">Origin Builder</div>
+      <h2 style="margin:0;font-size:24px;font-weight:950;color:var(--txt)">Build the person. Then survive the story.</h2>
+      <p style="margin:6px auto 0;max-width:620px;color:var(--muted);font-size:13px;font-weight:700;line-height:1.6">
+        Choose your start, personality, ambition, and difficulty. Your early traits shape money, health, love, crime, career, and legacy.
+      </p>
+    </div>
+
     <div class="create-inner">
       <div class="create-left">
         <div class="create-avatar" id="create-avatar" aria-hidden="true">👦</div>
 
         <div class="form-group">
           <label class="form-label" for="inp-name">First Name</label>
-          <input type="text" id="inp-name" name="name" class="form-input" placeholder="Enter name…" maxlength="20" autocomplete="given-name">
+          <input type="text" id="inp-name" name="name" class="form-input" placeholder="Enter name…" maxlength="20" autocomplete="given-name" spellcheck="false">
         </div>
 
         <div class="form-group">
@@ -95,21 +130,26 @@
         </div>
 
         <div id="custom-stats" style="display:none;background:var(--s1);border-radius:12px;padding:12px;border:1.5px solid var(--b1)">
+          <div style="font-size:10px;font-weight:900;color:var(--muted);text-transform:uppercase;letter-spacing:1.2px;margin-bottom:8px">Custom Start</div>
+
           <div class="custom-stat-row">
             <span>😊 Happiness</span>
             <input type="range" id="cs-hap" min="5" max="95" value="50" class="stat-slider" oninput="Create.sl('hap',this.value)" aria-label="Custom happiness">
             <span id="cs-hap-v" class="slider-val">50</span>
           </div>
+
           <div class="custom-stat-row">
             <span>❤️ Health</span>
             <input type="range" id="cs-hlt" min="5" max="95" value="50" class="stat-slider" oninput="Create.sl('hlt',this.value)" aria-label="Custom health">
             <span id="cs-hlt-v" class="slider-val">50</span>
           </div>
+
           <div class="custom-stat-row">
             <span>🧠 Smarts</span>
             <input type="range" id="cs-smt" min="5" max="95" value="50" class="stat-slider" oninput="Create.sl('smt',this.value)" aria-label="Custom smarts">
             <span id="cs-smt-v" class="slider-val">50</span>
           </div>
+
           <div class="custom-stat-row">
             <span>✨ Looks</span>
             <input type="range" id="cs-lks" min="5" max="95" value="50" class="stat-slider" oninput="Create.sl('lks',this.value)" aria-label="Custom looks">
@@ -129,12 +169,22 @@
           <div id="ambition-list" role="group" aria-label="Choose life ambition"></div>
         </div>
 
-        <!-- v13: Legacy Inheritance -->
+        <!-- v14: Legacy Inheritance -->
         <div id="legacy-section" style="display:none;background:var(--s1);border-radius:12px;padding:14px;border:1.5px solid rgba(124,111,255,.4);margin-top:12px"></div>
 
         <div id="create-preview-box" style="background:var(--s2);border-radius:12px;padding:14px;border:1.5px solid var(--b1);margin-top:12px">
-          <div style="font-size:10px;font-weight:900;color:var(--muted);text-transform:uppercase;letter-spacing:1.2px;margin-bottom:8px">Life Preview</div>
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px">
+            <div style="font-size:10px;font-weight:900;color:var(--muted);text-transform:uppercase;letter-spacing:1.2px">Life Preview</div>
+            <div class="ver-badge" style="font-size:9px">Dynamic Origin</div>
+          </div>
           <div id="preview-text" style="font-size:12px;font-weight:600;color:var(--muted);line-height:1.7" aria-live="polite"></div>
+        </div>
+
+        <div style="background:linear-gradient(135deg,rgba(124,111,255,.12),rgba(56,189,248,.08));border:1.5px solid rgba(124,111,255,.25);border-radius:12px;padding:14px;margin-top:12px">
+          <div style="font-size:10px;font-weight:900;color:var(--accent);text-transform:uppercase;letter-spacing:1.2px;margin-bottom:6px">v14 Tip</div>
+          <p style="margin:0;color:var(--muted);font-size:12px;font-weight:700;line-height:1.65">
+            A rich start makes life easier, but ambition, discipline, choices, and risk management decide your final legacy.
+          </p>
         </div>
       </div>
     </div>
@@ -262,6 +312,7 @@
   <div class="death-bg-fx" aria-hidden="true"></div>
   <div class="death-body">
     <div class="death-icon" aria-hidden="true">🪦</div>
+    <div class="ver-badge" style="margin:0 auto 10px;width:max-content">v14 Life Summary</div>
     <h2 class="death-title" id="dt-title">You have died.</h2>
     <p class="death-cause" id="dt-cause"></p>
     <blockquote class="death-quote" id="dt-quote"></blockquote>
@@ -273,10 +324,10 @@
 
     <div class="death-story" id="dt-story"></div>
 
-    <!-- v13: Life Timeline -->
+    <!-- v14: Life Timeline -->
     <div id="dt-timeline" style="background:var(--s1);border:1.5px solid var(--b2);border-radius:12px;padding:14px;margin-bottom:14px;text-align:left;max-height:200px;overflow-y:auto"></div>
 
-    <!-- v13: Previous Life Comparison -->
+    <!-- v14: Previous Life Comparison -->
     <div id="dt-prev-compare"></div>
 
     <div class="death-stats" id="dt-stats"></div>
@@ -294,7 +345,7 @@
   <div class="topbar">
     <button type="button" class="back-btn" onclick="App.show('splash-screen')">← Back</button>
     <span class="topbar-title">🏆 Hall of Fame</span>
-    <span></span>
+    <span class="ver-badge" style="font-size:10px">v14</span>
   </div>
   <div class="hof-body" id="hof-body"></div>
 </div>
@@ -304,7 +355,7 @@
   <div class="topbar">
     <button type="button" class="back-btn" onclick="App.show('splash-screen')">← Back</button>
     <span class="topbar-title">🎖️ Achievements</span>
-    <span></span>
+    <span class="ver-badge" style="font-size:10px">v14</span>
   </div>
   <div class="ach-body" id="ach-body"></div>
 </div>

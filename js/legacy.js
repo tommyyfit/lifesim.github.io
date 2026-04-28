@@ -1,6 +1,7 @@
 /* js/legacy.js — LifeSim v13 Reforged Legacy / Dynasty / Prestige System */
 
 const Legacy={
+  VERSION:13,
   PRESTIGE_KEY:'ls13_prestige',
   OLD_KEYS:['ls12_prestige','ls11_prestige','ls8_prestige'],
 
@@ -17,12 +18,12 @@ const Legacy={
         }
       }
       const parsed=raw?JSON.parse(raw):{};
-      return parsed&&typeof parsed==='object'?parsed:{};
+      return this._normalizeData(parsed&&typeof parsed==='object'?parsed:{});
     }catch(e){return{};}
   },
 
   save(data){
-    try{localStorage.setItem(this.PRESTIGE_KEY,JSON.stringify(data||{}));}
+    try{localStorage.setItem(this.PRESTIGE_KEY,JSON.stringify(this._normalizeData(data||{})));}
     catch(e){}
   },
 
@@ -33,6 +34,36 @@ const Legacy={
   _esc(v){
     if(typeof escHTML==='function')return escHTML(v);
     return String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
+  },
+
+  _normalizeData(d={}){
+    if(!d||typeof d!=='object')d={};
+    d.livesPlayed=Math.max(0,Math.round(Number(d.livesPlayed)||0));
+    d.totalScore=Math.max(0,Math.round(Number(d.totalScore)||0));
+    d.bestScore=Math.max(0,Math.round(Number(d.bestScore)||0));
+    d.lastScore=Math.max(0,Math.round(Number(d.lastScore)||0));
+    d.inheritedCount=Math.max(0,Math.round(Number(d.inheritedCount)||0));
+    d.legendaryLives=Math.max(0,Math.round(Number(d.legendaryLives)||0));
+    d.achievements=d.achievements&&typeof d.achievements==='object'?d.achievements:{};
+    d.records=d.records&&typeof d.records==='object'?d.records:{};
+    d.recentLives=Array.isArray(d.recentLives)?d.recentLives.slice(0,10):[];
+    return d;
+  },
+
+  _lifeExtraFallback(extra={}){
+    const G=window.G||{};
+    const hasKeys=extra&&typeof extra==='object'&&Object.keys(extra).length>0;
+    if(hasKeys)return extra;
+    return{
+      age:G.age||0,
+      netWorth:typeof netWorth==='function'?netWorth(G):0,
+      children:(G.rels?.children||[]).length,
+      followers:G.followers||0,
+      completedGoals:(G.completedGoals||[]).length,
+      country:G.country?.name||'',
+      cause:G.causeOfDeath||'',
+      career:G.career?.title||(G.retired?'Retired':'Unemployed'),
+    };
   },
 
   getPrestige(){
@@ -55,6 +86,7 @@ const Legacy={
       legendaryLives:Math.max(0,Math.round(d.legendaryLives||0)),
       achievements:d.achievements&&typeof d.achievements==='object'?d.achievements:{},
       records:d.records&&typeof d.records==='object'?d.records:{},
+      recentLives:Array.isArray(d.recentLives)?d.recentLives.slice(0,10):[],
     };
   },
 
@@ -63,6 +95,7 @@ const Legacy={
     const cleanName=String(name||'Unknown Life').trim();
     const s=Math.max(0,Math.round(score||0));
     const g=grade||'F';
+    extra=this._lifeExtraFallback(extra);
 
     d.livesPlayed=(d.livesPlayed||0)+1;
     d.totalScore=(d.totalScore||0)+s;
@@ -80,17 +113,23 @@ const Legacy={
     if(g==='S')d.legendaryLives=(d.legendaryLives||0)+1;
 
     d.records=d.records&&typeof d.records==='object'?d.records:{};
-    d.records.highestNetWorth=Math.max(d.records.highestNetWorth||0,extra.netWorth||0);
-    d.records.longestLife=Math.max(d.records.longestLife||0,extra.age||0);
-    d.records.mostChildren=Math.max(d.records.mostChildren||0,extra.children||0);
-    d.records.mostFollowers=Math.max(d.records.mostFollowers||0,extra.followers||0);
-    d.records.mostGoals=Math.max(d.records.mostGoals||0,extra.completedGoals||0);
+    d.records.highestNetWorth=Math.max(d.records.highestNetWorth||0,Number(extra.netWorth)||0);
+    d.records.longestLife=Math.max(d.records.longestLife||0,Number(extra.age)||0);
+    d.records.mostChildren=Math.max(d.records.mostChildren||0,Number(extra.children)||0);
+    d.records.mostFollowers=Math.max(d.records.mostFollowers||0,Number(extra.followers)||0);
+    d.records.mostGoals=Math.max(d.records.mostGoals||0,Number(extra.completedGoals)||0);
+
+    d.recentLives=Array.isArray(d.recentLives)?d.recentLives:[];
+    d.recentLives.unshift({name:cleanName,grade:g,score:s,age:extra.age||0,netWorth:extra.netWorth||0,country:extra.country||'',career:extra.career||'',cause:extra.cause||'',ts:Date.now()});
+    if(d.recentLives.length>10)d.recentLives.length=10;
 
     d.achievements=d.achievements&&typeof d.achievements==='object'?d.achievements:{};
     if((d.livesPlayed||0)>=3)d.achievements.three_lives=true;
     if((d.livesPlayed||0)>=10)d.achievements.ten_lives=true;
     if((d.legendaryLives||0)>=1)d.achievements.first_legend=true;
     if((d.totalScore||0)>=500)d.achievements.dynasty_500=true;
+    if((d.records.highestNetWorth||0)>=1000000)d.achievements.millionaire_dynasty=true;
+    if((d.records.longestLife||0)>=100)d.achievements.century_life=true;
 
     this.save(d);
   },
@@ -168,6 +207,9 @@ const Legacy={
     }
 
     G.legacyBonus=optionId||'none';
+    if(!Array.isArray(G.legacyHistory))G.legacyHistory=[];
+    G.legacyHistory.unshift({age:G.age||0,option:optionId||'none',bonus:b});
+    if(G.legacyHistory.length>8)G.legacyHistory.length=8;
 
     const d=this.load();
     d.inheritedCount=(d.inheritedCount||0)+(optionId&&optionId!=='none'?1:0);
@@ -191,6 +233,32 @@ const Legacy={
       ${p.bestGrade?`<span style="font-size:11px;font-weight:700;color:var(--yellow)"> · Best: ${this._esc(p.bestGrade)}</span>`:''}
       ${p.dynastyName?`<span style="font-size:11px;font-weight:700;color:var(--muted)"> · Dynasty: ${this._esc(p.dynastyName)}</span>`:''}
     `;
+  },
+
+  renderPanel(targetId='legacy-panel'){
+    const el=document.getElementById(targetId);
+    if(!el)return;
+    const p=this.getPrestige();
+    const rank=this.rankLabel(p.livesPlayed,p.totalScore);
+    const lives=p.recentLives||[];
+    el.innerHTML=`
+      <div class="nw-box">
+        <div class="nw-lbl">Legacy Rank</div>
+        <div class="nw-amt" style="font-size:22px;color:${rank.color}">${rank.icon} ${this._esc(rank.label)}</div>
+        <div class="nw-sub">${p.livesPlayed} lives · Total score ${p.totalScore.toLocaleString()} · Avg ${p.avgScore} · Next: ${this._esc(rank.next)}</div>
+      </div>
+      <div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:12px">
+        ${this._legacyMetric('Best Grade',p.bestGrade||'—','var(--yellow)',`Best score ${p.bestScore}`)}
+        ${this._legacyMetric('Inherited Starts',p.inheritedCount,'var(--accent)','Legacy bonuses used')}
+        ${this._legacyMetric('Longest Life',p.records.longestLife||0,'var(--green)','years')}
+        ${this._legacyMetric('Highest Net Worth',fmtFull(p.records.highestNetWorth||0),'var(--green)','record')}
+      </div>
+      ${lives.length?`<div class="sec">Recent Lives</div>${lives.map(l=>`<div class="row-card"><span class="ri">${l.grade==='S'?'👑':l.grade==='A'?'🌟':'📜'}</span><div class="rd"><div class="rt">${this._esc(l.name)} · Grade ${this._esc(l.grade)}</div><div class="rs">Age ${l.age||0} · ${this._esc(l.country||'Unknown')} · ${this._esc(l.career||'')} · ${fmtFull(l.netWorth||0)}</div></div><div class="rv">${l.score}</div></div>`).join('')}`:''}
+    `;
+  },
+
+  _legacyMetric(label,value,color,sub){
+    return `<div class="nw-box" style="margin-bottom:0"><div class="nw-lbl">${this._esc(label)}</div><div class="nw-amt" style="font-size:20px;color:${color||'var(--txt)'}">${this._esc(value)}</div><div class="nw-sub">${this._esc(sub)}</div></div>`;
   },
 
   renderLegacySection(lastGrade){
@@ -275,7 +343,7 @@ const Chapters={
         const already=G.chapters.some(c=>c.id===m.id);
         if(!already){
           const summary=this._buildSummary(G,m);
-          const chapter={id:m.id,icon:m.icon,label:m.label,age,summary,netWorth:typeof netWorth==='function'?netWorth(G):0,happiness:G.happiness||0,health:G.health||0};
+          const chapter={id:m.id,icon:m.icon,label:m.label,age,summary,netWorth:typeof netWorth==='function'?netWorth(G):0,happiness:G.happiness||0,health:G.health||0,stress:G.stress||0,career:G.career?.title||'',partner:G.rels?.partner?.name||'',children:(G.rels?.children||[]).length};
           G.chapters.push(chapter);
           Engine.log(`${m.icon} Chapter unlocked: "${m.label}"`, 'special');
           return summary;
@@ -348,7 +416,7 @@ const Chapters={
             <span style="font-size:16px;min-width:24px">${c.icon}</span>
             <div>
               <div style="font-size:11px;font-weight:900;color:var(--accent)">Age ${c.age} — ${this._esc(c.label)}</div>
-              <div style="font-size:11px;font-weight:600;color:var(--muted);line-height:1.5;margin-top:2px">${this._esc(c.summary)}</div>
+              <div style="font-size:11px;font-weight:600;color:var(--muted);line-height:1.5;margin-top:2px">${this._esc(c.summary)}</div><div style="font-size:10px;font-weight:800;color:var(--muted);margin-top:4px">NW ${typeof fmt==='function'?fmt(c.netWorth||0):c.netWorth||0} · Health ${c.health||0}% · Happiness ${c.happiness||0}%</div>
             </div>
           </div>`).join('')}
       </div>`;

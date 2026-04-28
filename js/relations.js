@@ -1,16 +1,54 @@
 /* js/relations.js — LifeSim v13 Reforged relationships, family, romance and children */
 const Relations={
-  STAGES:{
-    talking:'Talking',
-    dating:'Dating',
-    serious:'Serious',
-    engaged:'Engaged',
-    married:'Married',
+  STAGES:{talking:'Talking',dating:'Dating',serious:'Serious',engaged:'Engaged',married:'Married'},
+  ACTION_LIMITS:{partner:6,intimate:3,risky:1,find:2,teen:3,family:4,child:4,friend:4,ex:3},
+  HISTORY_LIMIT:24,
+
+  _esc(v){return typeof escHTML==='function'?escHTML(v):String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));},
+  _attr(v){return String(v??'').replace(/\\/g,'\\\\').replace(/'/g,"\\'").replace(/\n/g,' ');},
+
+  _resetActionYearIfNeeded(G=window.G){
+    if(!G)return;
+    if(!Number.isFinite(G.relationActionYear))G.relationActionYear=G.age||0;
+    if(!G.relationActionUses||typeof G.relationActionUses!=='object')G.relationActionUses={};
+    if(G.relationActionYear!==(G.age||0)){
+      G.relationActionYear=G.age||0;
+      G.relationActionUses={};
+    }
   },
 
-  _esc(v){
-    if(typeof escHTML==='function')return escHTML(v);
-    return String(v??'').replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]));
+  _usesLeft(action,G=window.G){
+    this._resetActionYearIfNeeded(G);
+    return Math.max(0,(this.ACTION_LIMITS[action]??99)-(G?.relationActionUses?.[action]||0));
+  },
+
+  _canUseAction(action,msg='That relationship action is already used enough this year. Age up to refresh.'){
+    const G=window.G;if(!G)return false;
+    this._resetActionYearIfNeeded(G);
+    if(this._usesLeft(action,G)<=0){
+      UI.toast(msg,'bad');
+      return false;
+    }
+    return true;
+  },
+
+  _markAction(action,G=window.G){
+    if(!G||!action)return;
+    this._resetActionYearIfNeeded(G);
+    G.relationActionUses[action]=(G.relationActionUses[action]||0)+1;
+  },
+
+  _recordHistory(label,type='relationship',meta=''){
+    const G=window.G;if(!G)return;
+    if(!Array.isArray(G.relationHistory))G.relationHistory=[];
+    G.relationHistory.unshift({age:G.age||0,label,type,meta});
+    if(G.relationHistory.length>this.HISTORY_LIMIT)G.relationHistory.length=this.HISTORY_LIMIT;
+  },
+
+  _partnerActionKey(act){
+    if(['intimate','massage','sext','baby'].includes(act))return'intimate';
+    if(['cheat','divorce'].includes(act))return'risky';
+    return'partner';
   },
 
   _ensureState(G=window.G){
@@ -21,6 +59,7 @@ const Relations={
     G.rels.friends=Array.isArray(G.rels.friends)?G.rels.friends:[];
     G.rels.exes=Array.isArray(G.rels.exes)?G.rels.exes:[];
     if(!('partner' in G.rels))G.rels.partner=null;
+
     if(!G.sexualHealth)G.sexualHealth={std:false,sti:false,partners:0,partnerIds:[],protectedEncounters:0,unprotectedEncounters:0,lastCheckupAge:null};
     if(!Array.isArray(G.sexualHealth.partnerIds))G.sexualHealth.partnerIds=[];
     G.sexualHealth.partners=Number.isFinite(G.sexualHealth.partners)?G.sexualHealth.partners:0;
@@ -29,11 +68,16 @@ const Relations={
     G.sexualHealth.sti=!!(G.sexualHealth.sti||G.sexualHealth.std);
     G.sexualHealth.std=G.sexualHealth.sti;
 
+    if(!Array.isArray(G.relationHistory))G.relationHistory=[];
+    if(!G.relationActionUses||typeof G.relationActionUses!=='object')G.relationActionUses={};
+    if(!Number.isFinite(G.relationActionYear))G.relationActionYear=G.age||0;
+    this._resetActionYearIfNeeded(G);
+
     [G.rels.father,G.rels.mother,...G.rels.siblings].filter(Boolean).forEach(n=>this._ensureNpc(n));
     if(G.rels.partner)this._ensurePartnerDefaults(G.rels.partner);
     G.rels.children.forEach(c=>this._ensureChildDefaults(c));
     G.rels.friends.forEach(f=>this._ensureFriendDefaults(f));
-    G.rels.exes.forEach(ex=>this._ensureExDefaults(ex));
+    G.rels.exes.forEach(e=>this._ensureExDefaults(e));
   },
 
   _ensureNpc(n){
@@ -48,17 +92,81 @@ const Relations={
     return n;
   },
 
-  _relationColor(v){
-    if(v>=75)return'var(--pink)';
-    if(v>=50)return'var(--cyan)';
-    if(v>=30)return'var(--yellow)';
-    return'var(--red)';
+  _ensurePartnerDefaults(p){
+    if(!p)return null;
+    p.id=p.id||Math.random().toString(36).slice(2);
+    p.stage=p.stage||(p.married?'married':'dating');
+    p.chemistry=Number.isFinite(p.chemistry)?cl(p.chemistry):r(45,85);
+    p.intimacy=Number.isFinite(p.intimacy)?cl(p.intimacy):35;
+    p.love=Number.isFinite(p.love)?cl(p.love):r(35,70);
+    p.dates=Number.isFinite(p.dates)?p.dates:0;
+    p.yearsTogether=Number.isFinite(p.yearsTogether)?p.yearsTogether:0;
+    p.yearsMarried=Number.isFinite(p.yearsMarried)?p.yearsMarried:0;
+    p.engaged=!!p.engaged||p.stage==='engaged';
+    p.married=!!p.married||p.stage==='married';
+    p.sti=!!p.sti;
+    p.outsideExposure=!!p.outsideExposure;
+    p.sexualEncounters=Number.isFinite(p.sexualEncounters)?p.sexualEncounters:0;
+    p.alive=p.alive!==false;
+    p.role='partner';
+    return p;
   },
 
-  _chemColor(v){
-    if(v>=75)return'var(--green)';
-    if(v>=45)return'var(--cyan)';
-    return'var(--orange)';
+  _ensureFriendDefaults(f){
+    const G=window.G;
+    if(!f)return null;
+    f.id=f.id||Math.random().toString(36).slice(2);
+    if(!Number.isFinite(f.age)||f.age<=0)f.age=Math.max(16,(G?.age||18)+r(-6,6));
+    if(!Number.isFinite(f.love))f.love=r(38,65);
+    if(!Number.isFinite(f.interactions))f.interactions=0;
+    f.bestFriend=!!f.bestFriend;
+    f.alive=f.alive!==false;
+    f.role='friend';
+    return f;
+  },
+
+  _ensureChildDefaults(c){
+    const G=window.G;
+    if(!c)return null;
+    c.id=c.id||Math.random().toString(36).slice(2);
+    c.role='child';
+    c.alive=c.alive!==false;
+    c.surname=c.surname||G?.surname||'';
+    c.love=Number.isFinite(c.love)?cl(c.love):r(55,80);
+    c.school=Number.isFinite(c.school)?cl(c.school):70;
+    c.wellbeing=Number.isFinite(c.wellbeing)?cl(c.wellbeing):70;
+    c.issue=c.issue||'';
+    c.issueSeverity=Number.isFinite(c.issueSeverity)?c.issueSeverity:0;
+    c.independent=!!c.independent;
+    c.adopted=!!c.adopted;
+    c.age=Number.isFinite(c.age)?c.age:0;
+    return c;
+  },
+
+  _ensureExDefaults(ex){
+    if(!ex)return null;
+    ex.id=ex.id||Math.random().toString(36).slice(2);
+    ex.alive=ex.alive!==false;
+    ex.score=Number.isFinite(ex.score)?cl(ex.score):35;
+    ex.yearsApart=Number.isFinite(ex.yearsApart)?ex.yearsApart:0;
+    ex.chemistry=Number.isFinite(ex.chemistry)?cl(ex.chemistry):r(40,80);
+    ex.intimacy=Number.isFinite(ex.intimacy)?cl(ex.intimacy):20;
+    ex.lastLove=Number.isFinite(ex.lastLove)?cl(ex.lastLove):40;
+    ex.cause=ex.cause||'breakup';
+    ex.causeLabel=ex.causeLabel||(ex.cause==='cheating'?'Cheating fallout':ex.cause==='drifted'?'Drifted apart':ex.cause==='divorce'?'Divorce':ex.cause==='death'?'Passed away':'Breakup');
+    ex.role='ex';
+    return ex;
+  },
+
+  _relationColor(v){if(v>=75)return'var(--pink)';if(v>=50)return'var(--cyan)';if(v>=30)return'var(--yellow)';return'var(--red)';},
+  _chemColor(v){if(v>=75)return'var(--green)';if(v>=45)return'var(--cyan)';return'var(--orange)';},
+
+  _statBar(label,value,color){
+    return`<div>
+      <div class="sb-l" style="margin-bottom:3px">${this._esc(label)}</div>
+      <div class="rel-bar"><div class="rel-fill" style="width:${cl(value)}%;background:${color}"></div></div>
+      <div style="font-size:10px;font-weight:800;color:${color};margin-top:2px">${cl(value)}%</div>
+    </div>`;
   },
 
   render(){
@@ -72,21 +180,28 @@ const Relations={
     h+=this._renderExes(G);
     h+=this._renderChildren(G);
     h+=this._renderFriends(G);
-
+    h+=this._renderHistory(G);
     el.innerHTML=h;
+  },
+
+  _smallCard(icon,name,desc,onclick,locked=false,lock='Locked',danger=false,special=false){
+    return`<div class="card ${danger?'danger ':''}${special?'special ':''}${locked?'locked':''}" style="min-height:68px;padding:9px 8px" onclick="${locked?`UI.toast('${this._attr(lock)}')`:onclick}">
+      <span class="ci" style="font-size:20px">${locked?'🔒':icon}</span>
+      <span class="cn">${this._esc(name)}</span>
+      <span class="cd">${locked?this._esc(lock):desc}</span>
+    </div>`;
   },
 
   _renderFamily(G){
     const fam=[G.rels.father,G.rels.mother,...(G.rels.siblings||[])].filter(Boolean);
     let h='<div class="sec">Family</div>';
 
-    if(!fam.length){
-      return h+`<div class="empty"><span class="ei">👪</span><p>No family information available.</p></div>`;
-    }
+    if(!fam.length)return h+`<div class="empty"><span class="ei">👪</span><p>No family information available.</p></div>`;
 
     fam.forEach(n=>{
       const ico=n.role==='father'?'👨':n.role==='mother'?'👩':n.gender==='female'?'👧':'👦';
       const lc=this._relationColor(n.love||0);
+
       h+=`<div class="rel-card" onclick="Relations.clickFamily('${n.id}')">
         <div class="rel-av">${ico}</div>
         <div class="rel-inf">
@@ -99,10 +214,10 @@ const Relations={
 
       if(n.alive){
         h+=`<div class="act-grid" style="margin:-2px 0 10px 0">
-          <div class="card" style="min-height:68px;padding:9px 8px" onclick="Relations.familyAction('${n.id}','time')"><span class="ci" style="font-size:20px">😊</span><span class="cn">${this._esc(n.name)}: Time</span><span class="cd">+Bond +Hap</span></div>
-          <div class="card" style="min-height:68px;padding:9px 8px" onclick="Relations.familyAction('${n.id}','call')"><span class="ci" style="font-size:20px">📞</span><span class="cn">Call</span><span class="cd">Small bond boost</span></div>
-          <div class="card" style="min-height:68px;padding:9px 8px" onclick="Relations.familyAction('${n.id}','dinner')"><span class="ci" style="font-size:20px">🍽️</span><span class="cn">Dinner</span><span class="cd">${fmt(sc(80))}</span></div>
-          <div class="card" style="min-height:68px;padding:9px 8px" onclick="Relations.familyAction('${n.id}','help')"><span class="ci" style="font-size:20px">🤝</span><span class="cn">Help Out</span><span class="cd">${fmt(sc(250))}</span></div>
+          ${this._smallCard('😊',`${n.name}: Time`,'+Bond +Hap',`Relations.familyAction('${n.id}','time')`)}
+          ${this._smallCard('📞','Call','Small bond boost',`Relations.familyAction('${n.id}','call')`)}
+          ${this._smallCard('🍽️','Dinner',fmt(sc(80)),`Relations.familyAction('${n.id}','dinner')`,(G.money||0)<sc(80),`Need ${fmt(sc(80))}`)}
+          ${this._smallCard('🤝','Help Out',fmt(sc(250)),`Relations.familyAction('${n.id}','help')`,(G.money||0)<sc(250),`Need ${fmt(sc(250))}`)}
         </div>`;
       }
     });
@@ -112,12 +227,9 @@ const Relations={
 
   _renderRomance(G){
     let h='<div class="sec">Romance & Intimacy</div>';
+    const p=G.rels.partner?this._ensurePartnerDefaults(G.rels.partner):null;
 
-    if(G.rels.partner){
-      const p=this._ensurePartnerDefaults(G.rels.partner);
-      const loveCol=this._relationColor(p.love||0);
-      const chemCol=this._chemColor(p.chemistry||0);
-      const intCol=this._relationColor(p.intimacy||0);
+    if(p){
       const stage=this.STAGES[p.stage]||cap(p.stage||'dating');
 
       h+=`<div class="partner-card">
@@ -129,9 +241,9 @@ const Relations={
           </div>
         </div>
         <div style="display:grid;grid-template-columns:1fr 1fr 1fr;gap:8px">
-          ${this._statBar('Love',p.love,loveCol)}
-          ${this._statBar('Chemistry',p.chemistry,chemCol)}
-          ${this._statBar('Intimacy',p.intimacy||0,intCol)}
+          ${this._statBar('Love',p.love,this._relationColor(p.love||0))}
+          ${this._statBar('Chemistry',p.chemistry,this._chemColor(p.chemistry||0))}
+          ${this._statBar('Intimacy',p.intimacy||0,this._relationColor(p.intimacy||0))}
         </div>
       </div>`;
 
@@ -141,36 +253,32 @@ const Relations={
 
       h+=`<div class="sec">Dating Actions</div>
       <div class="act-grid">
-        <div class="card" onclick="Relations.pa('date')"><span class="ci">🌹</span><span class="cn">Go on Date</span><span class="cd">+Love +Hap</span></div>
-        <div class="card" onclick="Relations.pa('gift')"><span class="ci">🎁</span><span class="cn">Give Gift</span><span class="cd">+Love (${fmt(sc(200))})</span></div>
-        <div class="card" onclick="Relations.pa('flirt')"><span class="ci">😘</span><span class="cn">Flirt</span><span class="cd">+Love +Intimacy</span></div>
-        <div class="card" onclick="Relations.pa('compliment')"><span class="ci">🌟</span><span class="cn">Compliment</span><span class="cd">+Love</span></div>
-      </div>`;
-
-      h+=`<div class="act-grid" style="margin-top:8px">
-        <div class="card" onclick="Relations.pa('weekend')"><span class="ci">🏞️</span><span class="cn">Weekend Away</span><span class="cd">+Love (${fmt(sc(600))})</span></div>
-        <div class="card" onclick="Relations.pa('trip')"><span class="ci">🏖️</span><span class="cn">Romantic Holiday</span><span class="cd">+Love +Intimacy (${fmt(sc(2000))})</span></div>
-        ${p.stage==='talking'?`<div class="card special" onclick="Relations.pa('define')"><span class="ci">💘</span><span class="cn">Start Dating</span><span class="cd">Move past talking</span></div>`:''}
-        ${p.stage==='dating'?`<div class="card special" onclick="Relations.pa('serious')"><span class="ci">🏠</span><span class="cn">Get Serious</span><span class="cd">Exclusive + cohabit</span></div>`:''}
-        ${p.stage==='serious'?`<div class="card special" onclick="Relations.pa('propose')"><span class="ci">💎</span><span class="cn">Propose</span><span class="cd">Become engaged</span></div>`:''}
-        ${p.stage==='engaged'?`<div class="card special" onclick="Relations.pa('marry')"><span class="ci">💍</span><span class="cn">Get Married</span><span class="cd">Make it official</span></div>`:''}
-        ${p.stage==='married'?`<div class="card" onclick="Relations.pa('renew')"><span class="ci">💞</span><span class="cn">Renew Vows</span><span class="cd">+Love +Hap</span></div>`:''}
-        ${p.love<35?`<div class="card danger" onclick="Relations.pa('counselling')"><span class="ci">🛋️</span><span class="cn">Couples Therapy</span><span class="cd">${fmt(sc(200))}</span></div>`:''}
+        ${this._smallCard('🌹','Go on Date','+Love +Hap',"Relations.pa('date')")}
+        ${this._smallCard('🎁','Give Gift',`+Love (${fmt(sc(200))})`,"Relations.pa('gift')",(G.money||0)<sc(200),`Need ${fmt(sc(200))}`)}
+        ${this._smallCard('😘','Flirt','+Love +Intimacy',"Relations.pa('flirt')")}
+        ${this._smallCard('🌟','Compliment','+Love',"Relations.pa('compliment')")}
+        ${this._smallCard('🏞️','Weekend Away',`+Love (${fmt(sc(600))})`,"Relations.pa('weekend')",(G.money||0)<sc(600),`Need ${fmt(sc(600))}`)}
+        ${this._smallCard('🏖️','Romantic Holiday',`+Love +Intimacy (${fmt(sc(2000))})`,"Relations.pa('trip')",(G.money||0)<sc(2000),`Need ${fmt(sc(2000))}`)}
+        ${p.stage==='talking'?this._smallCard('💘','Start Dating','Move past talking',"Relations.pa('define')",false,'',false,true):''}
+        ${p.stage==='dating'?this._smallCard('🏠','Get Serious','Exclusive + cohabit',"Relations.pa('serious')",false,'',false,true):''}
+        ${p.stage==='serious'?this._smallCard('💎','Propose','Become engaged',"Relations.pa('propose')",false,'',false,true):''}
+        ${p.stage==='engaged'?this._smallCard('💍','Get Married','Make it official',"Relations.pa('marry')",false,'',false,true):''}
+        ${p.stage==='married'?this._smallCard('💞','Renew Vows','+Love +Hap',"Relations.pa('renew')"):''}
+        ${p.love<35?this._smallCard('🛋️','Couples Therapy',fmt(sc(200)),"Relations.pa('counselling')",(G.money||0)<sc(200),`Need ${fmt(sc(200))}`,true):''}
       </div>`;
 
       if((G.age||0)>=18){
         h+=`<div class="sec">Adult Intimate Life</div>
         <div class="act-grid">
-          <div class="card" onclick="Relations.pa('intimate')"><span class="ci">🔥</span><span class="cn">Be Intimate</span><span class="cd">Protection choice</span></div>
-          <div class="card" onclick="Relations.pa('massage')"><span class="ci">💆</span><span class="cn">Give Massage</span><span class="cd">+Intimacy +Love</span></div>
-          <div class="card" onclick="Relations.pa('sext')"><span class="ci">📱</span><span class="cn">Spicy Text</span><span class="cd">+Intimacy +Hap</span></div>
-          <div class="card" onclick="Relations.pa('baby')"><span class="ci">👶</span><span class="cn">Try for Baby</span><span class="cd">Intentional family choice</span></div>
+          ${this._smallCard('🔥','Be Intimate','Protection choice',"Relations.pa('intimate')")}
+          ${this._smallCard('💆','Give Massage','+Intimacy +Love',"Relations.pa('massage')")}
+          ${this._smallCard('📱','Spicy Text','+Intimacy +Hap',"Relations.pa('sext')")}
+          ${this._smallCard('👶','Try for Baby','Intentional family choice',"Relations.pa('baby')")}
         </div>
-
         <div class="sec">Risky Actions</div>
         <div class="act-grid">
-          <div class="card danger" onclick="Relations.pa('cheat')"><span class="ci">🤫</span><span class="cn">Cheat</span><span class="cd">Risk getting caught</span></div>
-          <div class="card danger" onclick="Relations.pa('divorce')"><span class="ci">💔</span><span class="cn">${p.stage==='married'?'Divorce':'Break Up'}</span><span class="cd">End relationship</span></div>
+          ${this._smallCard('🤫','Cheat','Risk getting caught',"Relations.pa('cheat')",false,'',true)}
+          ${this._smallCard('💔',p.stage==='married'?'Divorce':'Break Up','End relationship',"Relations.pa('divorce')",false,'',true)}
         </div>`;
       }else{
         h+=`<div class="info-box"><p>💬 You are still young. Adult intimacy and family planning unlock at 18.</p></div>`;
@@ -182,16 +290,16 @@ const Relations={
     if((G.age||0)>=18){
       h+=`<div class="info-box"><p>You are single. Meet someone, go on dates, or stay independent.</p></div>
       <div class="act-grid">
-        <div class="card" onclick="Relations.findPartner()"><span class="ci">💘</span><span class="cn">Meet Someone</span><span class="cd">Start talking</span></div>
-        <div class="card" onclick="Relations.dateApp()"><span class="ci">📲</span><span class="cn">Dating App</span><span class="cd">Match or casual date</span></div>
-        <div class="card" onclick="Relations.hookup()"><span class="ci">🌙</span><span class="cn">One-Night Stand</span><span class="cd">Adult risky encounter</span></div>
-        <div class="card" onclick="Relations.visitAdultClub()"><span class="ci">🎭</span><span class="cn">Adult Entertainment</span><span class="cd">${fmt(sc(100))}</span></div>
+        ${this._smallCard('💘','Meet Someone','Start talking','Relations.findPartner()')}
+        ${this._smallCard('📲','Dating App','Match or casual date','Relations.dateApp()')}
+        ${this._smallCard('🌙','One-Night Stand','Adult risky encounter','Relations.hookup()')}
+        ${this._smallCard('🎭','Adult Entertainment',fmt(sc(100)),'Relations.visitAdultClub()',(G.money||0)<sc(100),`Need ${fmt(sc(100))}`)}
       </div>`;
     }else if((G.age||0)>=16){
       h+=`<div class="info-box"><p>Romance is starting to matter now. Adult relationships and intimacy unlock at 18.</p></div>
       <div class="act-grid">
-        <div class="card" onclick="Relations.teenCrush()"><span class="ci">💘</span><span class="cn">Pursue Crush</span><span class="cd">Teen romance</span></div>
-        <div class="card" onclick="Relations.teenDate()"><span class="ci">🎬</span><span class="cn">First Date</span><span class="cd">Cinema and coffee</span></div>
+        ${this._smallCard('💘','Pursue Crush','Teen romance','Relations.teenCrush()')}
+        ${this._smallCard('🎬','First Date','Cinema and coffee','Relations.teenDate()')}
       </div>`;
     }else{
       h+=`<div class="empty"><span class="ei">🧒</span><p>Romance unlocks at age 16.</p></div>`;
@@ -202,29 +310,29 @@ const Relations={
 
   _renderExes(G){
     const exes=(G.rels.exes||[]).filter(Boolean);
-    if(!exes.length)return '';
+    if(!exes.length)return'';
 
     let h=`<div class="sec">Exes (${exes.length})</div>`;
     exes.forEach(ex=>{
       this._ensureExDefaults(ex);
-      const scoreCol=this._relationColor(ex.score||0);
-      const canRetry=!G.rels.partner&&ex.alive!==false&&(ex.score||0)>=42;
-      const chance=canRetry?Math.round(this._reconcileChance(ex)*100):0;
+      const col=this._relationColor(ex.score||0);
+      const can=!G.rels.partner&&ex.alive!==false&&(ex.score||0)>=42;
+      const chance=Math.round(this._reconcileChance(ex)*100);
 
       h+=`<div class="rel-card">
         <div class="rel-av">${ex.gender==='female'?'👩':'👨'}</div>
         <div class="rel-inf">
           <div class="rel-name">${this._esc(ex.name)} ${this._esc(ex.surname)}${ex.alive===false?' 🪦':''}</div>
           <div class="rel-role">Ex · ${this._esc(ex.causeLabel||'Past relationship')} · ${ex.yearsApart||0} year${(ex.yearsApart||0)!==1?'s':''} apart</div>
-          <div class="rel-bar"><div class="rel-fill" style="width:${cl(ex.score||0)}%;background:${scoreCol}"></div></div>
+          <div class="rel-bar"><div class="rel-fill" style="width:${cl(ex.score||0)}%;background:${col}"></div></div>
         </div>
-        <div style="font-size:11px;font-weight:800;color:${scoreCol}">${cl(ex.score||0)}%</div>
+        <div style="font-size:11px;font-weight:800;color:${col}">${cl(ex.score||0)}%</div>
       </div>
       <div class="act-grid" style="margin:-2px 0 10px 0">
-        <div class="card" style="min-height:68px;padding:9px 8px" onclick="Relations.exAction('${ex.id}','checkin')"><span class="ci" style="font-size:20px">💬</span><span class="cn">Check In</span><span class="cd">Warm things up</span></div>
-        <div class="card" style="min-height:68px;padding:9px 8px" onclick="Relations.exAction('${ex.id}','apology')"><span class="ci" style="font-size:20px">🙏</span><span class="cn">Apologize</span><span class="cd">Repair damage</span></div>
-        <div class="card" style="min-height:68px;padding:9px 8px" onclick="Relations.exAction('${ex.id}','meet')"><span class="ci" style="font-size:20px">☕</span><span class="cn">Meet Up</span><span class="cd">${fmt(sc(90))}</span></div>
-        <div class="card ${canRetry?'special':'locked'}" style="min-height:68px;padding:9px 8px" onclick="${canRetry?`Relations.exAction('${ex.id}','retry')`:''}"><span class="ci" style="font-size:20px">💞</span><span class="cn">Try Again</span><span class="cd">${canRetry?`${chance}% chance`:G.rels.partner?'Be single first':ex.alive===false?'Too late':'Need 42%+ score'}</span></div>
+        ${this._smallCard('💬','Check In','Warm things up',`Relations.exAction('${ex.id}','checkin')`)}
+        ${this._smallCard('🙏','Apologize','Repair damage',`Relations.exAction('${ex.id}','apology')`)}
+        ${this._smallCard('☕','Meet Up',fmt(sc(90)),`Relations.exAction('${ex.id}','meet')`,(G.money||0)<sc(90),`Need ${fmt(sc(90))}`)}
+        ${this._smallCard('💞','Try Again',can?`${chance}% chance`:G.rels.partner?'Be single first':ex.alive===false?'Too late':'Need 42%+ score',`Relations.exAction('${ex.id}','retry')`,!can,can?'':'Not available',false,true)}
       </div>`;
     });
 
@@ -233,12 +341,13 @@ const Relations={
 
   _renderChildren(G){
     const kids=G.rels.children||[];
-    if(!kids.length)return '';
+    if(!kids.length)return'';
 
     let h=`<div class="sec">Children (${kids.length})</div>`;
     kids.forEach(c=>{
       this._ensureChildDefaults(c);
       const issue=c.issue?` · <span style="color:${c.issueSeverity>=12?'var(--red)':'var(--orange)'}">${this._esc(c.issue)}</span>`:'';
+
       h+=`<div class="rel-card" onclick="Relations.spendTimeWithChild('${c.id}')">
         <div class="rel-av">${c.gender==='female'?'👧':'👦'}</div>
         <div class="rel-inf">
@@ -248,10 +357,10 @@ const Relations={
         </div>
       </div>
       <div class="act-grid" style="margin:-2px 0 10px 0">
-        <div class="card" style="min-height:68px;padding:9px 8px" onclick="Relations.childAction('${c.id}','time')"><span class="ci" style="font-size:20px">👨‍👩‍👧</span><span class="cn">Spend Time</span><span class="cd">+Bond</span></div>
-        <div class="card" style="min-height:68px;padding:9px 8px" onclick="Relations.childAction('${c.id}','school')"><span class="ci" style="font-size:20px">📚</span><span class="cn">Help School</span><span class="cd">+School</span></div>
-        <div class="card" style="min-height:68px;padding:9px 8px" onclick="Relations.childAction('${c.id}','gift')"><span class="ci" style="font-size:20px">🎁</span><span class="cn">Buy Gift</span><span class="cd">${fmt(sc(120))}</span></div>
-        <div class="card" style="min-height:68px;padding:9px 8px" onclick="Relations.childAction('${c.id}','support')"><span class="ci" style="font-size:20px">🛟</span><span class="cn">Support</span><span class="cd">Help problems</span></div>
+        ${this._smallCard('👨‍👩‍👧','Spend Time','+Bond',`Relations.childAction('${c.id}','time')`)}
+        ${this._smallCard('📚','Help School','+School',`Relations.childAction('${c.id}','school')`)}
+        ${this._smallCard('🎁','Buy Gift',fmt(sc(120)),`Relations.childAction('${c.id}','gift')`,(G.money||0)<sc(120),`Need ${fmt(sc(120))}`)}
+        ${this._smallCard('🛟','Support','Help problems',`Relations.childAction('${c.id}','support')`)}
       </div>`;
     });
 
@@ -265,7 +374,7 @@ const Relations={
     friends.forEach(f=>{
       this._ensureFriendDefaults(f);
       const lc=f.love>84?'var(--yellow)':f.love>65?'var(--cyan)':'var(--muted)';
-      const canAsk=G.age>=18&&!G.rels.partner&&f.age>=18&&f.gender!==G.gender;
+      const can=G.age>=18&&!G.rels.partner&&f.age>=18&&f.gender!==G.gender&&f.love>=45;
       const askCd=G.rels.partner?'Already dating':f.gender===G.gender?'Not compatible':G.age<18||f.age<18?'Adults only':f.love<45?'Build bond first':'Ask them out';
 
       h+=`<div class="rel-card" onclick="Relations.hangFriend('${f.id}')">
@@ -277,10 +386,10 @@ const Relations={
         </div>
       </div>
       <div class="act-grid" style="margin:-2px 0 10px 0">
-        <div class="card" style="min-height:68px;padding:9px 8px" onclick="Relations.friendAction('${f.id}','hang')"><span class="ci" style="font-size:20px">😄</span><span class="cn">Hang Out</span><span class="cd">+Bond +Hap</span></div>
-        <div class="card" style="min-height:68px;padding:9px 8px" onclick="Relations.friendAction('${f.id}','talk')"><span class="ci" style="font-size:20px">💬</span><span class="cn">Deep Talk</span><span class="cd">Best friend path</span></div>
-        <div class="card" style="min-height:68px;padding:9px 8px" onclick="Relations.friendAction('${f.id}','gift')"><span class="ci" style="font-size:20px">🎁</span><span class="cn">Gift</span><span class="cd">${fmt(sc(80))}</span></div>
-        <div class="card ${canAsk&&f.love>=45?'special':'locked'}" style="min-height:68px;padding:9px 8px" onclick="${canAsk&&f.love>=45?`Relations.askFriendOut('${f.id}')`:''}"><span class="ci" style="font-size:20px">💘</span><span class="cn">${this._romanceLabelFor(f)}</span><span class="cd">${askCd}</span></div>
+        ${this._smallCard('😄','Hang Out','+Bond +Hap',`Relations.friendAction('${f.id}','hang')`)}
+        ${this._smallCard('💬','Deep Talk','Best friend path',`Relations.friendAction('${f.id}','talk')`)}
+        ${this._smallCard('🎁','Gift',fmt(sc(80)),`Relations.friendAction('${f.id}','gift')`,(G.money||0)<sc(80),`Need ${fmt(sc(80))}`)}
+        ${this._smallCard('💘',this._romanceLabelFor(f),askCd,`Relations.askFriendOut('${f.id}')`,!can,askCd,false,true)}
       </div>`;
     });
 
@@ -294,12 +403,22 @@ const Relations={
     return h;
   },
 
-  _statBar(label,value,color){
-    return `<div>
-      <div class="sb-l" style="margin-bottom:3px">${label}</div>
-      <div class="rel-bar"><div class="rel-fill" style="width:${cl(value)}%;background:${color}"></div></div>
-      <div style="font-size:10px;font-weight:800;color:${color};margin-top:2px">${cl(value)}%</div>
-    </div>`;
+  _renderHistory(G){
+    const rows=(G.relationHistory||[]).slice(0,6);
+    if(!rows.length)return'';
+
+    let h='<div class="sec">🧾 Relationship History</div>';
+    rows.forEach(row=>{
+      const ico=row.type==='child'?'👶':row.type==='ex'?'💔':row.type==='friend'?'🤝':row.type==='family'?'👪':'💞';
+      h+=`<div class="row-card">
+        <span class="ri">${ico}</span>
+        <div class="rd">
+          <div class="rt">Age ${row.age} · ${this._esc(row.label)}</div>
+          <div class="rs">${this._esc(row.meta||row.type)}</div>
+        </div>
+      </div>`;
+    });
+    return h;
   },
 
   pa(act){
@@ -308,17 +427,21 @@ const Relations={
     const p=this._ensurePartnerDefaults(G.rels.partner);
     if(!p&&act!=='divorce')return;
 
+    const key=this._partnerActionKey(act);
+    if(!this._canUseAction(key))return;
+    this._markAction(key);
+
     switch(act){
       case'date':{
         const cost=sc(120);
         if(G.money<cost){UI.toast('Need '+fmt(cost)+'!');return;}
         G.money-=cost;
-        p.dates=(p.dates||0)+1;
+        p.dates++;
         p.love=cl(p.love+r(6,10)+Math.round((p.chemistry||50)/20));
         p.intimacy=cl((p.intimacy||20)+r(1,4));
         G.happiness=cl(G.happiness+r(7,13));
         G.stress=cl((G.stress||0)-r(4,8));
-        Engine.log(`🌹 You went on a date with ${p.name}.`, 'love');
+        Engine.log(`🌹 You went on a date with ${p.name}.`,'love');
         if(p.stage==='talking'&&(p.dates>=2||p.love>=48))this._setStage(p,'dating',`💘 You and ${p.name} made things official and started dating.`);
         break;
       }
@@ -329,20 +452,20 @@ const Relations={
         G.money-=cost;
         p.love=cl(p.love+r(8,14));
         G.happiness=cl(G.happiness+r(2,5));
-        Engine.log(`🎁 You surprised ${p.name} with a thoughtful gift.`, 'love');
+        Engine.log(`🎁 You surprised ${p.name} with a thoughtful gift.`,'love');
         break;
       }
 
       case'flirt':
         p.love=cl(p.love+r(4,8));
         p.intimacy=cl((p.intimacy||20)+r(3,7));
-        Engine.log(`😘 Flirting with ${p.name} turned up the heat.`, 'love');
+        Engine.log(`😘 Flirting with ${p.name} turned up the heat.`,'love');
         break;
 
       case'compliment':
         p.love=cl(p.love+r(3,7));
         G.happiness=cl(G.happiness+r(4,9));
-        Engine.log(`🌟 Your compliment made ${p.name} glow.`, 'love');
+        Engine.log(`🌟 Your compliment made ${p.name} glow.`,'love');
         break;
 
       case'weekend':{
@@ -353,7 +476,7 @@ const Relations={
         p.intimacy=cl((p.intimacy||20)+r(7,12));
         G.happiness=cl(G.happiness+r(12,18));
         G.stress=cl((G.stress||0)-r(10,16));
-        Engine.log(`🏞️ You and ${p.name} escaped for a weekend away.`, 'love');
+        Engine.log(`🏞️ You and ${p.name} escaped for a weekend away.`,'love');
         break;
       }
 
@@ -365,7 +488,7 @@ const Relations={
         p.intimacy=cl((p.intimacy||20)+r(10,16));
         G.happiness=cl(G.happiness+r(18,26));
         G.stress=cl((G.stress||0)-r(14,20));
-        Engine.log(`🏖️ Romantic holiday with ${p.name}.`, 'love');
+        Engine.log(`🏖️ Romantic holiday with ${p.name}.`,'love');
         break;
       }
 
@@ -379,7 +502,7 @@ const Relations={
       case'serious':
         if(p.stage!=='dating'){UI.toast('You need to be dating first.');return;}
         if(p.love<58||p.chemistry<45){UI.toast(`${p.name} is not ready for something serious.`);return;}
-        this._setStage(p,'serious',`🏠 Things with ${p.name} got serious. You are building a real life together.`);
+        this._setStage(p,'serious',`🏠 Things with ${p.name} got serious.`);
         p.intimacy=cl((p.intimacy||20)+8);
         G.happiness=cl(G.happiness+14);
         break;
@@ -388,7 +511,6 @@ const Relations={
         if(p.stage!=='serious'){UI.toast('Build to the serious stage first.');return;}
         if(p.love<70||p.intimacy<45){UI.toast(`${p.name} does not feel ready yet.`);return;}
         this._setStage(p,'engaged',`💎 You proposed to ${p.name} and they said yes.`);
-        p.engaged=true;
         G.happiness=cl(G.happiness+24);
         Engine.checkAch();
         break;
@@ -396,9 +518,7 @@ const Relations={
       case'marry':
         if(p.stage!=='engaged'){UI.toast('You need to be engaged first.');return;}
         this._setStage(p,'married',`💍 You married ${p.name}.`);
-        p.married=true;
         p.yearsMarried=0;
-        p.engaged=false;
         G.happiness=cl(G.happiness+28);
         Engine.checkAch();
         break;
@@ -407,7 +527,7 @@ const Relations={
         if(p.stage!=='married'){UI.toast('You need to be married first.');return;}
         p.love=cl(p.love+r(12,20));
         G.happiness=cl(G.happiness+r(14,20));
-        Engine.log(`💞 You and ${p.name} renewed your vows.`, 'special');
+        Engine.log(`💞 You and ${p.name} renewed your vows.`,'special');
         break;
 
       case'counselling':{
@@ -418,7 +538,7 @@ const Relations={
         p.intimacy=cl((p.intimacy||20)+r(4,8));
         G.happiness=cl(G.happiness+r(5,10));
         G.stress=cl((G.stress||0)-r(5,10));
-        Engine.log(`🛋️ Couples therapy helped you reconnect with ${p.name}.`, 'love');
+        Engine.log(`🛋️ Couples therapy helped you reconnect with ${p.name}.`,'love');
         break;
       }
 
@@ -439,7 +559,7 @@ const Relations={
         p.intimacy=cl((p.intimacy||20)+r(7,12));
         p.love=cl(p.love+r(4,9));
         G.happiness=cl(G.happiness+r(6,10));
-        Engine.log(`💆 You gave ${p.name} a long relaxing massage.`, 'love');
+        Engine.log(`💆 You gave ${p.name} a long relaxing massage.`,'love');
         break;
 
       case'sext':
@@ -447,7 +567,7 @@ const Relations={
         if(p.love<22){UI.toast(`${p.name} is not ready for that.`);return;}
         p.intimacy=cl((p.intimacy||20)+r(10,18));
         G.happiness=cl(G.happiness+r(7,13));
-        Engine.log(`📱 Things got spicy over text with ${p.name}.`, 'love');
+        Engine.log(`📱 Things got spicy over text with ${p.name}.`,'love');
         break;
 
       case'baby':
@@ -468,12 +588,12 @@ const Relations={
           if(caught){
             G.achievements=G.achievements||{};
             G.achievements.caught_cheating=true;
-            Engine.log(`💥 ${p.name} found out about the affair.`, 'bad');
+            Engine.log(`💥 ${p.name} found out about the affair.`,'bad');
             this._separate({cause:'cheating',forced:true});
             Engine.checkAch();
           }else{
             G.happiness=cl(G.happiness+r(2,7));
-            Engine.log(`🤫 ${p.name} does not know about the affair... yet.`, 'bad');
+            Engine.log(`🤫 ${p.name} does not know about the affair... yet.`,'bad');
           }
           UI.update();this.render();
         },{risky:true,title:'Risky Encounter',text:'Choose whether this affair uses protection.'});
@@ -485,6 +605,7 @@ const Relations={
         break;
     }
 
+    this._recordHistory(`Partner action: ${act}`,'partner',p?.name||'');
     UI.update();
     this.render();
   },
@@ -494,6 +615,8 @@ const Relations={
     this._ensureState(G);
     if(G.rels.partner){UI.toast('You already have a romantic interest.');return;}
     if((G.age||0)<18){UI.toast('Adult relationships unlock at 18. Use teen romance first.');return;}
+    if(!this._canUseAction('find','You have already tried enough ways to meet someone this year. Age up to refresh.'))return;
+    this._markAction('find');
 
     const gender=G.gender==='female'?'male':'female';
     const p=Engine.npc('partner',gender);
@@ -509,7 +632,8 @@ const Relations={
     p.yearsMarried=0;
     G.rels.partner=this._ensurePartnerDefaults(p);
     G.happiness=cl(G.happiness+10);
-    Engine.log(`💘 You met ${p.name} ${p.surname} through ${source}. Chemistry: ${p.chemistry}%.`, 'love');
+    this._recordHistory(`Met ${p.name}`,'partner',source);
+    Engine.log(`💘 You met ${p.name} ${p.surname} through ${source}. Chemistry: ${p.chemistry}%.`,'love');
     UI.update();this.render();
   },
 
@@ -517,11 +641,14 @@ const Relations={
     const G=window.G;if(!G)return;
     if((G.age||0)<18){UI.toast('Dating apps unlock at 18.');return;}
     if(G.rels.partner){UI.toast('Delete the app - you already have someone.');return;}
+    if(!this._canUseAction('find','Dating app attempts are used up this year. Age up to refresh.'))return;
 
     const roll=Math.random();
-    if(roll<0.48){
-      this.findPartner('a dating app');
-    }else if(roll<0.78){
+    if(roll<0.48){this.findPartner('a dating app');return;}
+
+    this._markAction('find');
+
+    if(roll<0.78){
       const n=this._casualPartner('dating app match');
       G.happiness=cl(G.happiness+r(4,10));
       this._chooseProtection(protectedSex=>{
@@ -529,16 +656,19 @@ const Relations={
         UI.update();this.render();
       },{title:'Protection Choice',text:`Your date with ${n.name} is getting physical. Choose protection.`});
       return;
-    }else{
-      G.happiness=cl(G.happiness-6);
-      Engine.log('📲 A run of awful dates made you want to delete every app.', 'bad');
-      UI.update();this.render();
     }
+
+    G.happiness=cl(G.happiness-6);
+    Engine.log('📲 A run of awful dates made you want to delete every app.','bad');
+    UI.update();this.render();
   },
 
   hookup(){
     const G=window.G;if(!G)return;
     if((G.age||0)<18){UI.toast('Adult encounters unlock at 18.');return;}
+    if(!this._canUseAction('intimate'))return;
+    this._markAction('intimate');
+
     const n=this._casualPartner('hookup');
     G.happiness=cl(G.happiness+r(8,14));
     this._chooseProtection(protectedSex=>{
@@ -550,8 +680,12 @@ const Relations={
   visitAdultClub(){
     const G=window.G;if(!G)return;
     if((G.age||0)<18){UI.toast('Adults only!');return;}
+    if(!this._canUseAction('intimate'))return;
+
     const cost=sc(100);
     if(G.money<cost){UI.toast('Need '+fmt(cost)+'!');return;}
+
+    this._markAction('intimate');
     G.money-=cost;
     const n=this._casualPartner('club encounter');
     G.happiness=cl(G.happiness+r(10,16));
@@ -567,8 +701,12 @@ const Relations={
 
   teenCrush(){
     const G=window.G;if(!G)return;
+    this._ensureState(G);
     if((G.age||0)<16){UI.toast('Romance unlocks at age 16.');return;}
     if(G.rels.partner){UI.toast(`You already have ${this._partnerWord(G.rels.partner)}.`);return;}
+    if(!this._canUseAction('teen','Teen romance actions are used up this year. Age up to refresh.'))return;
+
+    this._markAction('teen');
 
     const gender=G.gender==='female'?'male':'female';
     const p=Engine.npc('partner',gender);
@@ -584,13 +722,18 @@ const Relations={
     p.yearsMarried=0;
     G.rels.partner=this._ensurePartnerDefaults(p);
     G.happiness=cl(G.happiness+r(8,14));
-    Engine.log(`💘 You worked up the courage to approach your crush, ${p.name}. Now you're talking.`, 'love');
+    this._recordHistory(`Teen crush: ${p.name}`,'partner','teen romance');
+    Engine.log(`💘 You worked up the courage to approach your crush, ${p.name}. Now you're talking.`,'love');
     UI.update();this.render();
   },
 
   teenDate(){
     const G=window.G;if(!G)return;
+    this._ensureState(G);
     if((G.age||0)<16){UI.toast('Romance unlocks at age 16.');return;}
+    if(!this._canUseAction('teen','Teen romance actions are used up this year. Age up to refresh.'))return;
+
+    this._markAction('teen');
 
     let p=this._ensurePartnerDefaults(G.rels.partner);
     if(!p){
@@ -609,18 +752,18 @@ const Relations={
       G.rels.partner=this._ensurePartnerDefaults(p);
     }
 
-    p.dates=(p.dates||0)+1;
+    p.dates++;
     p.love=cl((p.love||30)+r(8,14)+Math.round((p.chemistry||50)/24));
     p.intimacy=cl((p.intimacy||10)+r(2,5));
     G.happiness=cl(G.happiness+r(10,16));
     G.looks=cl(G.looks+r(1,3));
     G.stress=cl((G.stress||0)-r(2,5));
 
-    if(p.stage==='talking'&&((p.dates||0)>=1||p.love>=40)){
+    if(p.stage==='talking'&&(p.dates>=1||p.love>=40)){
       this._setStage(p,'dating',`💞 After that first date, you and ${p.name} started dating.`);
     }
 
-    Engine.log(`🎬 Your first proper date with ${p.name} was awkward and sweet.`, 'love');
+    Engine.log(`🎬 Your first proper date with ${p.name} was awkward and sweet.`,'love');
     UI.update();this.render();
   },
 
@@ -628,6 +771,9 @@ const Relations={
     const G=window.G;if(!G)return;
     this._ensureState(G);
     if((G.rels.friends||[]).length>=10){UI.toast('Social circle is full!');return;}
+    if(!this._canUseAction('friend','Friend actions are used up this year. Age up to refresh.'))return;
+
+    this._markAction('friend');
 
     const f=Engine.npc('friend',Math.random()>0.5?'female':'male');
     f.age=Math.max(16,(G.age||18)+r(-6,6));
@@ -636,96 +782,54 @@ const Relations={
     f.love=r(38,65);
     G.rels.friends.push(f);
     G.happiness=cl(G.happiness+r(5,10));
-    Engine.log(`🤝 You made a new friend: ${f.name} ${f.surname}.`, 'good');
+    this._recordHistory(`Met friend ${f.name}`,'friend','new friend');
+    Engine.log(`🤝 You made a new friend: ${f.name} ${f.surname}.`,'good');
     UI.update();this.render();
   },
 
   hangFriend(id){
-    const G=window.G;if(!G)return;
-    const f=(G.rels.friends||[]).find(x=>x.id===id);
-    if(!f)return;
-    f.love=cl(f.love+r(4,9));
-    G.happiness=cl(G.happiness+r(6,12));
-    G.stress=cl((G.stress||0)-r(3,7));
-    Engine.log(`😄 Great time with ${f.name}.`, 'good');
-    UI.update();this.render();
+    this.friendAction(id,'hang');
   },
 
   friendAction(id,act){
     const G=window.G;if(!G)return;
+    this._ensureState(G);
     const f=(G.rels.friends||[]).find(x=>x.id===id);
     if(!f)return;
     this._ensureFriendDefaults(f);
+    if(!this._canUseAction('friend','Friend actions are used up this year. Age up to refresh.'))return;
+
+    const cost=act==='gift'?sc(80):0;
+    if(cost&&G.money<cost){UI.toast('Need '+fmt(cost)+'!');return;}
+
+    this._markAction('friend');
     f.interactions++;
+    if(cost)G.money-=cost;
 
     if(act==='hang'){
       f.love=cl(f.love+r(5,10));
       G.happiness=cl(G.happiness+r(6,12));
       G.stress=cl((G.stress||0)-r(3,7));
-      Engine.log(`😄 You hung out with ${f.name}. Easy, fun, familiar.`, 'good');
+      Engine.log(`😄 You hung out with ${f.name}.`,'good');
     }else if(act==='talk'){
       f.love=cl(f.love+r(8,14));
       G.happiness=cl(G.happiness+r(4,8));
       G.stress=cl((G.stress||0)-r(5,10));
-      Engine.log(`💬 You had a deep talk with ${f.name}. The friendship feels real.`, 'good');
+      Engine.log(`💬 You had a deep talk with ${f.name}.`,'good');
     }else if(act==='gift'){
-      const cost=sc(80);
-      if(G.money<cost){UI.toast('Need '+fmt(cost)+'!');return;}
-      G.money-=cost;
       f.love=cl(f.love+r(7,12));
       G.happiness=cl(G.happiness+r(2,5));
-      Engine.log(`🎁 You bought ${f.name} a small gift. They loved it.`, 'good');
+      Engine.log(`🎁 You bought ${f.name} a small gift.`,'good');
     }
 
     this._maybeBestFriend(f);
-    UI.update();this.render();
-  },
-
-  exAction(id,act){
-    const G=window.G;if(!G)return;
-    const ex=(G.rels.exes||[]).find(x=>x.id===id);
-    if(!ex||ex.alive===false)return;
-    this._ensureExDefaults(ex);
-
-    if(act==='checkin'){
-      ex.score=cl((ex.score||0)+r(4,9));
-      G.happiness=cl(G.happiness+r(2,5));
-      Engine.log(`💬 You checked in with ${ex.name}. Things felt a little less broken.`, 'neutral');
-    }else if(act==='apology'){
-      const bonus=ex.cause==='cheating'?r(8,16):r(5,10);
-      ex.score=cl((ex.score||0)+bonus);
-      G.happiness=cl(G.happiness+r(1,4));
-      Engine.log(`🙏 You and ${ex.name} talked honestly about what went wrong.`, 'neutral');
-    }else if(act==='meet'){
-      const cost=sc(90);
-      if(G.money<cost){UI.toast('Need '+fmt(cost)+'!');return;}
-      G.money-=cost;
-      const swing=ex.chemistry>=65?r(6,12):r(2,8);
-      ex.score=cl((ex.score||0)+swing);
-      G.happiness=cl(G.happiness+r(4,8));
-      Engine.log(`☕ You met ${ex.name} face to face. Old feelings were still there.`, 'love');
-    }else if(act==='retry'){
-      if(G.rels.partner){UI.toast('You need to be single first.');return;}
-      if((ex.score||0)<42){UI.toast('The score is still too low. Rebuild the connection first.');return;}
-      const chance=this._reconcileChance(ex);
-      if(Math.random()<chance){
-        const revived={...ex,role:'partner',love:cl(Math.max(ex.score||45,ex.lastLove||35)+r(2,8)),stage:(ex.score||0)>=70?'dating':'talking',intimacy:cl(Math.max(ex.intimacy||18,18)),dates:0,engaged:false,married:false,yearsMarried:0};
-        G.rels.partner=this._ensurePartnerDefaults(revived);
-        G.rels.exes=(G.rels.exes||[]).filter(x=>x.id!==id);
-        G.happiness=cl(G.happiness+r(10,18));
-        Engine.log(`💞 You and ${ex.name} found your way back to each other.`, 'special');
-      }else{
-        ex.score=cl((ex.score||0)-r(3,8));
-        G.happiness=cl(G.happiness-r(3,7));
-        Engine.log(`💔 You tried again with ${ex.name}, but the old damage was still too heavy.`, 'bad');
-      }
-    }
-
+    this._recordHistory(`Friend action: ${act}`,'friend',f.name);
     UI.update();this.render();
   },
 
   askFriendOut(id){
     const G=window.G;if(!G)return;
+    this._ensureState(G);
     const friends=G.rels.friends||[];
     const idx=friends.findIndex(x=>x.id===id);
     const f=friends[idx];
@@ -736,143 +840,194 @@ const Relations={
     if(G.age<18||f.age<18){UI.toast('Adults only.');return;}
     if(f.gender===G.gender){UI.toast('This friend is not romantically compatible in the current dating setup.');return;}
     if(f.love<45){UI.toast('Build the friendship more first.');return;}
+    if(!this._canUseAction('friend','Friend actions are used up this year. Age up to refresh.'))return;
+
+    this._markAction('friend');
 
     const chance=Math.min(0.9,0.35+(f.love/120)+(f.bestFriend?0.12:0)+(G.looks||50)/500);
     if(Math.random()>chance){
       f.love=cl(f.love-r(6,14));
       G.happiness=cl(G.happiness-r(4,9));
-      Engine.log(`💔 You asked ${f.name} out, but they wanted to stay friends.`, 'bad');
+      Engine.log(`💔 You asked ${f.name} out, but they wanted to stay friends.`,'bad');
       UI.update();this.render();
       return;
     }
 
-    const p={...f,role:'partner'};
-    p.stage='talking';
-    p.chemistry=cl(r(35,65)+Math.floor((f.love||50)/3));
-    p.intimacy=r(8,22);
-    p.dates=0;
-    p.yearsTogether=0;
-    p.married=false;
-    p.engaged=false;
-    p.yearsMarried=0;
-    p.fromFriend=true;
+    const p={
+      ...f,
+      role:'partner',
+      stage:'talking',
+      chemistry:cl(r(35,65)+Math.floor((f.love||50)/3)),
+      intimacy:r(8,22),
+      dates:0,
+      yearsTogether:0,
+      married:false,
+      engaged:false,
+      yearsMarried:0,
+      fromFriend:true,
+    };
 
     friends.splice(idx,1);
     G.rels.partner=this._ensurePartnerDefaults(p);
     G.happiness=cl(G.happiness+12);
-    Engine.log(`💘 ${f.name} said yes. Your friend is now your ${this._partnerWord(p)}.`, 'love');
+    this._recordHistory(`${f.name} became a partner`,'partner','friend to romance');
+    Engine.log(`💘 ${f.name} said yes. Your friend is now your ${this._partnerWord(p)}.`,'love');
+    UI.update();this.render();
+  },
+
+  exAction(id,act){
+    const G=window.G;if(!G)return;
+    this._ensureState(G);
+    const ex=(G.rels.exes||[]).find(x=>x.id===id);
+    if(!ex||ex.alive===false)return;
+    this._ensureExDefaults(ex);
+    if(!this._canUseAction('ex','Ex actions are used up this year. Age up to refresh.'))return;
+
+    const cost=act==='meet'?sc(90):0;
+    if(cost&&G.money<cost){UI.toast('Need '+fmt(cost)+'!');return;}
+
+    this._markAction('ex');
+    if(cost)G.money-=cost;
+
+    if(act==='checkin'){
+      ex.score=cl((ex.score||0)+r(4,9));
+      G.happiness=cl(G.happiness+r(2,5));
+      Engine.log(`💬 You checked in with ${ex.name}.`,'neutral');
+    }else if(act==='apology'){
+      ex.score=cl((ex.score||0)+(ex.cause==='cheating'?r(8,16):r(5,10)));
+      G.happiness=cl(G.happiness+r(1,4));
+      Engine.log(`🙏 You and ${ex.name} talked honestly about what went wrong.`,'neutral');
+    }else if(act==='meet'){
+      ex.score=cl((ex.score||0)+(ex.chemistry>=65?r(6,12):r(2,8)));
+      G.happiness=cl(G.happiness+r(4,8));
+      Engine.log(`☕ You met ${ex.name} face to face.`,'love');
+    }else if(act==='retry'){
+      if(G.rels.partner){UI.toast('You need to be single first.');return;}
+      if((ex.score||0)<42){UI.toast('The score is still too low.');return;}
+
+      if(Math.random()<this._reconcileChance(ex)){
+        const revived={
+          ...ex,
+          role:'partner',
+          love:cl(Math.max(ex.score||45,ex.lastLove||35)+r(2,8)),
+          stage:(ex.score||0)>=70?'dating':'talking',
+          intimacy:cl(Math.max(ex.intimacy||18,18)),
+          dates:0,
+          engaged:false,
+          married:false,
+          yearsMarried:0,
+        };
+        G.rels.partner=this._ensurePartnerDefaults(revived);
+        G.rels.exes=G.rels.exes.filter(x=>x.id!==id);
+        G.happiness=cl(G.happiness+r(10,18));
+        Engine.log(`💞 You and ${ex.name} found your way back to each other.`,'special');
+      }else{
+        ex.score=cl((ex.score||0)-r(3,8));
+        G.happiness=cl(G.happiness-r(3,7));
+        Engine.log(`💔 You tried again with ${ex.name}, but the old damage was too heavy.`,'bad');
+      }
+    }
+
+    this._recordHistory(`Ex action: ${act}`,'ex',ex.name);
     UI.update();this.render();
   },
 
   familyAction(id,act){
     const G=window.G;if(!G)return;
+    this._ensureState(G);
     const all=[G.rels.father,G.rels.mother,...(G.rels.siblings||[])].filter(Boolean);
     const n=all.find(x=>x&&x.id===id);
     if(!n||!n.alive)return;
+    if(!this._canUseAction('family','Family actions are used up this year. Age up to refresh.'))return;
+
+    const cost=act==='dinner'?sc(80):act==='help'?sc(250):0;
+    if(cost&&G.money<cost){UI.toast('Need '+fmt(cost)+'!');return;}
+
+    this._markAction('family');
+    if(cost)G.money-=cost;
 
     if(act==='time'){
       n.love=cl((n.love||50)+r(5,11));
       G.happiness=cl(G.happiness+r(5,10));
-      Engine.log(`😊 You spent proper quality time with your ${n.role} ${n.name}.`, 'good');
     }else if(act==='call'){
       n.love=cl((n.love||50)+r(2,6));
       G.happiness=cl(G.happiness+r(2,5));
-      Engine.log(`📞 You called your ${n.role} ${n.name}. It meant more than expected.`, 'good');
     }else if(act==='dinner'){
-      const cost=sc(80);
-      if(G.money<cost){UI.toast('Need '+fmt(cost)+'!');return;}
-      G.money-=cost;
       n.love=cl((n.love||50)+r(6,12));
       G.happiness=cl(G.happiness+r(7,12));
-      Engine.log(`🍽️ Family dinner with ${n.name} brought everyone closer.`, 'good');
     }else if(act==='help'){
-      const cost=sc(250);
-      if(G.money<cost){UI.toast('Need '+fmt(cost)+'!');return;}
-      G.money-=cost;
       n.love=cl((n.love||50)+r(8,15));
       G.karma=cl((G.karma||0)+r(1,4),-100,100);
-      Engine.log(`🤝 You helped your ${n.role} ${n.name} with real-life problems.`, 'good');
     }
 
+    this._recordHistory(`Family action: ${act}`,'family',n.name);
+    Engine.log(`👪 You spent time with your ${n.role} ${n.name}.`,'good');
     UI.update();this.render();
+  },
+
+  clickFamily(id){
+    this.familyAction(id,'time');
   },
 
   childAction(id,act){
     const G=window.G;if(!G)return;
+    this._ensureState(G);
     const c=(G.rels.children||[]).find(x=>x.id===id);
     if(!c)return;
+    if(!this._canUseAction('child','Child actions are used up this year. Age up to refresh.'))return;
+
+    const cost=act==='gift'?sc(120):0;
+    if(cost&&G.money<cost){UI.toast('Need '+fmt(cost)+'!');return;}
+
+    this._markAction('child');
+    if(cost)G.money-=cost;
 
     if(act==='time'){
-      this.spendTimeWithChild(id);
-      return;
-    }
-
-    if(act==='school'){
+      c.love=cl((c.love||60)+r(8,14));
+      c.school=cl((c.school||70)+r(2,6));
+      c.wellbeing=cl((c.wellbeing||70)+r(4,8));
+      G.happiness=cl(G.happiness+r(8,14));
+      G.stress=cl((G.stress||0)-r(2,6));
+      if(c.issue&&Math.random()<0.55){
+        Engine.log(`👨‍👩‍👧 Time with ${c.name} helped them work through ${String(c.issue).toLowerCase()}.`,'good');
+        c.issue='';
+        c.issueSeverity=0;
+      }else{
+        Engine.log(`👶 Quality time with ${c.name} made you both feel closer.`,'good');
+      }
+    }else if(act==='school'){
       c.love=cl((c.love||60)+r(4,9));
       c.school=cl((c.school||70)+r(8,15));
       G.stress=cl((G.stress||0)+r(1,3));
-      Engine.log(`📚 You helped ${c.name} with school. Their confidence improved.`, 'good');
+      Engine.log(`📚 You helped ${c.name} with school.`,'good');
     }else if(act==='gift'){
-      const cost=sc(120);
-      if(G.money<cost){UI.toast('Need '+fmt(cost)+'!');return;}
-      G.money-=cost;
       c.love=cl((c.love||60)+r(6,12));
       G.happiness=cl(G.happiness+r(4,8));
-      Engine.log(`🎁 You bought ${c.name} something thoughtful.`, 'good');
+      Engine.log(`🎁 You bought ${c.name} something thoughtful.`,'good');
     }else if(act==='support'){
       c.love=cl((c.love||60)+r(5,11));
       c.wellbeing=cl((c.wellbeing||70)+r(8,15));
       G.stress=cl((G.stress||0)-r(2,6));
       if(c.issue&&Math.random()<0.7){
-        Engine.log(`🛟 You helped ${c.name} through ${c.issue}.`, 'good');
+        Engine.log(`🛟 You helped ${c.name} through ${c.issue}.`,'good');
         c.issue='';
         c.issueSeverity=0;
       }else{
-        Engine.log(`🛟 You showed up emotionally for ${c.name}.`, 'good');
+        Engine.log(`🛟 You showed up emotionally for ${c.name}.`,'good');
       }
     }
 
-    UI.update();this.render();
-  },
-
-  clickFamily(id){
-    const G=window.G;if(!G)return;
-    const all=[G.rels.father,G.rels.mother,...(G.rels.siblings||[])].filter(Boolean);
-    const n=all.find(x=>x&&x.id===id);
-    if(!n||!n.alive)return;
-
-    n.love=cl((n.love||50)+r(3,9));
-    G.happiness=cl(G.happiness+r(4,9));
-    Engine.log(`😊 Spent quality time with your ${n.role} ${n.name}.`, 'good');
+    this._recordHistory(`Child action: ${act}`,'child',c.name);
     UI.update();this.render();
   },
 
   spendTimeWithChild(id){
-    const G=window.G;if(!G)return;
-    const c=(G.rels.children||[]).find(x=>x.id===id);
-    if(!c)return;
-
-    c.love=cl((c.love||60)+r(8,14));
-    c.school=cl((c.school||70)+r(2,6));
-    c.wellbeing=cl((c.wellbeing||70)+r(4,8));
-    G.happiness=cl(G.happiness+r(8,14));
-    G.stress=cl((G.stress||0)-r(2,6));
-
-    if(c.issue&&Math.random()<0.55){
-      Engine.log(`👨‍👩‍👧 Time with ${c.name} helped them work through ${String(c.issue).toLowerCase()}.`, 'good');
-      c.issue='';
-      c.issueSeverity=0;
-    }else{
-      Engine.log(`👶 Quality time with ${c.name} made you both feel closer.`, 'good');
-    }
-
-    UI.update();this.render();
+    this.childAction(id,'time');
   },
 
   ageAll(){
     const G=window.G;if(!G)return;
     this._ensureState(G);
-
     if(G.pregnancy&&G.age>=G.pregnancy.dueAge)this._resolvePregnancy();
 
     const all=[G.rels.father,G.rels.mother,...(G.rels.siblings||[]),G.rels.partner,...(G.rels.children||[]),...(G.rels.friends||[]),...(G.rels.exes||[])].filter(Boolean);
@@ -884,15 +1039,10 @@ const Relations={
       if((n.role==='father'||n.role==='mother')&&n.age>r(68,97)&&Math.random()<0.18)this._die(n);
       if(n.alive&&n.role!=='child'&&Math.random()<0.004)this._die(n,'an accident');
 
-      if(n.role==='partner'){
-        this._tickPartner(n);
-      }else if(n.role==='ex'){
-        this._tickEx(n);
-      }else if(n.role==='child'){
-        this._tickChild(n);
-      }else if(n.role==='friend'){
-        this._tickFriend(n);
-      }
+      if(n.role==='partner')this._tickPartner(n);
+      else if(n.role==='ex')this._tickEx(n);
+      else if(n.role==='child')this._tickChild(n);
+      else if(n.role==='friend')this._tickFriend(n);
     });
   },
 
@@ -907,11 +1057,11 @@ const Relations={
 
     if((p.intimacy||0)<25&&Math.random()<0.30){
       G.happiness=cl(G.happiness-r(2,5));
-      Engine.log(`💬 Intimacy with ${p.name} has faded from neglect.`, 'bad');
+      Engine.log(`💬 Intimacy with ${p.name} has faded from neglect.`,'bad');
     }
 
     if(p.love<18&&Math.random()<0.2){
-      Engine.log(`💔 Things with ${p.name} collapsed after years of drifting apart.`, 'bad');
+      Engine.log(`💔 Things with ${p.name} collapsed after years of drifting apart.`,'bad');
       this._registerEx(p,{cause:'drifted',causeLabel:'Drifted apart'});
       G.rels.partner=null;
     }
@@ -929,16 +1079,14 @@ const Relations={
   },
 
   _tickChild(c){
-    const G=window.G;
     this._ensureChildDefaults(c);
-
     c.love=cl((c.love||60)-r(0,2));
     c.school=cl((c.school||70)+r(-5,3));
     c.wellbeing=cl((c.wellbeing||70)+r(-4,3));
 
     if(c.age>=18&&!c.independent&&Math.random()<0.55){
       c.independent=true;
-      Engine.log(`🏠 ${c.name} moved out and started an independent life.`, 'special');
+      Engine.log(`🏠 ${c.name} moved out and started an independent life.`,'special');
     }
 
     if(Math.random()<this._childIssueChance(c))this._childIssue(c);
@@ -978,20 +1126,7 @@ const Relations={
     if(evt.health)G.health=cl(G.health-evt.health);
     if(evt.money)G.money=Math.max(0,(G.money||0)-evt.money);
 
-    Engine.log(`👶 ${c.name} is dealing with ${evt.issue}. It hit you hard as a parent.`, 'bad');
-  },
-
-  _ensureFriendDefaults(f){
-    const G=window.G;
-    if(!f)return null;
-    f.id=f.id||Math.random().toString(36).slice(2);
-    if(!Number.isFinite(f.age)||f.age<=0)f.age=Math.max(16,(G?.age||18)+r(-6,6));
-    if(!Number.isFinite(f.love))f.love=r(38,65);
-    if(!Number.isFinite(f.interactions))f.interactions=0;
-    f.bestFriend=!!f.bestFriend;
-    f.alive=f.alive!==false;
-    f.role='friend';
-    return f;
+    Engine.log(`👶 ${c.name} is dealing with ${evt.issue}. It hit you hard as a parent.`,'bad');
   },
 
   _maybeBestFriend(f){
@@ -999,13 +1134,12 @@ const Relations={
     if((f.love||0)>=85&&(f.interactions||0)>=4){
       f.bestFriend=true;
       window.G.happiness=cl(window.G.happiness+10);
-      Engine.log(`⭐ ${f.name} became your best friend.`, 'special');
+      Engine.log(`⭐ ${f.name} became your best friend.`,'special');
     }
   },
 
   _romanceLabelFor(f){
-    if(!f)return'Ask Out';
-    return f.gender==='female'?'Make Girlfriend':'Make Boyfriend';
+    return f?.gender==='female'?'Make Girlfriend':'Make Boyfriend';
   },
 
   _partnerWord(p){
@@ -1019,59 +1153,7 @@ const Relations={
     p.married=stage==='married';
     p.engaged=stage==='engaged';
     if(msg)Engine.log(msg,stage==='married'||stage==='engaged'?'special':'love');
-  },
-
-  _ensurePartnerDefaults(p){
-    if(!p)return null;
-    p.id=p.id||Math.random().toString(36).slice(2);
-    p.stage=p.stage||(p.married?'married':'dating');
-    p.chemistry=Number.isFinite(p.chemistry)?cl(p.chemistry):r(45,85);
-    p.intimacy=Number.isFinite(p.intimacy)?cl(p.intimacy):35;
-    p.love=Number.isFinite(p.love)?cl(p.love):r(35,70);
-    p.dates=Number.isFinite(p.dates)?p.dates:0;
-    p.yearsTogether=Number.isFinite(p.yearsTogether)?p.yearsTogether:0;
-    p.yearsMarried=Number.isFinite(p.yearsMarried)?p.yearsMarried:0;
-    p.engaged=!!p.engaged||p.stage==='engaged';
-    p.married=!!p.married||p.stage==='married';
-    p.sti=!!p.sti;
-    p.outsideExposure=!!p.outsideExposure;
-    p.sexualEncounters=Number.isFinite(p.sexualEncounters)?p.sexualEncounters:0;
-    p.alive=p.alive!==false;
-    p.role='partner';
-    return p;
-  },
-
-  _ensureExDefaults(ex){
-    if(!ex)return null;
-    ex.id=ex.id||Math.random().toString(36).slice(2);
-    ex.alive=ex.alive!==false;
-    ex.score=Number.isFinite(ex.score)?cl(ex.score):35;
-    ex.yearsApart=Number.isFinite(ex.yearsApart)?ex.yearsApart:0;
-    ex.chemistry=Number.isFinite(ex.chemistry)?cl(ex.chemistry):r(40,80);
-    ex.intimacy=Number.isFinite(ex.intimacy)?cl(ex.intimacy):20;
-    ex.lastLove=Number.isFinite(ex.lastLove)?cl(ex.lastLove):40;
-    ex.cause=ex.cause||'breakup';
-    ex.causeLabel=ex.causeLabel||(ex.cause==='cheating'?'Cheating fallout':ex.cause==='drifted'?'Drifted apart':ex.cause==='divorce'?'Divorce':'Breakup');
-    ex.role='ex';
-    return ex;
-  },
-
-  _ensureChildDefaults(c){
-    const G=window.G;
-    if(!c)return null;
-    c.id=c.id||Math.random().toString(36).slice(2);
-    c.role='child';
-    c.alive=c.alive!==false;
-    c.surname=c.surname||G?.surname||'';
-    c.love=Number.isFinite(c.love)?cl(c.love):r(55,80);
-    c.school=Number.isFinite(c.school)?cl(c.school):70;
-    c.wellbeing=Number.isFinite(c.wellbeing)?cl(c.wellbeing):70;
-    c.issue=c.issue||'';
-    c.issueSeverity=Number.isFinite(c.issueSeverity)?c.issueSeverity:0;
-    c.independent=!!c.independent;
-    c.adopted=!!c.adopted;
-    c.age=Number.isFinite(c.age)?c.age:0;
-    return c;
+    this._recordHistory(`Stage changed to ${stage}`,'partner',p?.name||'');
   },
 
   _reconcileChance(ex){
@@ -1083,7 +1165,6 @@ const Relations={
   },
 
   _offerFamilyAlternative(partner){
-    const G=window.G;
     if(typeof UI==='undefined'||!UI.askChoice){
       this._adoptChild(partner);
       return;
@@ -1102,7 +1183,7 @@ const Relations={
     UI.askChoice({
       icon:'👶',
       title:'Family Options',
-      text:`A natural pregnancy is not likely with ${partner?.name||'your partner'} because of age or biology. You still have other ways to build a family.`,
+      text:`A natural pregnancy is not likely with ${partner?.name||'your partner'} because of age or biology.`,
       choices,
     },choice=>{
       if(choice==='adopt')this._adoptChild(partner);
@@ -1132,7 +1213,8 @@ const Relations={
     if(Math.random()<chance){
       const finish=keep=>{
         G.pregnancy={partnerId:partner?.id||null,partnerName:partner?.name||'someone',dueAge:G.age+1,keep,assisted:true};
-        Engine.log(`🧬 Fertility treatment worked with ${partner?.name||'your partner'}. A pregnancy is underway.`, 'special');
+        this._recordHistory('Fertility treatment worked','child',partner?.name||'');
+        Engine.log(`🧬 Fertility treatment worked with ${partner?.name||'your partner'}. A pregnancy is underway.`,'special');
         UI.update();this.render();
       };
 
@@ -1141,7 +1223,7 @@ const Relations={
       UI.askChoice({
         icon:'🧬',
         title:'Treatment Success',
-        text:`The clinic route worked with ${partner?.name||'your partner'}. What is the plan now?`,
+        text:`The clinic route worked with ${partner?.name||'your partner'}.`,
         choices:[
           {value:true,label:'Raise the Child',sub:'Go ahead and build the family.'},
           {value:false,label:'Plan Adoption',sub:'Continue the pregnancy but place the baby for adoption.',danger:true},
@@ -1150,7 +1232,7 @@ const Relations={
       return;
     }
 
-    Engine.log(`🧬 Fertility treatment with ${partner?.name||'your partner'} did not work this time.`, 'bad');
+    Engine.log(`🧬 Fertility treatment with ${partner?.name||'your partner'} did not work this time.`,'bad');
     UI.update();this.render();
   },
 
@@ -1164,8 +1246,8 @@ const Relations={
     G.rels.children.push(child);
     G.happiness=cl(G.happiness+16);
     G.stress=cl((G.stress||0)+5);
-
-    Engine.log(`👶 You adopted ${child.name}${partner?.name?` with ${partner.name}`:''}. Family can happen in more than one way.`, 'special');
+    this._recordHistory(`Adopted child: ${child.name}`,'child',partner?.name||'');
+    Engine.log(`👶 You adopted ${child.name}${partner?.name?` with ${partner.name}`:''}. Family can happen in more than one way.`,'special');
     Engine.checkAch();
     UI.update();this.render();
   },
@@ -1248,7 +1330,7 @@ const Relations={
       sh.sti=true;
       sh.std=true;
       G.health=cl(G.health-r(3,8));
-      Engine.log('⚠️ This encounter may have left you with an STI. Get tested.', 'bad');
+      Engine.log('⚠️ This encounter may have left you with an STI. Get tested.','bad');
     }
 
     if(this._isCurrentPartner(partner)){
@@ -1298,6 +1380,7 @@ const Relations={
       };
       G.happiness=cl(G.happiness+(keep?8:-4));
       G.stress=cl((G.stress||0)+(keep?8:12));
+      this._recordHistory('Pregnancy started','child',G.pregnancy.partnerName);
       Engine.log(`🍼 Pregnancy started with ${G.pregnancy.partnerName}. ${keep?'You plan to keep the baby.':'You plan for adoption.'}`,keep?'special':'bad');
       UI.update();this.render();
     };
@@ -1326,12 +1409,14 @@ const Relations={
       G.rels.children.push(child);
       G.happiness=cl(G.happiness+18);
       G.stress=cl((G.stress||0)+7);
-      Engine.log(`👶 ${child.name} was born. Your family just got bigger.`, 'special');
+      this._recordHistory(`Child born: ${child.name}`,'child',p.partnerName||'');
+      Engine.log(`👶 ${child.name} was born. Your family just got bigger.`,'special');
       Engine.checkAch();
     }else{
       G.happiness=cl(G.happiness-6);
       G.stress=cl((G.stress||0)+6);
-      Engine.log('👶 The baby was placed for adoption after birth. A complicated, emotional choice.', 'bad');
+      this._recordHistory('Adoption after birth','child',p.partnerName||'');
+      Engine.log('👶 The baby was placed for adoption after birth. A complicated, emotional choice.','bad');
     }
 
     G.pregnancy=null;
@@ -1379,6 +1464,7 @@ const Relations={
 
     if(existing)Object.assign(existing,exData);
     else G.rels.exes.unshift(exData);
+    this._recordHistory(`Ex registered: ${p.name}`,'ex',exData.causeLabel);
   },
 
   _separate(opts={}){
@@ -1411,8 +1497,8 @@ const Relations={
     G.happiness=cl(G.happiness-(married?18:12));
     G.stress=cl((G.stress||0)+(married?16:10));
 
-    if(cashLoss>0)Engine.log(`💔 ${label} from ${p.name}. Legal and life costs hit you for ${fmt(cashLoss)}.`, 'bad');
-    else Engine.log(`💔 You and ${p.name} separated.`, 'bad');
+    if(cashLoss>0)Engine.log(`💔 ${label} from ${p.name}. Legal and life costs hit you for ${fmt(cashLoss)}.`,'bad');
+    else Engine.log(`💔 You and ${p.name} separated.`,'bad');
 
     UI.update();this.render();
   },
@@ -1429,23 +1515,23 @@ const Relations={
       this._registerEx(n,{cause:'death',causeLabel:'Passed away',scorePenalty:0});
       G.happiness=cl(G.happiness-r(16,28));
       G.stress=cl((G.stress||0)+r(10,18));
-      Engine.log(`🕯️ ${n.name}, your partner, passed away from ${cause}.`, 'bad');
+      Engine.log(`🕯️ ${n.name}, your partner, passed away from ${cause}.`,'bad');
       return;
     }
 
     if(n.role==='father'||n.role==='mother'){
       G.happiness=cl(G.happiness-r(10,20));
       G.stress=cl((G.stress||0)+r(5,12));
-      Engine.log(`🕯️ Your ${n.role} ${n.name} passed away from ${cause}.`, 'bad');
+      Engine.log(`🕯️ Your ${n.role} ${n.name} passed away from ${cause}.`,'bad');
       return;
     }
 
     if(n.role==='friend'){
       G.happiness=cl(G.happiness-r(4,10));
-      Engine.log(`🕯️ Your friend ${n.name} passed away from ${cause}.`, 'bad');
+      Engine.log(`🕯️ Your friend ${n.name} passed away from ${cause}.`,'bad');
       return;
     }
 
-    Engine.log(`🕯️ ${n.name} passed away from ${cause}.`, 'bad');
+    Engine.log(`🕯️ ${n.name} passed away from ${cause}.`,'bad');
   },
 };

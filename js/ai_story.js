@@ -1,7 +1,10 @@
 /* js/ai_story.js — LifeSim v13: Local Narrative Director */
 const AIStory={
   gap:3,
-  memorySize:10,
+  memorySize:36,
+  recentIdWindow:18,
+  recentTopicWindow:8,
+  defaultRepeatCooldown:18,
   VERSION:13,
 
   canUse(){
@@ -47,6 +50,25 @@ const AIStory={
     if(!G.storyStats)G.storyStats={seen:0,topics:{}};
     if(!G.storyStats.topics)G.storyStats.topics={};
     if(!Number.isFinite(G.storyStats.seen))G.storyStats.seen=0;
+
+    // Stronger anti-repeat memory. Safe for older saves.
+    if(!G.storySeenIds||typeof G.storySeenIds!=='object')G.storySeenIds={};
+    if(!G.storyLastSeen||typeof G.storyLastSeen!=='object')G.storyLastSeen={};
+    if(!Array.isArray(G.storyTopicMemory))G.storyTopicMemory=[];
+
+    // Migrate old storyMemory into the stronger history maps.
+    G.storyMemory.forEach(item=>{
+      if(!item)return;
+      const id=item.id||item.title;
+      if(!id)return;
+      G.storySeenIds[id]=true;
+      if(Number.isFinite(item.age)){
+        G.storyLastSeen[id]=Math.max(Number(G.storyLastSeen[id]||-999),item.age);
+      }
+    });
+
+    if(G.storyMemory.length>this.memorySize)G.storyMemory.length=this.memorySize;
+    if(G.storyTopicMemory.length>this.memorySize)G.storyTopicMemory.length=this.memorySize;
   },
 
   _buildEvent(G){
@@ -157,52 +179,115 @@ const AIStory={
   },
 
   _event(topic,id,weight,data){
-    return{...data,_storyTopic:topic,_storyId:`${topic}:${id}`,_weight:weight||1};
+    const evt={...data};
+    evt._storyTopic=topic;
+    evt._storyId=`${topic}:${id}`;
+    evt._weight=weight||1;
+    evt._unique=evt._unique===true||topic==='chapter';
+    evt._repeatCooldown=Number.isFinite(evt._repeatCooldown)
+      ?evt._repeatCooldown
+      :(evt._unique?999:this.defaultRepeatCooldown);
+    return evt;
   },
 
   _rememberEvent(G,evt){
-    if(!G.storyMemory)G.storyMemory=[];
+    this._ensure(G);
+
+    const id=evt._storyId||evt.title||'story:unknown';
+    const topic=evt._storyTopic||'general';
+
+    G.storySeenIds[id]=true;
+    G.storyLastSeen[id]=G.age;
 
     G.storyMemory.unshift({
       age:G.age,
-      id:evt._storyId||evt.title,
-      topic:evt._storyTopic||'general',
+      id,
+      topic,
       title:evt.title||'Story Event',
     });
 
+    G.storyTopicMemory.unshift({age:G.age,topic,id});
+
     if(G.storyMemory.length>this.memorySize)G.storyMemory.length=this.memorySize;
+    if(G.storyTopicMemory.length>this.memorySize)G.storyTopicMemory.length=this.memorySize;
+  },
+
+  _seenStory(G,id){
+    if(!G||!id)return false;
+    if(G.storySeenIds?.[id])return true;
+    return (G.storyMemory||[]).some(x=>x?.id===id);
+  },
+
+  _lastSeenAge(G,id){
+    const n=Number(G.storyLastSeen?.[id]);
+    if(Number.isFinite(n))return n;
+    const hit=(G.storyMemory||[]).find(x=>x?.id===id);
+    return Number.isFinite(hit?.age)?hit.age:-999;
+  },
+
+  _isFreshEnough(evt,G){
+    const id=evt._storyId;
+    if(!id)return true;
+    if(evt._unique&&this._seenStory(G,id))return false;
+
+    const last=this._lastSeenAge(G,id);
+    const cooldown=Number.isFinite(evt._repeatCooldown)?evt._repeatCooldown:this.defaultRepeatCooldown;
+    return G.age-last>=cooldown;
+  },
+
+  _topicPenalty(evt,G){
+    const topic=evt._storyTopic||'general';
+    const recentTopics=(G.storyTopicMemory||G.storyMemory||[]).slice(0,this.recentTopicWindow).map(x=>x.topic);
+    return recentTopics.filter(t=>t===topic).length*7;
+  },
+
+  _shuffle(list){
+    return [...list].sort(()=>Math.random()-.5);
+  },
+
+  _scoreCandidate(evt,G,ctx,strict=true){
+    const id=evt._storyId;
+    const recent=(G.storyMemory||[]).slice(0,this.recentIdWindow);
+    const recentIds=new Set(recent.map(x=>x.id));
+    let score=Math.random()*4+(evt._weight||1);
+
+    if(id&&recentIds.has(id))score-=strict?150:40;
+    if(id&&this._seenStory(G,id))score-=evt._unique?999:(strict?20:5);
+
+    score-=this._topicPenalty(evt,G);
+
+    if(evt._mood&&evt._mood===ctx.primaryMood)score+=4;
+    if(evt.type==='special')score+=1.2;
+    if(evt.type==='bad'&&ctx.pressure==='severe')score+=1.5;
+    if(evt.type==='good'&&ctx.pressure==='low')score+=1;
+
+    // Make chapter beats feel important, but only when they are truly new.
+    if(evt._storyTopic==='chapter'&&!this._seenStory(G,id))score+=5;
+
+    return score;
   },
 
   _pickFreshCandidate(pool,G,ctx){
+    this._ensure(G);
     if(!pool.length)return this._fallback(G,ctx);
 
-    const recent=G.storyMemory||[];
-    const recentIds=new Set(recent.slice(0,6).map(x=>x.id));
-    const recentTopics=recent.slice(0,4).map(x=>x.topic);
-    const shuffled=[...pool].sort(()=>Math.random()-.5);
+    const fresh=pool.filter(evt=>this._isFreshEnough(evt,G));
+    const nonUniqueRepeats=pool.filter(evt=>!(evt._unique&&this._seenStory(G,evt._storyId)));
+    const usable=fresh.length?fresh:(nonUniqueRepeats.length?nonUniqueRepeats:pool);
+    const strict=!!fresh.length;
 
-    let best=shuffled[0];
-    let bestScore=-999;
+    let best=this._shuffle(usable)[0];
+    let bestScore=-9999;
 
-    shuffled.forEach(evt=>{
-      let score=Math.random()*4+(evt._weight||1);
-
-      if(recentIds.has(evt._storyId))score-=100;
-
-      score-=recentTopics.filter(t=>t===evt._storyTopic).length*8;
-
-      if(evt._mood&&evt._mood===ctx.primaryMood)score+=4;
-      if(evt.type==='special')score+=1.2;
-      if(evt.type==='bad'&&ctx.pressure==='severe')score+=1.5;
-      if(evt.type==='good'&&ctx.pressure==='low')score+=1;
-
+    this._shuffle(usable).forEach(evt=>{
+      const score=this._scoreCandidate(evt,G,ctx,strict);
       if(score>bestScore){
         bestScore=score;
         best=evt;
       }
     });
 
-    return best;
+    return best||this._fallback(G,ctx);
   },
 
   _fallback(G,ctx){
@@ -657,7 +742,7 @@ const AIStory={
   _ageChapterEvents(G,ctx){
     const events=[];
 
-    if(G.age>=18&&G.age<=23){
+    if(G.age>=18&&G.age<=23&&!this._seenStory(G,'chapter:first-adult-choices')){
       events.push(this._event('chapter','first-adult-choices',2.4,{
         icon:'🧭',
         type:'special',
@@ -671,7 +756,7 @@ const AIStory={
       }));
     }
 
-    if(G.age>=38&&G.age<=52){
+    if(G.age>=38&&G.age<=52&&!this._seenStory(G,'chapter:midlife-audit')){
       events.push(this._event('chapter','midlife-audit',2.8,{
         icon:'🪞',
         type:'neutral',
@@ -685,7 +770,7 @@ const AIStory={
       }));
     }
 
-    if(G.age>=65){
+    if(G.age>=65&&!this._seenStory(G,'chapter:later-years-light')){
       events.push(this._event('chapter','later-years-light',3,{
         icon:'🌅',
         type:'good',

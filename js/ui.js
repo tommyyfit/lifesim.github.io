@@ -1,6 +1,6 @@
 /* js/ui.js — LifeSim v13 */
 const UI={
-  VERSION:13,
+  VERSION:13.1,
   SETTINGS_KEY:'lsv13_settings',
   LEGACY_SETTINGS_KEYS:['ls10_settings'],
 
@@ -23,6 +23,74 @@ const UI={
 
   _clamp(value,min=0,max=100){
     return Math.max(min,Math.min(max,Number(value)||0));
+  },
+
+  _toneColor(value,goodHigh=true){
+    value=this._clamp(value);
+    if(goodHigh)return value>=75?'var(--green)':value>=45?'var(--yellow)':'var(--red)';
+    return value>=70?'var(--red)':value>=40?'var(--orange)':'var(--green)';
+  },
+
+  _lifeScore(G){
+    if(!G)return 0;
+    const stress=G.stress||0;
+    const moneyScore=Math.max(0,Math.min(100,50+(netWorth(G)/Math.max(1,annualCost(14000,G))*5)));
+    const score=
+      ((G.happiness||50)*.18)+
+      ((G.health||50)*.22)+
+      ((G.smarts||50)*.12)+
+      ((G.looks||50)*.08)+
+      ((G.fitness||50)*.12)+
+      ((G.fame||0)*.05)+
+      (moneyScore*.13)+
+      ((100-stress)*.10);
+    return this._clamp(Math.round(score));
+  },
+
+  _nextBestAction(G){
+    if(!G)return{icon:'✨',title:'Start Life',text:'Create a character to begin.',tab:'life',color:'var(--accent)'};
+    const stress=G.stress||0;
+
+    if(G.inPrison)return{icon:'🔒',title:'Handle Prison',text:'Use prison actions first. Freedom unlocks the rest of life again.',tab:'crime',color:'var(--red)'};
+    if(G.health<30)return{icon:'❤️‍🩹',title:'Fix Health',text:'Health is the biggest danger right now.',tab:'health',color:'var(--red)'};
+    if(stress>75)return{icon:'🔥',title:'Reduce Burnout',text:'Stress is high. Rest, therapy, or meditation is the smart move.',tab:'mind',color:'var(--orange)'};
+    if((G.skillPoints||0)>0)return{icon:'🎓',title:'Spend Skill Points',text:'Unused skill points are free progress.',tab:'skills',color:'var(--accent)'};
+    if(!G.career&&G.age>=18&&G.age<60&&!G.inUniversity)return{icon:'💼',title:'Get Income',text:'Find a job or build a stable money base.',tab:'career',color:'var(--accent)'};
+    if(typeof Social!=='undefined'&&G.social?.burnout>=75)return{icon:'📱',title:'Creator Break',text:'Your social career is overheating. Take a break before damage.',tab:'social',color:'var(--orange)'};
+    if(typeof Stocks!=='undefined'&&G.age>=18&&(G.money||0)>5000&&(!G.stocks||!Object.keys(G.stocks.portfolio||{}).length))return{icon:'📈',title:'Start Investing',text:'You have cash that could begin compounding.',tab:'stocks',color:'var(--green)'};
+    if(G.age>=18&&!G.assets?.properties?.length&&(G.money||0)>25000)return{icon:'🏠',title:'Buy Assets',text:'Consider property once cash and income are stable.',tab:'assets',color:'var(--green)'};
+    return{icon:'🚀',title:'Keep Momentum',text:'Age up, improve skills, grow income, and protect health.',tab:'life',color:'var(--green)'};
+  },
+
+  _buildLifeSnapshot(G){
+    if(!G)return'';
+    const score=this._lifeScore(G);
+    const action=this._nextBestAction(G);
+    const nw=netWorth(G);
+    const stress=G.stress||0;
+    const scoreColor=this._toneColor(score,true);
+    const stressColor=this._toneColor(stress,false);
+    const goals=Array.isArray(G.completedGoals)?G.completedGoals.length:0;
+    const stocksValue=typeof Stocks!=='undefined'&&Stocks.portfolioValue?Stocks.portfolioValue():stockPortfolioValue(G);
+
+    return`<div class="fame-card" style="text-align:left;margin-bottom:10px">
+      <div style="display:flex;justify-content:space-between;gap:10px;align-items:flex-start;margin-bottom:10px">
+        <div>
+          <div style="font-size:11px;font-weight:900;color:var(--muted);text-transform:uppercase;letter-spacing:.8px">Life Control Panel</div>
+          <div style="font-size:20px;font-weight:950;color:${scoreColor};line-height:1.1">Overall Score ${score}%</div>
+        </div>
+        <button type="button" class="btn-secondary btn-sm" onclick="UI.tab('${this._esc(action.tab)}')" style="white-space:nowrap;border-color:${action.color}66;color:${action.color}">${this._esc(action.icon)} ${this._esc(action.title)}</button>
+      </div>
+
+      <div style="display:grid;grid-template-columns:repeat(4,minmax(0,1fr));gap:6px;margin-bottom:9px">
+        <div class="nw-box" style="margin:0;padding:8px"><div class="nw-lbl">Net Worth</div><div class="nw-amt" style="font-size:14px">${fmt(nw)}</div></div>
+        <div class="nw-box" style="margin:0;padding:8px"><div class="nw-lbl">Stress</div><div class="nw-amt" style="font-size:14px;color:${stressColor}">${Math.round(stress)}%</div></div>
+        <div class="nw-box" style="margin:0;padding:8px"><div class="nw-lbl">Invested</div><div class="nw-amt" style="font-size:14px;color:var(--accent)">${fmt(stocksValue)}</div></div>
+        <div class="nw-box" style="margin:0;padding:8px"><div class="nw-lbl">Goals</div><div class="nw-amt" style="font-size:14px;color:var(--yellow)">${goals}</div></div>
+      </div>
+
+      <div style="font-size:12px;color:var(--muted);font-weight:700"><strong style="color:${action.color}">${this._esc(action.title)}:</strong> ${this._esc(action.text)}</div>
+    </div>`;
   },
 
   loadSettings(){
@@ -411,11 +479,16 @@ const UI={
 
     const stress=G.stress||0;
 
+    const stockReturn=G.stocks&&Number.isFinite(G.stocks.lastYearReturn)?G.stocks.lastYearReturn:0;
+    const socialBurn=G.social&&Number.isFinite(G.social.burnout)?G.social.burnout:0;
+
     const badgeMap={
       health: G.health<25?'red':G.health<40?'yellow':null,
       mind: stress>75?'red':stress>55?'yellow':null,
       career: (G.career&&(G.jobPerf||50)<30)?'yellow':null,
       business: (G.business&&G.business.revenue<G.business.expenses)?'yellow':null,
+      social: socialBurn>82?'red':socialBurn>68?'yellow':null,
+      stocks: stockReturn<=-22?'red':stockReturn<=-12?'yellow':stockReturn>=18?'green':null,
       skills: (G.skillPoints||0)>0?'green':null,
       crime: G.inPrison?'red':null,
     };
@@ -438,6 +511,7 @@ const UI={
 
     const stress=G.stress||0;
 
+    if(G.inPrison)return{icon:'🔒',text:'You are in prison. Focus on prison actions until release.',tab:'crime',color:'red'};
     if(G.health<20)return{icon:'🚨',text:'Critical health! Go to Health tab immediately.',tab:'health',color:'red'};
     if(stress>80)return{icon:'🔥',text:'Severe burnout! Meditate or try therapy.',tab:'mind',color:'orange'};
     if(G.health<35)return{icon:'❤️‍🩹',text:`Health at ${Math.round(G.health)}% — visit the Health tab.`,tab:'health',color:'orange'};
@@ -449,6 +523,18 @@ const UI={
 
     if(!G.career&&G.age>=18&&G.age<60&&!G.inUniversity&&!G.inPrison){
       return{icon:'💼',text:'No job yet. Find employment in the Career tab.',tab:'career',color:'accent'};
+    }
+
+    if(typeof Social!=='undefined'&&G.social?.burnout>=75){
+      return{icon:'🔥',text:'Creator burnout is high. Take a break in Social.',tab:'social',color:'orange'};
+    }
+
+    if(typeof Social!=='undefined'&&(G.followers||0)>=100000&&!G.social?.verified&&G.social?.reputation>=65){
+      return{icon:'✅',text:'You may qualify for social verification.',tab:'social',color:'accent'};
+    }
+
+    if(typeof Stocks!=='undefined'&&G.age>=18&&G.money>5000&&(!G.stocks||!Object.keys(G.stocks.portfolio||{}).length)){
+      return{icon:'📈',text:`${fmt(G.money)} cash available — consider starting a portfolio.`,tab:'stocks',color:'accent'};
     }
 
     if(G.age>=18&&!G.assets?.properties?.length&&G.money>20000){
@@ -846,11 +932,18 @@ const UI={
 
   toast(msg,type='',dur=2800){
     const c=document.getElementById('toast-wrap');
-    if(!c)return;
+    if(!c){
+      console.log('[LifeSim]',msg);
+      return;
+    }
+
+    while(c.children.length>=6){
+      c.firstElementChild?.remove();
+    }
 
     const t=document.createElement('div');
     t.className='toast'+(type?' toast-'+type:'');
-    t.textContent=msg;
+    t.textContent=String(msg??'');
 
     c.appendChild(t);
 
