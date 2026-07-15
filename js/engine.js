@@ -1,12 +1,12 @@
-/* js/engine.js — LifeSim v13 Reforged core simulation engine */
+/* js/engine.js — LifeSim module */
 const Engine={
   _aging:false,
   _modalSkipCb:null,
-  _moduleOrder:['Relations.ageAll','Career.educTick','Career.incomeTick','Assets.tick','Health.tick','Crime.tick','Business.tick','Social.tick','Hustle.tick','Pets.tick','Goals.tick','Skills.tick','Stocks.tick'],
+  _moduleOrder:['Relations.ageAll','Engine._mentalTick','Engine._moodTick','Engine._reputationTick','Career.educTick','Career.incomeTick','Assets.tick','Health.tick','Crime.tick','Business.tick','Social.tick','Hustle.tick','Pets.tick','Goals.tick','Skills.tick','Stocks.tick','Family.tick','Sports.tick','Military.tick','Travel.tick'],
 
   _safe(label,fn){try{return fn();}catch(e){console.warn(label,e);return null;}},
   _esc(v){return String(v??'').replace(/[&<>'\"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;', '"':'&quot;'}[c]));},
-  _snap(G){return{happiness:G.happiness,health:G.health,smarts:G.smarts,looks:G.looks,fitness:G.fitness||50,stress:G.stress||0,money:G.money,fame:G.fame||0,karma:G.karma||0};},
+  _snap(G){return{happiness:G.happiness,health:G.health,smarts:G.smarts,looks:G.looks,fitness:G.fitness||50,stress:G.stress||0,money:G.money,fame:G.fame||0,karma:G.karma||0,mentalHealth:G.mentalHealth||60,reputation:G.reputation||50};},
 
   _resolveGlobal(name){
     if(!name)return undefined;
@@ -65,6 +65,8 @@ const Engine={
 
       const pendingEvts=[];
       this._queueEvents(pendingEvts);
+      const eventLimit=(G.age||0)<18?2:3;
+      if(pendingEvts.length>eventLimit)pendingEvts.splice(eventLimit);
       this._modalSkipCb=null;
 
       this._processQueue(pendingEvts,()=>{
@@ -73,7 +75,12 @@ const Engine={
             UI.update();
             this.checkAch();
             UI.refreshActiveTab();
-            if(typeof Save!=='undefined')Save.save(G);
+            if(typeof Save!=='undefined')Save.autosave(G);
+            // Story: milestone facts + wisdom
+            if(typeof StoryEvents!=='undefined'){
+              StoryEvents.fireMilestoneIfNeeded(G);
+              StoryEvents.maybeShowWisdom(G);
+            }
           }
         }catch(e){
           console.warn('Post-event error:',e);
@@ -100,6 +107,11 @@ const Engine={
     if(!G.achievements)G.achievements={};
     if(!G.rels)G.rels={partner:null,children:[],parents:[],siblings:[],friends:[]};
     if(!Array.isArray(G.rels.children))G.rels.children=[];
+    if(!Array.isArray(G.pregnancies))G.pregnancies=[];
+    if(G.pregnancy&&typeof G.pregnancy==='object'&&!G.pregnancies.some(p=>p&&(p.id===G.pregnancy.id||(p.partnerId===G.pregnancy.partnerId&&p.partnerName===G.pregnancy.partnerName&&p.dueAge===G.pregnancy.dueAge)))){
+      G.pregnancies.push({...G.pregnancy});
+    }
+    G.pregnancy=G.pregnancies[0]||null;
     if(!Array.isArray(G.crimes))G.crimes=[];
     if(!Number.isFinite(G.happiness))G.happiness=60;
     if(!Number.isFinite(G.health))G.health=60;
@@ -111,17 +123,148 @@ const Engine={
     if(!Number.isFinite(G.fame))G.fame=0;
     if(!Number.isFinite(G.money))G.money=0;
     if(!Array.isArray(G.countriesVisited))G.countriesVisited=[];
+    if(!Number.isFinite(G.mentalHealth))G.mentalHealth=60;
+    if(!Number.isFinite(G.burnoutLevel))G.burnoutLevel=0;
+    if(!Number.isFinite(G.reputation))G.reputation=50;
 
-    // v13.1: memory for normal Age Up events and world events.
+    // Release: memory for normal Age Up events and world events.
     if(!Array.isArray(G.eventMemory))G.eventMemory=[];
     if(!Array.isArray(G.worldEventMemory))G.worldEventMemory=[];
     if(!Number.isFinite(G.ageUpSerial))G.ageUpSerial=0;
   },
 
+  _mentalTick(){
+    const G=window.G;if(!G)return;
+    if(!Number.isFinite(G.mentalHealth))G.mentalHealth=60;
+    if(!Number.isFinite(G.burnoutLevel))G.burnoutLevel=0;
+
+    // Stress drains mental health
+    const stress=G.stress||0;
+    if(stress>70)G.mentalHealth=Math.max(0,G.mentalHealth-r(2,5));
+    else if(stress>50)G.mentalHealth=Math.max(0,G.mentalHealth-r(0,2));
+    else if(stress<25)G.mentalHealth=Math.min(100,G.mentalHealth+r(1,3));
+
+    // Relationships and happiness affect mental health
+    const hasPartner=!!(G.rels?.partner);
+    const friendCount=(G.rels?.friends||[]).filter(f=>f.love>=50).length;
+    if(hasPartner&&(G.rels.partner?.love||0)>=60)G.mentalHealth=Math.min(100,G.mentalHealth+1);
+    if(friendCount>=2)G.mentalHealth=Math.min(100,G.mentalHealth+1);
+    if(friendCount===0&&!hasPartner&&(G.age||0)>25)G.mentalHealth=Math.max(0,G.mentalHealth-1);
+
+    // Meditation skill bonus
+    if((G.skills?.meditation||0)>=3)G.mentalHealth=Math.min(100,G.mentalHealth+2);
+
+    // Burnout tracking
+    if(stress>85&&G.mentalHealth<35){
+      G.burnoutLevel=Math.min(3,(G.burnoutLevel||0)+1);
+      if(G.burnoutLevel>=2&&Math.random()<.3)this.log('🔥 Burnout is taking a serious toll on your mental health.','bad');
+    } else if(stress<40) {
+      G.burnoutLevel=Math.max(0,(G.burnoutLevel||0)-1);
+    }
+
+    // Burnout consequences
+    if((G.burnoutLevel||0)>=2){
+      G.happiness=Math.max(0,G.happiness-r(2,5));
+      G.health=Math.max(0,G.health-r(1,3));
+      if(Math.random()<.15)this.log('😔 Burnout is wearing you down.','bad');
+    }
+
+    G.mentalHealth=Math.max(0,Math.min(100,G.mentalHealth));
+  },
+
+  // v21: Mood system — each year gets a prevailing mood based on life stats
+  _moodTick(){
+    const G=window.G;if(!G)return;
+    if(!G.mood||typeof G.mood!=='object')G.mood={label:'Neutral',score:50,icon:'😐',streak:0};
+
+    const hap=G.happiness||50;
+    const mh=G.mentalHealth||60;
+    const stress=G.stress||0;
+    const partner=!!(G.rels?.partner);
+    const friends=(G.rels?.friends||[]).filter(f=>(f.love||0)>=50).length;
+    const career=!!(G.career);
+
+    // Compute mood score 0-100
+    let score=Math.round(
+      hap*0.35 +
+      mh*0.25 +
+      (100-stress)*0.20 +
+      (partner?10:0) +
+      Math.min(10,friends*3) +
+      (career?5:0)
+    );
+    score=Math.max(0,Math.min(100,score));
+
+    const prev=G.mood.label;
+    let label,icon;
+    if(score>=85){label='Euphoric';icon='🌟';}
+    else if(score>=70){label='Happy';icon='😊';}
+    else if(score>=55){label='Content';icon='🙂';}
+    else if(score>=40){label='Neutral';icon='😐';}
+    else if(score>=25){label='Low';icon='😟';}
+    else{label='Miserable';icon='😢';}
+
+    // Mood streak
+    if(label===prev){
+      G.mood.streak=(G.mood.streak||0)+1;
+    } else {
+      // Track comeback: was miserable, now happy+
+      if(prev==='Miserable'&&score>=55){
+        G.achievements=G.achievements||{};
+        G.achievements.mood_comeback=true;
+        this.log('🌈 Remarkable turnaround! Your mood improved dramatically.','good');
+      }
+      G.mood.streak=1;
+    }
+
+    G.mood={label,score,icon,streak:G.mood.streak};
+
+    // Mood bonus/penalty on happiness
+    if(score>=70&&G.mood.streak>=3){
+      G.happiness=Math.min(100,(G.happiness||50)+1);
+      if(G.mood.streak===3)this.log(`${icon} ${label} mood streak! Life feels good.`,'good');
+    }
+    if(score<30&&G.mood.streak>=3){
+      G.happiness=Math.max(0,(G.happiness||50)-1);
+      if(G.mood.streak===3)this.log(`${icon} Persistent low mood. Consider talking to someone.`,'bad');
+    }
+  },
+
+  _reputationTick(){
+    const G=window.G;if(!G)return;
+    if(!Number.isFinite(G.reputation))G.reputation=50;
+
+    let rep=G.reputation;
+
+    // Career and education boost reputation
+    if(G.career?.prestige>=7)rep+=1;
+    if(G.education==='university')rep+=0.5;
+
+    // Karma and community
+    if((G.karma||0)>40)rep+=1;
+    else if((G.karma||0)<-30)rep-=1;
+
+    // Crime record hurts reputation
+    const recentCrimes=(G.crimes||[]).filter(c=>(G.age-c.age)<=5).length;
+    if(recentCrimes>0)rep-=recentCrimes*0.5;
+
+    // Fame boosts reputation
+    if((G.fame||0)>60)rep+=1;
+
+    // Social following
+    if((G.followers||0)>=100000)rep+=1;
+
+    // Stress damages reputation (bad decisions)
+    if((G.stress||0)>80)rep-=0.5;
+
+    G.reputation=Math.max(0,Math.min(100,Math.round(rep)));
+  },
+
+
   _retirementTick(){
     const G=window.G;
     if(G?.retired&&G.retirementPension>0){
-      const p=sc(G.retirementPension);
+      const p=salaryScale(G.retirementPension);
       G.money=(G.money||0)+p;
       this.log(`🏖️ Pension received: ${fmt(p)}.`,'money');
     }
@@ -130,7 +273,7 @@ const Engine={
   _snapshotStats(){
     const G=window.G;if(!G)return;
     if(!Array.isArray(G.statHistory))G.statHistory=[];
-    G.statHistory.push({age:G.age,hap:G.happiness,hlt:G.health,smt:G.smarts,lks:G.looks,fit:G.fitness||50,str:G.stress||0,fam:G.fame||0,kar:G.karma||0,nw:netWorth(G)});
+    G.statHistory.push({age:G.age,hap:G.happiness,hlt:G.health,smt:G.smarts,lks:G.looks,fit:G.fitness||50,str:G.stress||0,fam:G.fame||0,kar:G.karma||0,nw:netWorth(G),rep:G.reputation||50,mnd:G.mentalHealth||60});
     if(G.statHistory.length>60)G.statHistory.shift();
   },
 
@@ -190,18 +333,47 @@ const Engine={
     return pick(candidates);
   },
 
+  _eventEligible(evt,G){
+    if(!evt||!G)return false;
+    const age=Number(G.age)||0,title=String(evt.title||'');
+    const minAge={
+      'Academic Award':6,'Lemonade Stand':6,'Sports Team Tryout':6,'School Play':6,'Science Fair':7,
+      'First Kiss':14,'House Party':16,'Illegal Joyride':15,'Final Exams':15,'Teen Entrepreneur':15,
+      'Started Weight Training':14,'Exchange Year':15,'First Part-Time Job':16,'Summer Festival Job':16,
+      'Surprise Proposal':20,'Dream Job Offer':20,'Tax Investigation':20,'Employee of the Year':20,
+      'Vegas Trip':21,'Ageing Parent Crisis':30,'Director Promotion':28,'Conference Keynote':24,
+      'Industry Award':25,'Legal Battle':21,'Old Friend Reconnects':25
+    };
+    if(minAge[title]!==undefined&&age<minAge[title])return false;
+    if(title==='Milestone Birthday'&&age!==40)return false;
+    if(title==='Mid-Life Crisis'&&age!==42)return false;
+    const partner=G.rels?.partner;
+    if(title==='Surprise Proposal'&&(!partner||partner.married))return false;
+    if(['Dream Job Offer','Employee of the Year','Remote Work Offer','Director Promotion'].includes(title)&&!G.career)return false;
+    if(title==='Conference Keynote'&&!G.career&&(G.fame||0)<25)return false;
+    if(title==='Tax Investigation'&&!G.career&&!G.business&&!(G.hustle?.earnings>0))return false;
+    if(title==='Property Value Surge'&&!(G.assets?.properties||[]).length)return false;
+    if(title==='Side Hustle Takes Off'&&!Object.keys(G.hustle?.ventures||{}).length&&!(G.hustle?.earnings>0))return false;
+    if(title==='Market Crash'&&!Object.values(G.stocks?.portfolio||{}).some(q=>Number(q)>0))return false;
+    if(title==='Industry Award'&&!G.career&&!G.business&&(G.fame||0)<25)return false;
+    if(title==='Tabloid Story'&&(G.fame||0)<20)return false;
+    return true;
+  },
+
   _queueEvents(queue){
     const G=window.G;if(!G||typeof EVENTS==='undefined')return;
     if(G.inPrison)return;
 
-    const pool=G.age<=12?EVENTS.childhood:G.age<=17?EVENTS.teen:G.age<=59?EVENTS.adult:EVENTS.elder;
+    const rawPool=G.age<=4?(EVENTS.earlyChildhood||EVENTS.childhood):G.age<=12?EVENTS.childhood:G.age<=17?EVENTS.teen:G.age<=59?EVENTS.adult:EVENTS.elder;
+    const pool=Array.isArray(rawPool)?rawPool.filter(evt=>this._eventEligible(evt,G)):[];
     if(!Array.isArray(pool)||!pool.length)return;
 
+    const eventLimit=G.age<18?2:3;
     const extraChance={easy:.18,normal:.35,hard:.48,extreme:.62,custom:.35}[G.difficulty||'normal']??.35;
     const maxEvents=(G.stress||0)>85?3:2;
-    const n=Math.min(maxEvents,Math.random()<extraChance?2:1);
+    const n=Math.min(maxEvents,eventLimit,Math.random()<extraChance?2:1);
 
-    for(let i=0;i<n;i++){
+    for(let i=0;i<n&&queue.length<eventLimit;i++){
       const evt=this._pickFreshEvent(pool,queue);
       if(evt){
         queue.push(evt);
@@ -210,12 +382,16 @@ const Engine={
     }
 
     const worldChance={easy:.08,normal:.12,hard:.16,extreme:.22,custom:.12}[G.difficulty||'normal']??.12;
-    if(G.age>18&&Math.random()<worldChance&&typeof WORLD_EVENTS!=='undefined'){
+    if(queue.length<eventLimit&&G.age>18&&Math.random()<worldChance&&typeof WORLD_EVENTS!=='undefined'){
       const we=this._pickFreshEvent(WORLD_EVENTS,queue,{world:true});
       if(we){
         queue.push(we);
         this._rememberWorldEvent(we);
       }
+    }
+    // Story: contextual story events every 3-6 years
+    if(queue.length<eventLimit&&typeof StoryEvents!=='undefined'&&G.age>=13){
+      StoryEvents.tryFire(G,queue);
     }
   },
 
@@ -265,7 +441,6 @@ const Engine={
     if(a.eff)applyStats(G,this._scaledAction(a.eff,G));
     if(a.addiction){if(!G.addictions)G.addictions={};if(Math.random()<a.addiction.chance){G.addictions[a.addiction.type]=true;this.log(a.addiction.msg,'bad');}}
     if(id==='travel')msg=this._travel(G);
-    if(id==='gamble')msg=this._gamble(G);
     if(id==='drugs'){if(this._drugUse(G))return;msg='💊 A very heavy night. Wrecked.';}
     if(msg)this.log(msg,a.type||'good');
     UI.update();
@@ -310,7 +485,7 @@ const Engine={
       movie:{msg:'🎬 Brilliant film.',eff:{happiness:[6,11],stress:[-6,-3]}},
       concert:{cost:120,msg:'🎵 Live concert. Peak happiness.',eff:{happiness:[9,15],fame:[1,3],stress:[-8,-4]}},
       cook:{msg:'👨‍🍳 Cooked from scratch. Satisfying.',eff:{happiness:[5,10],health:[2,4],stress:[-6,-3]}},
-      volunteer:{msg:'🤲 Volunteering. Reminded what matters.',eff:{happiness:[8,14],fame:[1,3],karma:[3,6]}},
+      volunteer:{msg:'🤲 Volunteering. Reminded what matters.',eff:{happiness:[8,14],fame:[1,3],karma:[3,6]},run(G){G.volunteerCount=(G.volunteerCount||0)+1;return'🤲 Volunteering. Reminded what matters.';},type:'good'},
       gaming:{msg:'🎮 Lost hours gaming. Zero regrets.',eff:{happiness:[8,13],smarts:[-5,-2],stress:[-10,-5]},type:'neutral'},
       reading:{msg:'📰 Another great book. Mind growing.',eff:{smarts:[4,9],happiness:[3,7],stress:[-6,-3]}},
       museum:{cost:20,msg:'🏛️ Museum visit. Inspired.',eff:{smarts:[3,7],happiness:[3,6]}},
@@ -320,36 +495,27 @@ const Engine={
       travel:{cost:700,msg:'✈️ Holiday abroad. Recharged.',eff:{happiness:[12,20],health:[3,6],stress:[-18,-10]}},
       bar:{msg:'🍸 Wild night out. Fun, but rough on the body.',eff:{happiness:[9,15],health:[-11,-5],stress:[-7,-3]},type:'neutral',addiction:{type:'alcohol',chance:.09,msg:'🍺 Drinking too heavily. Dependency forming.'}},
       smoke:{msg:'🚬 Another cigarette. Lungs protesting.',eff:{health:[-8,-4],happiness:[1,4],karma:[-1,0]},type:'bad',addiction:{type:'smoking',chance:.13,msg:'🚬 Nicotine dependency is forming.'}},
-      gamble:{type:'neutral'},
       drugs:{type:'bad'},
+      // v21: New actions
+      cooking_class:{cost:80,msg:'🍳 Cooking class. Learned amazing new dishes.',eff:{happiness:[8,14],health:[2,5],smarts:[2,4],stress:[-7,-3]},run(G){G.cookingClassCount=(G.cookingClassCount||0)+1;return'🍳 Cooking class. Learned amazing new dishes.';}},
+      cold_shower:{msg:'🚿 Cold shower. Shocking but invigorating.',eff:{health:[3,6],fitness:[2,4],happiness:[4,8],stress:[-12,-7]},run(G){G.coldShowerCount=(G.coldShowerCount||0)+1;return'🚿 Cold shower. Shocking but invigorating.';}},
+      read_news:{msg:'📰 Caught up on world news. Feeling informed.',eff:{smarts:[3,7],happiness:[-2,3],stress:[1,4]},run(G){G.newsReadCount=(G.newsReadCount||0)+1;return'📰 Caught up on world news. Feeling informed.';}},
+      mindful_walk:{msg:'🚶 Mindful walk. Present and grounded.',eff:{health:[2,5],happiness:[5,10],fitness:[2,4],stress:[-10,-6],_nature:1},run(G){G.mindfulWalkCount=(G.mindfulWalkCount||0)+1;return'🚶 Mindful walk. Present and grounded.';}},
+      social_media_break:{msg:'📵 Screen detox day. Mind feels clearer.',eff:{happiness:[4,9],stress:[-11,-6],smarts:[2,5]},run(G){G.achievements=G.achievements||{};G.achievements.screen_detox=true;return'📵 Screen detox day. Mind feels clearer.';}},
+      pet_visit:{msg:'🐾 Visited an animal shelter. Pure joy.',eff:{happiness:[9,15],stress:[-10,-5],karma:[2,4]},run(G){G.petVisitCount=(G.petVisitCount||0)+1;return'🐾 Visited an animal shelter. Pure joy.';}},
+      sunrise_watch:{msg:'🌅 Watched the sunrise. Perspective gained.',eff:{happiness:[6,11],stress:[-9,-5],health:[1,3],_nature:1},run(G){G.sunriseCount=(G.sunriseCount||0)+1;return'🌅 Watched the sunrise. Perspective gained.';}},
     };
   },
 
   _travel(G){
     if(!Array.isArray(G.countriesVisited))G.countriesVisited=[];
+    if(!Number.isFinite(G.mentalHealth))G.mentalHealth=60;
+    if(!Number.isFinite(G.burnoutLevel))G.burnoutLevel=0;
+    if(!Number.isFinite(G.reputation))G.reputation=50;
     const list=typeof COUNTRIES!=="undefined"?COUNTRIES:[];
     const rc=pick(list.filter(c=>c.name!==G.country?.name));
     if(rc&&!G.countriesVisited.includes(rc.name))G.countriesVisited.push(rc.name);
     return `✈️ Holiday in ${rc?rc.flag+" "+rc.name:"abroad"}. Recharged.`;
-  },
-
-  _gamble(G){
-    const isMaverick=G.trait==='maverick';
-    const bet=sc(isMaverick?r(500,4000):r(100,1500));
-    if((G.money||0)<bet){UI.toast('Not enough money!');return'';}
-    G.lifetimeGambled=(G.lifetimeGambled||0)+bet;
-    const lucky=G.trait==='lucky';
-    const winChance=lucky ? .54 : .46;
-    if(Math.random()<winChance){
-      const mult=isMaverick?r(20,45)/10:r(12,28)/10;
-      const won=Math.floor(bet*mult);
-      G.money+=won;G.happiness=cl(G.happiness+(isMaverick?18:12));
-      this.log(`🎰 ${isMaverick?'MAVERICK WIN! ':''}Won ${fmt(won)}!`,'special');
-    }else{
-      G.money=Math.max(0,G.money-bet);G.happiness=cl(G.happiness-(isMaverick?14:8));
-      this.log(`🎰 Lost ${fmt(bet)}.${isMaverick?' High risk, high cost.':''}`,'bad');
-    }
-    return'';
   },
 
   _drugUse(G){
@@ -393,6 +559,13 @@ const Engine={
 
   _checkDeath(){
     const G=window.G;if(!G?.alive)return false;
+    // Fun First protects normal young lives from arbitrary instant death.
+    // Serious health collapse can still be fatal, but a healthy 20-year-old
+    // will not randomly disappear because of a tiny annual dice roll.
+    if(G.age<35){
+      if((G.health??60)<=0){this._die('a severe health collapse');return true;}
+      return false;
+    }
     let chance=0;
     if(G.age>=95)chance=.33;else if(G.age>=85)chance=.18;else if(G.age>=75)chance=.08;else if(G.age>=65)chance=.04;else if(G.age>=55)chance=.018;else if(G.age>=35)chance=.007;else if(G.age>=18)chance=.004;
     if(G.health<20)chance+=.13;if(G.health<10)chance+=.24;if(G.stress>90)chance+=.03;if((G.conditions||[]).length>=3)chance+=.03;
@@ -438,7 +611,7 @@ const Engine={
     setText('dt-grade-lbl',grade.l);
     const statEl=document.getElementById('dt-stats');
     if(statEl){statEl.innerHTML=[
-      ['Age at death',`${G.age} years old`,''],['Country',`${G.country?.flag||''} ${G.country?.name||'Unknown'}`,''],['Net worth',fmtFull(nw),'color:var(--green)'],['Career',G.career?G.career.title:G.retired?'Retired':'Unemployed',''],['Education',this._educationLabel(G),''],['Relationship',this._partnerStatus(G),''],['Children',(G.rels?.children||[]).length,''],['Goals completed',`${completedGoals} / ${totalGoals||'—'}`,'color:var(--accent)'],['Health conditions',conditions.join(', ')||'None','color:var(--orange)'],['Eating pattern',`${G.food?.lastChoiceLabel||'Unknown'} · ${G.food?.healthyYears||0} healthy / ${G.food?.junkYears||0} junk / ${G.food?.skippedYears||0} insecure yrs`,''],['Life Ambition',G.ambitionAchieved?'✅ Achieved!':'❌ Not achieved',G.ambitionAchieved?'color:var(--green)':'color:var(--muted)'],['Karma',(G.karma||0)>0?`+${G.karma} 😇`:(G.karma||0)<0?`${G.karma} 😈`:'Neutral ⚖️',(G.karma||0)>0?'color:var(--green)':(G.karma||0)<0?'color:var(--red)':''],['Stress at death',`${G.stress||0}%`,'color:var(--orange)'],['Top Skills',topSkills.join(', ')||'—','color:var(--cyan)'],['Stock portfolio',fmtFull(stockValue),'color:var(--green)'],['Hustle earnings',fmtFull(G.hustle?.earnings||0),'color:var(--green)'],['Social followers',fmtFollowers(G.followers||0),'color:var(--accent)'],['Final happiness',`${G.happiness}%`,'color:var(--yellow)'],['Final health',`${G.health}%`,'color:var(--green)'],
+      ['Age at death',`${G.age} years old`,''],['Country',`${G.country?.flag||''} ${G.country?.name||'Unknown'}`,''],['Net worth',fmtFull(nw),'color:var(--green)'],['Career',G.career?G.career.title:G.retired?'Retired':'Unemployed',''],['Education',this._educationLabel(G),''],['Relationship',this._partnerStatus(G),''],['Children',(G.rels?.children||[]).length,''],['Goals completed',`${completedGoals} / ${totalGoals||'—'}`,'color:var(--accent)'],['Health conditions',conditions.join(', ')||'None','color:var(--orange)'],['Eating pattern',`${G.food?.lastChoiceLabel||'Unknown'} · ${G.food?.healthyYears||0} healthy / ${G.food?.junkYears||0} junk / ${G.food?.skippedYears||0} insecure yrs`,''],['Life Ambition',G.ambitionAchieved?'✅ Achieved!':'❌ Not achieved',G.ambitionAchieved?'color:var(--green)':'color:var(--muted)'],['Karma',(G.karma||0)>0?`+${G.karma} 😇`:(G.karma||0)<0?`${G.karma} 😈`:'Neutral ⚖️',(G.karma||0)>0?'color:var(--green)':(G.karma||0)<0?'color:var(--red)':''],['Stress at death',`${G.stress||0}%`,'color:var(--orange)'],['Top Skills',topSkills.join(', ')||'—','color:var(--cyan)'],['Stock portfolio',fmtFull(stockValue),'color:var(--green)'],['Hustle earnings',fmtFull(G.hustle?.earnings||0),'color:var(--green)'],['Social followers',fmtFollowers(G.followers||0),'color:var(--accent)'],['Final happiness',`${G.happiness}%`,'color:var(--yellow)'],['Final health',`${G.health}%`,'color:var(--green)'],['Mental Wellness',`${G.mentalHealth||60}/100`,'color:var(--purple)'],['Reputation',`${G.reputation||50}/100`,'color:var(--cyan)'],
     ].map(([l,v,s])=>`<div class="dstat-row"><span class="dstat-l">${this._esc(l)}</span><span class="dstat-v" style="${s}">${this._esc(v)}</span></div>`).join('');}
     const prevLife=typeof Save!=='undefined'?(Save.hofAll()||[])[0]:null;
     if(typeof Save!=='undefined')Save.hof({name:`${G.name} ${G.surname}`,age:G.age,country:G.country?.flag,countryName:G.country?.name,netWorth:nw,career:G.career?.title||(G.retired?'Retired':'Unemployed'),educationLabel:this._educationLabel(G),partnerStatus:this._partnerStatus(G),children:(G.rels?.children||[]).length,cause,grade:grade.g,score,happiness:G.happiness,health:G.health,followers:G.followers||0,completedGoals,totalGoals,topSkills,ambitionAchieved:!!G.ambitionAchieved,highlight:story.slice(0,2).join(' ')});
@@ -447,7 +620,7 @@ const Engine={
     if(prev&&prevLife)prev.innerHTML=`<div style="background:var(--s1);border:1.5px solid var(--b2);border-radius:12px;padding:12px 14px;margin-bottom:14px"><div style="font-size:10px;font-weight:900;color:var(--muted);text-transform:uppercase;letter-spacing:1px;margin-bottom:8px">🔄 vs Your Last Life</div><div style="display:grid;grid-template-columns:1fr auto auto;gap:6px 12px;font-size:12px;font-weight:700"><span style="color:var(--muted)">Stat</span><span style="color:var(--muted)">Last</span><span style="color:var(--muted)">Now</span><span>Age</span><span>${prevLife.age}</span><span style="color:${G.age>=prevLife.age?'var(--green)':'var(--red)'}">${G.age}</span><span>Grade</span><span>${prevLife.grade}</span><span style="color:var(--yellow)">${grade.g}</span><span>Net Worth</span><span>${fmtFull(prevLife.netWorth)}</span><span style="color:${nw>=prevLife.netWorth?'var(--green)':'var(--red)'}">${fmtFull(nw)}</span></div></div>`;
     this._safe('Legacy.recordLife',()=>{if(typeof Legacy!=='undefined')Legacy.recordLife(`${G.name} ${G.surname}`,grade.g,score);});
     if(typeof Save!=='undefined')Save.clear();
-    if(typeof App!=='undefined')App.show('death-screen');
+    if(typeof App!=='undefined')App.show('death-screen');if(typeof StoryEvents!=='undefined'){StoryEvents.enrichDeathScreen();}
   },
 
   _deathStory(G,cause,nw,stockValue,conditions){
@@ -465,6 +638,9 @@ const Engine={
     if(G.ambitionAchieved&&typeof LIFE_AMBITIONS!=='undefined'){const a=LIFE_AMBITIONS.find(x=>x.id===G.ambition);if(a)story.push(`Their life ambition was achieved: "${a.name}".`);}
     if(conditions.length)story.push(`Late in life they were dealing with ${conditions.join(', ')}.`);
     if((G.stress||0)>=80)story.push('Severe long-term stress had been wearing them down for years.');
+    if((G.mentalHealth||0)>=80)story.push(`${G.name} maintained exceptional mental wellness throughout life.`);
+    if((G.burnoutLevel||0)>=2)story.push('Burnout had been a persistent challenge in their final years.');
+    if((G.reputation||0)>=80)story.push(`They were widely respected in the community with a reputation of ${G.reputation}.`);
     story.push(`${G.name} passed away at age ${G.age} from ${cause}.`);
     return story;
   },

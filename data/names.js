@@ -1,4 +1,4 @@
-/* data/names.js — LifeSim v13 Reforged names, traits, ambitions, quotes and world events */
+/* data/names.js — LifeSim data */
 
 const MNAMES=[
   'James','William','Oliver','Liam','Noah','Ethan','Lucas','Mason','Logan','Henry',
@@ -262,6 +262,8 @@ const LIFE_AMBITIONS=[
   {id:'academic',icon:'🎓',name:'Academic Legend',desc:'Earn a degree with 95+ smarts',check:G=>G.education==='university'&&(G.smarts||0)>=95},
   {id:'philanthropist',icon:'🤲',name:'Change the World',desc:'Donate $1M over your life',check:G=>(G.lifetimeDonated||0)>=1000000},
   {id:'legend',icon:'🏅',name:'The Legend',desc:'Reach 90+ fame, 90+ happiness and an A/S legacy grade path',check:G=>(G.fame||0)>=90&&(G.happiness||0)>=90},
+  {id:'mindful',icon:'🧘',name:'Mindful Monk',desc:'Reach 80+ mental wellness, stress under 20, and age 60',check:G=>G.age>=60&&(G.mentalHealth||0)>=80&&(G.stress||0)<=20},
+  {id:'cyber_pioneer',icon:'💻',name:'Cyber Pioneer',desc:'Master AI and Crypto skills, earn $2M through digital means',check:G=>(G.skills?.ai_ml||0)>=4&&(G.skills?.crypto||0)>=3&&(G.hustle?.earnings||0)+(G.money||0)>=2000000},
   {id:'minimalist',icon:'🧘',name:'The Minimalist',desc:'Reach age 70 with high happiness, low stress and no major debt',check:G=>G.age>=70&&(G.happiness||0)>=80&&(G.stress||0)<=25&&(G.debtCollections||0)<=0},
 ];
 
@@ -320,6 +322,21 @@ const WORLD_EVENTS=[
     {t:'🚀 Book a seat',e:{money:-250000,happiness:40,fame:20}},
     {t:'📺 Watch with awe',e:{happiness:10}},
     {t:'🌍 Earth first',e:{karma:5,happiness:4}},
+  ]},
+  {icon:'🧠',type:'world',title:'Mental Health Crisis',text:'A global mental health awareness campaign highlights epidemic burnout, anxiety, and loneliness.',choices:[
+    {t:'🧘 Start therapy',e:{mentalHealth:12,happiness:10,stress:-15,money:-2000}},
+    {t:'📱 Share your story',e:{fame:8,happiness:7,karma:8}},
+    {t:'😶 Stay silent',e:{stress:8,happiness:-6}},
+  ]},
+  {icon:'🪙',type:'world',title:'Crypto Market Crash',text:'A major cryptocurrency collapses, wiping out billions in value overnight.',choices:[
+    {t:'💎 Hold long-term',e:{money:-10000,smarts:8,stress:12}},
+    {t:'🏃 Cash out fast',e:{money:-5000,happiness:-6}},
+    {t:'📉 Short the market',e:{money:18000,stress:16,karma:-4}},
+  ]},
+  {icon:'🤝',type:'world',title:'AI Regulation Debate',text:'Governments debate strict AI regulation. Tech industry braces for major changes.',choices:[
+    {t:'🎓 Upskill in AI ethics',e:{smarts:10,reputation:8,money:3000}},
+    {t:'💼 Lobby for freedom',e:{money:5000,karma:-5}},
+    {t:'🌍 Support regulation',e:{karma:12,happiness:7}},
   ]},
   {icon:'🌡️',type:'world',title:'Climate Emergency Declared',text:'Governments declare a climate emergency. Green policy and investment surge.',choices:[
     {t:'♻️ Go sustainable',e:{karma:15,happiness:8,money:-2000}},

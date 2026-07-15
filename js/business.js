@@ -1,4 +1,4 @@
-/* js/business.js - LifeSim v13 Reforged business system */
+/* js/business.js - LifeSim module */
 const Business={
   TYPES:[
     {id:'food_cart',icon:'🌮',name:'Food Cart',startCost:5000,rev:8000,expenses:3000,growthRate:.15,desc:'Street food vendor',risk:'Low'},
@@ -12,6 +12,10 @@ const Business={
     {id:'tech_startup',icon:'💻',name:'Tech Startup',startCost:50000,rev:0,expenses:42000,growthRate:.30,desc:'SaaS product',risk:'Extreme'},
     {id:'estate_agency',icon:'🏡',name:'Estate Agency',startCost:45000,rev:92000,expenses:42000,growthRate:.12,desc:'Property sales',risk:'Medium'},
     {id:'marketing_agency',icon:'📣',name:'Marketing Agency',startCost:35000,rev:75000,expenses:40000,growthRate:.14,desc:'Digital marketing firm',risk:'Medium'},
+    {id:'cleaning_co',icon:'🧽',name:'Cleaning Company',startCost:12000,rev:36000,expenses:15000,growthRate:.16,desc:'Residential and office cleaning contracts',risk:'Low'},
+    {id:'landscaping',icon:'🌿',name:'Landscaping Crew',startCost:18000,rev:46000,expenses:21000,growthRate:.15,desc:'Outdoor maintenance and small property projects',risk:'Low'},
+    {id:'ecommerce',icon:'📦',name:'E-commerce Store',startCost:22000,rev:68000,expenses:36000,growthRate:.20,desc:'Online products, fulfillment and ads',risk:'Medium'},
+    {id:'mobile_app',icon:'📱',name:'Mobile App Studio',startCost:30000,rev:12000,expenses:26000,growthRate:.34,desc:'Small software products with slow early traction',risk:'High'},
     {id:'hotel',icon:'🏨',name:'Boutique Hotel',startCost:500000,rev:620000,expenses:310000,growthRate:.10,desc:'Luxury accommodation',risk:'High'},
     {id:'media_co',icon:'📺',name:'Media Company',startCost:100000,rev:210000,expenses:105000,growthRate:.18,desc:'Content & publishing',risk:'High'},
     {id:'law_firm',icon:'⚖️',name:'Law Firm',startCost:200000,rev:420000,expenses:190000,growthRate:.10,desc:'Legal services',risk:'Medium'},
@@ -29,23 +33,21 @@ const Business={
     sell:{icon:'💰',label:'Sell Business',cost:0,desc:'Cash out'},
     insurance:{icon:'🛡️',label:'Business Insurance',cost:2000,desc:'Protect against crisis'},
     pr:{icon:'📰',label:'PR Campaign',cost:2500,desc:'+Fame +brand'},
+    product:{icon:'🧪',label:'Product Upgrade',cost:6500,desc:'+Quality +value'},
+    training:{icon:'🎓',label:'Staff Training',cost:3500,desc:'+Morale +systems'},
+    digital:{icon:'🛒',label:'Online Sales Push',cost:4200,desc:'+Revenue +brand'},
+    supplier:{icon:'🤝',label:'Supplier Deal',cost:2800,desc:'-Expenses +quality'},
+    automation:{icon:'🤖',label:'Automation',cost:9000,desc:'+Systems +margin'},
+    retreat:{icon:'🌴',label:'Team Retreat',cost:3000,desc:'+Morale +brand'},
+    capital:{icon:'💸',label:'Raise Capital',cost:0,desc:'+Cash +value, some pressure'},
     taxhack:{icon:'🧾',label:'Aggressive Accounting',cost:0,desc:'Extra cash, audit risk'},
     bribe:{icon:'⚖️',label:'Compliance Lawyer',cost:0,desc:'Reduce audit heat'},
   },
 
   ACTION_LIMITS:{
-    market:2,
-    hire:2,
-    expand:1,
-    efficiency:1,
-    franchise:1,
-    pivot:1,
-    ipo:1,
-    sell:99,
-    insurance:1,
-    pr:2,
-    taxhack:1,
-    bribe:1,
+    market:2, hire:3, expand:2, efficiency:2, franchise:1, pivot:1, ipo:1, sell:1,
+    insurance:1, pr:2, product:2, training:2, digital:2, supplier:2,
+    automation:2, retreat:1, capital:2, taxhack:1, bribe:1,
   },
 
   HISTORY_LIMIT:12,
@@ -110,7 +112,7 @@ const Business={
 
   _renderOperations(b,taxLabel,taxSub,lawyerCost){
     return `<div class="sec">Operations</div>
-      <div class="info-box"><p>🧭 Actions now have yearly limits to prevent spam-click exploits. Age up to refresh your management bandwidth.</p></div>
+      <div class="info-box"><p>🧭 Actions now have yearly limits to prevent spam-click exploits. Use your yearly management bandwidth wisely.</p></div>
       <div class="act-grid">
         ${this._actionCard('market',`+Revenue (${fmt(sc(2000))})`,false,'',b)}
         ${this._actionCard('hire','+Revenue +Staff',false,'',b)}
@@ -126,6 +128,15 @@ const Business={
       <div class="act-grid" style="margin-top:8px">
         ${this._actionCard('insurance',b.insured?'Already insured':`Protect (${fmt(sc(2000))})`,false,b.insured?'special':'',b)}
         ${this._actionCard('pr','+Fame +Brand',false,'',b)}
+        ${this._actionCard('product',`Improve offer (${fmt(sc(6500))})`,false,'',b)}
+        ${this._actionCard('training',`Train team (${fmt(sc(3500))})`,false,'',b)}
+      </div>
+      <div class="act-grid" style="margin-top:8px">
+        ${this._actionCard('digital',`Online sales (${fmt(sc(4200))})`,false,'',b)}
+        ${this._actionCard('supplier',`Lower costs (${fmt(sc(2800))})`,false,'',b)}
+        ${this._actionCard('automation',`Build systems (${fmt(sc(9000))})`,false,'',b)}
+        ${this._actionCard('retreat',`Morale reset (${fmt(sc(3000))})`,false,'',b)}
+        ${this._actionCard('capital','Raise expansion cash',false,'',b)}
         ${this._customActionCard('taxhack','🧾',taxLabel,taxSub,b,b.taxHackActive?'danger':'')}
         ${this._customActionCard('bribe','⚖️','Compliance Lawyer',`${fmt(lawyerCost)} · lowers audit risk`,b)}
       </div>`;
@@ -163,7 +174,7 @@ const Business={
   _customActionCard(id,icon,label,sub,b=null,extraClass=''){
     const blocked=b&&!this._canUseAction(b,id);
     const left=b?this._usesLeft(b,id):null;
-    const leftTxt=b&&left!==null&&left<99?` · ${left} left this year`:'';
+    const leftTxt=b&&left!==null&&left<99?``:'';
     return `<div class="card ${extraClass||''} ${blocked?'locked':''}" onclick="${blocked?'':`Business.act('${id}')`}"><span class="ci">${icon}</span><span class="cn">${label}</span><span class="cd">${sub||''}${leftTxt}</span></div>`;
   },
 
@@ -338,7 +349,7 @@ const Business={
 
   _runAction(b,id,fn){
     if(!this._canUseAction(b,id)){
-      UI.toast('You already used that business action enough this year. Age up to refresh.','bad');
+      UI.toast('You already used that business action enough this year.','bad');
       return false;
     }
     const ok=fn();
@@ -467,6 +478,78 @@ const Business={
         b.auditHeat=Math.max(0,(b.auditHeat||0)-r(0,3));
         Engine.log('📰 PR campaign boosted public image, fame and revenue.', 'good');
       });
+    }else if(a==='product'){
+      this._runAction(b,'product',()=>{
+        const c=sc(6500);
+        if(!this._pay(c))return false;
+        b.quality=cl((b.quality||50)+r(8,15));
+        b.value=Math.floor((b.value||0)*1.10+sc(1200));
+        b.revenue=Math.floor((b.revenue||0)*1.07);
+        b.brand=cl((b.brand||0)+r(1,4));
+        Engine.log('🧪 Product upgrade made the offer stronger and raised valuation.', 'good');
+      });
+    }else if(a==='training'){
+      this._runAction(b,'training',()=>{
+        const c=sc(3500);
+        if(!this._pay(c))return false;
+        b.morale=cl((b.morale||55)+r(8,16));
+        b.systems=cl((b.systems||40)+r(6,12));
+        b.quality=cl((b.quality||50)+r(2,6));
+        b.expenses=Math.floor((b.expenses||0)*1.02);
+        Engine.log('🎓 Staff training improved morale, systems and service quality.', 'good');
+      });
+    }else if(a==='digital'){
+      this._runAction(b,'digital',()=>{
+        const c=sc(4200);
+        if(!this._pay(c))return false;
+        b.revenue=Math.floor((b.revenue||0)*(1+r(10,22)/100));
+        b.brand=cl((b.brand||0)+r(4,9));
+        b.systems=cl((b.systems||40)+r(1,5));
+        if(Math.random()<.22)b.auditHeat=cl((b.auditHeat||0)+r(1,4),0,100);
+        Engine.log('🛒 Online sales push opened a bigger market for the business.', 'money');
+      });
+    }else if(a==='supplier'){
+      this._runAction(b,'supplier',()=>{
+        const c=sc(2800);
+        if(!this._pay(c))return false;
+        b.expenses=Math.floor((b.expenses||0)*(1-r(5,11)/100));
+        b.quality=cl((b.quality||50)+r(1,4));
+        b.systems=cl((b.systems||40)+r(1,3));
+        Engine.log('🤝 A stronger supplier deal lowered costs and stabilized operations.', 'good');
+      });
+    }else if(a==='automation'){
+      this._runAction(b,'automation',()=>{
+        const c=sc(9000);
+        if(!this._pay(c))return false;
+        b.systems=cl((b.systems||40)+r(8,16));
+        b.expenses=Math.floor((b.expenses||0)*(1-r(4,9)/100));
+        b.revenue=Math.floor((b.revenue||0)*(1+r(4,9)/100));
+        b.morale=cl((b.morale||55)-r(0,3));
+        b.value=Math.floor((b.value||0)*1.08);
+        Engine.log('🤖 Automation improved systems, margin and scale capacity.', 'good');
+      });
+    }else if(a==='retreat'){
+      this._runAction(b,'retreat',()=>{
+        const c=sc(3000);
+        if(!this._pay(c))return false;
+        b.morale=cl((b.morale||55)+r(10,18));
+        b.brand=cl((b.brand||0)+r(1,4));
+        b.systems=cl((b.systems||40)+r(1,4));
+        G.happiness=cl((G.happiness||50)+r(2,5));
+        G.stress=cl((G.stress||0)-r(4,8));
+        Engine.log('🌴 The team retreat lifted morale and reduced founder stress.', 'good');
+      });
+    }else if(a==='capital'){
+      this._runAction(b,'capital',()=>{
+        if((b.value||0)<sc(25000)){UI.toast(`Need ${fmt(sc(25000))}+ valuation to raise capital.`);return false;}
+        const raise=sc(Math.max(6000,Math.round((b.value||0)*(0.10+(Math.random()*0.12)))));
+        G.money=(G.money||0)+raise;
+        b.value=Math.floor((b.value||0)*1.06);
+        b.expenses=Math.floor((b.expenses||0)*1.03);
+        b.brand=cl((b.brand||0)+r(1,4));
+        G.stress=cl((G.stress||0)+r(2,5));
+        Engine.log(`💸 Raised ${fmt(raise)} in growth capital for the business.`, 'money');
+      });
     }else if(a==='taxhack'){
       this._runAction(b,'taxhack',()=>{
         if(b.taxHackActive){
@@ -519,7 +602,7 @@ const Business={
     if((b.bribeShield||0)>0&&Math.random()<0.48+((G.skills?.negotiation||0)*0.05)+((b.systems||40)/300)){
       b.bribeShield=Math.max(0,(b.bribeShield||0)-1);
       b.auditHeat=Math.max(0,(b.auditHeat||0)-r(8,14));
-      Engine.log('⚖️ Your compliance preparation kept inspectors from digging deeper this year.', 'neutral');
+      Engine.log('⚖️ Your compliance preparation kept inspectors from digging deeper .', 'neutral');
       return;
     }
     if(Math.random()>=this._auditCaughtChance(b)){
@@ -556,6 +639,7 @@ const Business={
 
   tick(){
     const G=window.G;
+    if(!G||(G.age||0)<18)return;
     const b=G.business;
     if(!b)return;
     this.ensureState(b);
@@ -593,7 +677,7 @@ const Business={
       b.lastTaxSavings=hidden;
       b.auditHeat=Math.min(100,(b.auditHeat||0)+r(7,12));
       G.karma=cl((G.karma||0)-r(2,5),-100,100);
-      if(Math.random()<0.85)Engine.log(`🧾 Aggressive accounting squeezed out another ${fmt(hidden)} this year.`, 'money');
+      if(Math.random()<0.85)Engine.log(`🧾 Aggressive accounting squeezed out another ${fmt(hidden)} .`, 'money');
     }else{
       b.lastTaxSavings=Math.round((b.lastTaxSavings||0)*0.45);
       b.auditHeat=Math.max(0,(b.auditHeat||0)-r(5,10));

@@ -1,0 +1,987 @@
+/* app-layout.css — LifeSim safe premium layout
+   Full replacement file
+   Goal:
+   - stable desktop/tablet/mobile layout
+   - premium glassmorphism
+   - no random layout jumps
+   - no forced broken row/card layouts
+   - works with base.css + components.css + screens.css + animations.css
+*/
+
+/* ─────────────────────────────────────────────
+   01. Release tokens
+───────────────────────────────────────────── */
+
+:root{
+  --release-glass:rgba(15,18,38,.68);
+  --release-glass-2:rgba(255,255,255,.068);
+  --release-glass-3:rgba(255,255,255,.035);
+
+  --release-line:rgba(255,255,255,.11);
+  --release-line-soft:rgba(255,255,255,.075);
+  --release-line-strong:rgba(139,92,246,.38);
+
+  --release-text:rgba(255,255,255,.94);
+  --release-muted:rgba(226,232,240,.64);
+  --release-dim:rgba(226,232,240,.46);
+
+  --release-accent:#7c6fff;
+  --release-accent-2:#a855f7;
+  --release-cyan:#22d3ee;
+  --release-green:#4ade80;
+  --release-red:#f87171;
+  --release-yellow:#fbbf24;
+
+  --release-panel-radius:24px;
+  --release-card-radius:18px;
+  --release-small-radius:14px;
+
+  --release-sidebar-w:322px;
+  --release-content-max:1540px;
+
+  --release-shadow:
+    0 18px 50px rgba(0,0,0,.34),
+    inset 0 1px 0 rgba(255,255,255,.07);
+
+  --release-shadow-soft:
+    0 12px 34px rgba(0,0,0,.24),
+    inset 0 1px 0 rgba(255,255,255,.055);
+
+  --release-ease:cubic-bezier(.22,.9,.24,1);
+}
+
+/* ─────────────────────────────────────────────
+   02. Global phase background
+───────────────────────────────────────────── */
+
+body.release-layout{
+  background:
+    radial-gradient(circle at 16% 8%,rgba(124,111,255,.18),transparent 34%),
+    radial-gradient(circle at 84% 4%,rgba(34,211,238,.13),transparent 30%),
+    radial-gradient(circle at 70% 90%,rgba(168,85,247,.10),transparent 34%),
+    #060713!important;
+}
+
+/* Important:
+   Do NOT animate .screen.active globally.
+   It can cause full-screen blink during tab/screen updates.
+*/
+
+/* ─────────────────────────────────────────────
+   03. Shared glass panels
+───────────────────────────────────────────── */
+
+body.release-layout .game-sidebar,
+body.release-layout .game-hdr,
+body.release-layout .game-foot,
+body.release-layout .nav-bar,
+body.release-layout .modal-box,
+body.release-layout .topbar,
+body.release-layout .career-hero,
+body.release-layout .biz-hero,
+body.release-layout .fame-card,
+body.release-layout .nw-box,
+body.release-layout .crime-ui-crime-hero,
+body.release-layout .goal-ui-quests,
+body.release-layout .goal-ui-timeline-head,
+body.release-layout .goal-ui-assets2,
+body.release-layout .legacy-ui-subhub,
+body.release-layout .advisor-ui-bestmove,
+body.release-layout .release-polish-panel{
+  background:
+    linear-gradient(145deg,rgba(255,255,255,.080),rgba(255,255,255,.030))!important;
+  border:1px solid var(--release-line)!important;
+  box-shadow:var(--release-shadow)!important;
+  backdrop-filter:blur(18px) saturate(1.14);
+  -webkit-backdrop-filter:blur(18px) saturate(1.14);
+}
+
+/* ─────────────────────────────────────────────
+   04. Shared cards
+───────────────────────────────────────────── */
+
+body.release-layout .card,
+body.release-layout .row-card,
+body.release-layout .rel-card,
+body.release-layout .partner-card,
+body.release-layout .history-toggle,
+body.release-layout .crime-ui-move,
+body.release-layout .crime-ui-action,
+body.release-layout .goal-ui-quest,
+body.release-layout .goal-ui-assets2 .goal-ui-asset-metrics > div,
+body.release-layout .legacy-ui-subtoggle,
+body.release-layout .career-ui-boss-card,
+body.release-layout .crime-ui-stat,
+body.release-layout .crime-ui-tier,
+body.release-layout .release-card{
+  border-radius:var(--release-card-radius)!important;
+  background:
+    linear-gradient(145deg,rgba(255,255,255,.070),rgba(255,255,255,.026))!important;
+  border:1px solid var(--release-line)!important;
+  box-shadow:var(--release-shadow-soft)!important;
+  transition:
+    transform .16s var(--release-ease),
+    border-color .16s var(--release-ease),
+    background .16s var(--release-ease),
+    box-shadow .16s var(--release-ease)!important;
+}
+
+body.release-layout .card:hover,
+body.release-layout .row-card:hover,
+body.release-layout .rel-card:hover,
+body.release-layout .crime-ui-move:hover,
+body.release-layout .crime-ui-action:hover,
+body.release-layout .legacy-ui-subtoggle:hover,
+body.release-layout .release-card:hover{
+  transform:translateY(-1px)!important;
+  border-color:var(--release-line-strong)!important;
+  background:
+    linear-gradient(145deg,rgba(124,111,255,.125),rgba(255,255,255,.032))!important;
+  box-shadow:
+    0 16px 38px rgba(0,0,0,.30),
+    0 0 0 1px rgba(124,111,255,.10) inset!important;
+}
+
+body.release-layout .card:active,
+body.release-layout .row-card:active,
+body.release-layout .rel-card:active{
+  transform:scale(.985)!important;
+}
+
+/* ─────────────────────────────────────────────
+   05. Typography polish
+───────────────────────────────────────────── */
+
+body.release-layout .cn,
+body.release-layout .rt{
+  font-size:14px!important;
+  letter-spacing:0!important;
+  color:#fff!important;
+}
+
+body.release-layout .cd,
+body.release-layout .rs{
+  font-size:12px!important;
+  color:var(--release-muted)!important;
+  opacity:1!important;
+}
+
+body.release-layout .rv{
+  font-weight:950!important;
+  color:#e8e8ff!important;
+}
+
+body.release-layout .ver-badge{
+  border-color:rgba(124,111,255,.32)!important;
+  background:rgba(124,111,255,.12)!important;
+}
+
+/* ─────────────────────────────────────────────
+   06. Game shell — desktop
+───────────────────────────────────────────── */
+
+@media (min-width:1024px){
+  body.release-layout,
+  body.release-layout #app{
+    width:100vw!important;
+    height:100vh!important;
+    height:100dvh!important;
+    max-width:none!important;
+    overflow:hidden!important;
+  }
+
+  body.release-layout #game-screen.screen.active{
+    display:grid!important;
+    grid-template-columns:var(--release-sidebar-w) minmax(0,1fr)!important;
+    width:100vw!important;
+    height:100vh!important;
+    height:100dvh!important;
+    max-width:none!important;
+    overflow:hidden!important;
+    background:
+      radial-gradient(circle at 18% 4%,rgba(124,111,255,.14),transparent 34%),
+      radial-gradient(circle at 86% 12%,rgba(34,211,238,.10),transparent 30%),
+      #060713!important;
+  }
+
+  body.release-layout .game-sidebar{
+    display:flex!important;
+    grid-column:1!important;
+    width:var(--release-sidebar-w)!important;
+    min-width:var(--release-sidebar-w)!important;
+    max-width:var(--release-sidebar-w)!important;
+    height:100vh!important;
+    height:100dvh!important;
+    padding:16px 14px!important;
+    gap:12px!important;
+    overflow-y:auto!important;
+    overflow-x:hidden!important;
+    border-radius:0 28px 28px 0!important;
+    border-left:none!important;
+  }
+
+  body.release-layout .game-main{
+    grid-column:2!important;
+    width:100%!important;
+    min-width:0!important;
+    height:100vh!important;
+    height:100dvh!important;
+    display:flex!important;
+    flex-direction:column!important;
+    overflow:hidden!important;
+  }
+
+  body.release-layout .game-hdr,
+  body.release-layout .game-foot{
+    display:none!important;
+  }
+
+  body.release-layout .nav-bar{
+    flex:0 0 auto!important;
+    width:auto!important;
+    max-width:none!important;
+    margin:16px 24px 12px!important;
+    padding:10px!important;
+    border-radius:24px!important;
+    display:flex!important;
+    justify-content:flex-start!important;
+    gap:7px!important;
+    overflow-x:auto!important;
+    overflow-y:hidden!important;
+    scrollbar-width:none!important;
+  }
+
+  body.release-layout .nav-bar::-webkit-scrollbar{
+    display:none!important;
+  }
+
+  body.release-layout .nt{
+    min-width:84px!important;
+    min-height:56px!important;
+    padding:9px 12px!important;
+    border-radius:17px!important;
+    border:1px solid transparent!important;
+    background:rgba(255,255,255,.038)!important;
+  }
+
+  body.release-layout .nt:hover{
+    transform:translateY(-1px)!important;
+    border-color:rgba(124,111,255,.32)!important;
+    background:rgba(124,111,255,.08)!important;
+  }
+
+  body.release-layout .nt.active{
+    background:
+      linear-gradient(135deg,rgba(124,111,255,.28),rgba(34,211,238,.10))!important;
+    border-color:rgba(124,111,255,.45)!important;
+    box-shadow:0 10px 26px rgba(124,111,255,.16)!important;
+  }
+
+  body.release-layout .content-area{
+    flex:1 1 auto!important;
+    width:100%!important;
+    max-width:none!important;
+    margin:0!important;
+    padding:0 24px 24px!important;
+    overflow-y:auto!important;
+    overflow-x:hidden!important;
+    scroll-behavior:auto!important;
+  }
+
+  body.release-layout .tab-panel{
+    width:100%!important;
+    max-width:var(--release-content-max)!important;
+    margin:0 auto!important;
+    padding:0 0 96px!important;
+  }
+
+  body.release-layout .act-grid{
+    grid-template-columns:repeat(auto-fit,minmax(220px,1fr))!important;
+    gap:14px!important;
+    align-items:stretch!important;
+  }
+
+  body.release-layout .card{
+    min-height:112px!important;
+    padding:16px!important;
+    display:flex!important;
+    flex-direction:column!important;
+    align-items:center!important;
+    justify-content:center!important;
+    gap:6px!important;
+  }
+
+  body.release-layout .row-card{
+    padding:15px!important;
+    gap:12px!important;
+    align-items:center!important;
+  }
+}
+
+@media (min-width:1440px){
+  body.release-layout .act-grid{
+    grid-template-columns:repeat(auto-fit,minmax(235px,1fr))!important;
+  }
+}
+
+/* ─────────────────────────────────────────────
+   07. Game shell — tablet / mobile
+───────────────────────────────────────────── */
+
+@media (max-width:1023px){
+  body.release-layout,
+  body.release-layout #app{
+    width:100%!important;
+    min-height:100dvh!important;
+    height:100dvh!important;
+    max-width:none!important;
+    overflow:hidden!important;
+  }
+
+  body.release-layout #game-screen.screen.active{
+    display:flex!important;
+    flex-direction:column!important;
+    width:100%!important;
+    height:100dvh!important;
+    overflow:hidden!important;
+  }
+
+  body.release-layout .game-sidebar{
+    display:none!important;
+  }
+
+  body.release-layout .game-main{
+    width:100%!important;
+    height:100dvh!important;
+    display:flex!important;
+    flex-direction:column!important;
+    overflow:hidden!important;
+  }
+
+  body.release-layout .game-hdr{
+    display:block!important;
+    flex:0 0 auto!important;
+    padding:10px 12px!important;
+    border-radius:0!important;
+  }
+
+  body.release-layout .game-foot{
+    display:block!important;
+    flex:0 0 auto!important;
+    padding:8px 10px calc(8px + env(safe-area-inset-bottom))!important;
+    border-radius:0!important;
+  }
+
+  body.release-layout .nav-bar{
+    flex:0 0 auto!important;
+    margin:0!important;
+    padding:8px 10px!important;
+    border-radius:0!important;
+    border-left:0!important;
+    border-right:0!important;
+    display:flex!important;
+    gap:7px!important;
+    overflow-x:auto!important;
+    overflow-y:hidden!important;
+    scrollbar-width:none!important;
+  }
+
+  body.release-layout .nav-bar::-webkit-scrollbar{
+    display:none!important;
+  }
+
+  body.release-layout .nt{
+    min-width:74px!important;
+    min-height:50px!important;
+    padding:8px 9px!important;
+    border-radius:15px!important;
+  }
+
+  body.release-layout .content-area{
+    flex:1 1 auto!important;
+    width:100%!important;
+    max-width:none!important;
+    padding:10px!important;
+    overflow-y:auto!important;
+    overflow-x:hidden!important;
+    scroll-behavior:auto!important;
+  }
+
+  body.release-layout .tab-panel{
+    width:100%!important;
+    max-width:none!important;
+    margin:0!important;
+    padding:0 0 96px!important;
+  }
+
+  body.release-layout .stats-bar-grid{
+    grid-template-columns:repeat(5,minmax(0,1fr))!important;
+    gap:7px!important;
+  }
+
+  body.release-layout .act-grid{
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+    gap:10px!important;
+  }
+
+  body.release-layout .card{
+    min-height:96px!important;
+    padding:13px!important;
+  }
+
+  /* Do NOT force all row-cards into columns.
+     That broke desktop/tablet/mobile action layouts.
+  */
+  body.release-layout .row-card{
+    flex-direction:row!important;
+    align-items:center!important;
+  }
+
+  body.release-layout .release-clean-row{
+    flex-direction:column!important;
+    align-items:flex-start!important;
+  }
+}
+
+@media (max-width:560px){
+  body.release-layout .hdr-row1{
+    gap:8px!important;
+  }
+
+  body.release-layout .avatar-wrap{
+    width:44px!important;
+    height:44px!important;
+    border-radius:15px!important;
+    font-size:23px!important;
+  }
+
+  body.release-layout .money-block{
+    min-width:104px!important;
+  }
+
+  body.release-layout .stats-bar-grid{
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  }
+
+  body.release-layout .act-grid{
+    grid-template-columns:1fr!important;
+  }
+
+  body.release-layout .card{
+    min-height:88px!important;
+    align-items:flex-start!important;
+    text-align:left!important;
+  }
+
+  body.release-layout .cn,
+  body.release-layout .rt{
+    font-size:13.5px!important;
+  }
+
+  body.release-layout .cd,
+  body.release-layout .rs{
+    font-size:11.5px!important;
+  }
+}
+
+/* ─────────────────────────────────────────────
+   08. Create screen
+───────────────────────────────────────────── */
+
+body.release-layout #create-screen.screen.active{
+  display:flex!important;
+  flex-direction:column!important;
+  height:100vh!important;
+  height:100dvh!important;
+  overflow:hidden!important;
+}
+
+body.release-layout #create-screen .topbar{
+  flex:0 0 auto!important;
+  min-height:62px!important;
+  padding:12px 18px!important;
+  border-bottom:1px solid rgba(255,255,255,.09)!important;
+}
+
+body.release-layout #create-screen .create-scroll{
+  flex:1 1 auto!important;
+  width:100%!important;
+  max-width:none!important;
+  margin:0!important;
+  padding:22px clamp(14px,3vw,36px) 34px!important;
+  overflow-y:auto!important;
+  overflow-x:hidden!important;
+}
+
+body.release-layout #create-screen .create-scroll > div:first-child{
+  max-width:980px!important;
+  margin:0 auto 18px!important;
+}
+
+body.release-layout #create-screen .create-inner{
+  width:100%!important;
+  max-width:1440px!important;
+  margin:0 auto!important;
+  display:grid!important;
+  grid-template-columns:minmax(0,1.05fr) minmax(360px,.95fr)!important;
+  gap:20px!important;
+  align-items:start!important;
+}
+
+body.release-layout #create-screen .create-left,
+body.release-layout #create-screen .create-right{
+  width:100%!important;
+  max-width:none!important;
+  min-width:0!important;
+  gap:14px!important;
+}
+
+body.release-layout #create-screen .form-group,
+body.release-layout #create-screen #create-preview-box,
+body.release-layout #create-screen .origin-ui-stat-preview,
+body.release-layout #create-screen .origin-ui-legacy-box,
+body.release-layout #create-screen .origin-ui-tip-box,
+body.release-layout #create-screen #custom-stats{
+  border-radius:var(--release-panel-radius)!important;
+  background:
+    linear-gradient(145deg,rgba(255,255,255,.075),rgba(255,255,255,.027))!important;
+  border:1px solid rgba(255,255,255,.105)!important;
+  box-shadow:
+    0 14px 38px rgba(0,0,0,.26),
+    inset 0 1px 0 rgba(255,255,255,.055)!important;
+  overflow:hidden!important;
+}
+
+body.release-layout #create-screen .form-group{
+  padding:16px!important;
+}
+
+body.release-layout #create-screen input,
+body.release-layout #create-screen select,
+body.release-layout #create-screen .form-input,
+body.release-layout #create-screen .form-select{
+  min-height:46px!important;
+  border-radius:15px!important;
+}
+
+body.release-layout #create-screen .gbtn,
+body.release-layout #create-screen .trait-card,
+body.release-layout #create-screen .ambition-card,
+body.release-layout #create-screen .origin-ui-diff-card,
+body.release-layout #create-screen #ambition-list button,
+body.release-layout #create-screen #trait-grid button{
+  border-radius:18px!important;
+  min-height:54px!important;
+  overflow:hidden!important;
+}
+
+body.release-layout #create-screen .create-avatar{
+  width:96px!important;
+  height:96px!important;
+  margin:0 auto 12px!important;
+  border-radius:26px!important;
+  line-height:1!important;
+}
+
+body.release-layout #create-screen .create-summary-stack{
+  display:grid!important;
+  gap:14px!important;
+  align-content:start!important;
+}
+
+body.release-layout #create-screen .origin-ui-begin-btn,
+body.release-layout #create-screen button.origin-ui-begin-btn[style]{
+  width:min(100%,720px)!important;
+  max-width:720px!important;
+  min-height:58px!important;
+  height:auto!important;
+  margin:22px auto 0!important;
+  padding:0 24px!important;
+  display:flex!important;
+  align-items:center!important;
+  justify-content:center!important;
+  border-radius:18px!important;
+  line-height:1.1!important;
+  overflow:visible!important;
+  box-sizing:border-box!important;
+  box-shadow:
+    0 18px 44px rgba(124,111,255,.25),
+    inset 0 1px 0 rgba(255,255,255,.22)!important;
+}
+
+body.release-layout #create-screen .origin-ui-begin-btn:hover{
+  transform:translateY(-1px)!important;
+}
+
+@media (max-width:1023px){
+  body.release-layout #create-screen .create-scroll{
+    padding:14px 12px 22px!important;
+  }
+
+  body.release-layout #create-screen .create-inner{
+    display:grid!important;
+    grid-template-columns:1fr!important;
+    gap:13px!important;
+    max-width:720px!important;
+  }
+
+  body.release-layout #create-screen .create-left,
+  body.release-layout #create-screen .create-right{
+    gap:12px!important;
+  }
+
+  body.release-layout #create-screen .form-group{
+    padding:13px!important;
+    border-radius:20px!important;
+  }
+
+  body.release-layout #create-screen .create-summary-stack{
+    position:static!important;
+  }
+
+  body.release-layout #create-screen .origin-ui-begin-btn,
+  body.release-layout #create-screen button.origin-ui-begin-btn[style]{
+    width:100%!important;
+    max-width:720px!important;
+    min-height:56px!important;
+    margin:16px auto 0!important;
+    border-radius:17px!important;
+  }
+}
+
+@media (max-width:560px){
+  body.release-layout #create-screen .topbar{
+    min-height:56px!important;
+    padding:10px 12px!important;
+  }
+
+  body.release-layout #create-screen .topbar-title{
+    font-size:14px!important;
+  }
+
+  body.release-layout #create-screen .ver-badge{
+    display:none!important;
+  }
+
+  body.release-layout #create-screen .create-scroll > div:first-child h2{
+    font-size:21px!important;
+    line-height:1.12!important;
+  }
+
+  body.release-layout #create-screen .create-scroll > div:first-child p{
+    font-size:12px!important;
+  }
+
+  body.release-layout #create-screen .gender-grid,
+  body.release-layout #create-screen .trait-grid,
+  body.release-layout #create-screen #origin-ui-diff-cards{
+    grid-template-columns:1fr!important;
+  }
+}
+
+/* ─────────────────────────────────────────────
+   09. Career cleanup
+───────────────────────────────────────────── */
+
+body.release-layout .career-ui-career-section-head{
+  border-radius:22px!important;
+  padding:16px!important;
+  background:
+    linear-gradient(145deg,rgba(124,111,255,.11),rgba(255,255,255,.035))!important;
+  border:1px solid rgba(124,111,255,.23)!important;
+  margin:0 0 12px!important;
+}
+
+body.release-layout .career-ui-career-count{
+  border-radius:999px!important;
+  padding:8px 11px!important;
+  background:rgba(34,211,238,.10)!important;
+  border:1px solid rgba(34,211,238,.22)!important;
+  font-weight:950!important;
+  color:#cffafe!important;
+}
+
+body.release-layout .career-ui-boss-card{
+  display:grid!important;
+  grid-template-columns:auto 1fr auto!important;
+  gap:14px!important;
+  align-items:center!important;
+  margin:12px 0!important;
+  padding:16px!important;
+}
+
+body.release-layout .career-ui-boss-metrics{
+  display:flex!important;
+  gap:8px!important;
+  flex-wrap:wrap!important;
+  justify-content:flex-end!important;
+}
+
+body.release-layout .career-ui-boss-metrics span{
+  border-radius:999px!important;
+  padding:7px 9px!important;
+  background:rgba(255,255,255,.06)!important;
+  border:1px solid rgba(255,255,255,.09)!important;
+  font-size:11px!important;
+  font-weight:950!important;
+  color:rgba(255,255,255,.75)!important;
+}
+
+@media (max-width:1023px){
+  body.release-layout .career-ui-boss-card{
+    grid-template-columns:1fr!important;
+    text-align:left!important;
+  }
+
+  body.release-layout .career-ui-boss-metrics{
+    justify-content:flex-start!important;
+  }
+}
+
+/* ─────────────────────────────────────────────
+   10. Crime stable grid
+───────────────────────────────────────────── */
+
+body.release-layout .crime-ui-action-grid{
+  grid-template-columns:repeat(auto-fit,minmax(180px,1fr))!important;
+  gap:12px!important;
+}
+
+body.release-layout .crime-ui-move-grid{
+  grid-template-columns:repeat(auto-fit,minmax(220px,1fr))!important;
+  gap:12px!important;
+}
+
+body.release-layout .crime-ui-move{
+  min-height:160px!important;
+  display:flex!important;
+  flex-direction:column!important;
+  justify-content:space-between!important;
+  text-align:left!important;
+  padding:16px!important;
+  overflow:hidden!important;
+}
+
+body.release-layout .crime-ui-tier summary{
+  padding:16px!important;
+  border-radius:20px!important;
+}
+
+body.release-layout .crime-ui-chip-row{
+  display:flex!important;
+  flex-wrap:wrap!important;
+  gap:7px!important;
+}
+
+body.release-layout .crime-ui-chip{
+  white-space:nowrap!important;
+}
+
+@media (max-width:1023px){
+  body.release-layout .crime-ui-move-grid{
+    grid-template-columns:1fr!important;
+  }
+}
+
+/* ─────────────────────────────────────────────
+   11. Timeline / logs
+───────────────────────────────────────────── */
+
+body.release-layout .log-list{
+  display:grid!important;
+  grid-template-columns:1fr!important;
+  gap:10px!important;
+  width:100%!important;
+  max-width:none!important;
+}
+
+body.release-layout .log-entry{
+  border-radius:18px!important;
+  padding:13px 14px!important;
+  background:rgba(255,255,255,.052)!important;
+  border:1px solid rgba(255,255,255,.08)!important;
+}
+
+body.release-layout .log-entry.is-major{
+  border-color:rgba(251,191,36,.28)!important;
+  background:
+    linear-gradient(135deg,rgba(251,191,36,.09),rgba(255,255,255,.035))!important;
+}
+
+body.release-layout .goal-ui-timeline-filters{
+  gap:7px!important;
+}
+
+body.release-layout .goal-ui-timeline-filters button,
+body.release-layout .log-filter{
+  border-radius:999px!important;
+}
+
+/* ─────────────────────────────────────────────
+   12. Release helper components
+───────────────────────────────────────────── */
+
+body.release-layout .release-phase-pill{
+  display:inline-flex;
+  align-items:center;
+  gap:7px;
+  padding:7px 10px;
+  border-radius:999px;
+  background:rgba(124,111,255,.13);
+  border:1px solid rgba(124,111,255,.25);
+  font-size:11px;
+  font-weight:950;
+  color:#e7e3ff;
+}
+
+body.release-layout .release-polish-panel{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  margin:0 0 14px;
+  padding:14px 16px;
+  border-radius:22px!important;
+  color:var(--release-text);
+}
+
+body.release-layout .release-polish-panel b{
+  display:block;
+  font-size:15px;
+  margin-bottom:2px;
+}
+
+body.release-layout .release-polish-panel span{
+  display:block;
+  font-size:12px;
+  color:var(--release-muted);
+  font-weight:800;
+  line-height:1.45;
+}
+
+body.release-layout .release-polish-panel button{
+  appearance:none;
+  border:1px solid rgba(255,255,255,.12);
+  background:rgba(255,255,255,.06);
+  color:#fff;
+  border-radius:14px;
+  padding:9px 11px;
+  font-weight:950;
+  cursor:pointer;
+}
+
+body.release-layout .release-clean-list{
+  display:grid;
+  gap:9px;
+  margin-top:10px;
+}
+
+body.release-layout .release-clean-row{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  padding:11px 12px;
+  border-radius:15px;
+  background:rgba(0,0,0,.14);
+  border:1px solid rgba(255,255,255,.075);
+}
+
+body.release-layout .release-clean-row strong{
+  color:#fff;
+  font-size:13px;
+}
+
+body.release-layout .release-clean-row small{
+  color:var(--release-muted);
+  font-weight:750;
+}
+
+body.release-layout .release-chip{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  border-radius:999px;
+  padding:6px 9px;
+  background:rgba(255,255,255,.06);
+  border:1px solid rgba(255,255,255,.09);
+  font-size:11px;
+  font-weight:950;
+  color:rgba(255,255,255,.78);
+}
+
+body.release-layout .release-hidden-empty{
+  display:none!important;
+}
+
+@media (max-width:1023px){
+  body.release-layout .release-polish-panel{
+    display:block;
+    padding:13px!important;
+  }
+
+  body.release-layout .release-polish-panel button{
+    margin-top:10px;
+    width:100%;
+  }
+}
+
+/* ─────────────────────────────────────────────
+   13. Modal safety
+───────────────────────────────────────────── */
+
+body.release-layout .modal-bg.open{
+  animation:releaseOverlay .15s ease both;
+}
+
+body.release-layout .modal-bg.open .modal-box{
+  animation:releaseModal .18s ease both;
+}
+
+@keyframes releaseOverlay{
+  from{opacity:0}
+  to{opacity:1}
+}
+
+@keyframes releaseModal{
+  from{
+    opacity:0;
+    transform:translateY(12px) scale(.98);
+  }
+  to{
+    opacity:1;
+    transform:none;
+  }
+}
+
+/* ─────────────────────────────────────────────
+   14. Render stability
+───────────────────────────────────────────── */
+
+body.release-layout .content-area,
+body.release-layout .tab-panel{
+  overflow-anchor:none;
+}
+
+body.release-layout .ui-stable-rendering .card,
+body.release-layout .ui-stable-rendering .row-card,
+body.release-layout .ui-stable-rendering .rel-card,
+body.release-layout .ui-patching .card,
+body.release-layout .ui-patching .row-card,
+body.release-layout .ui-patching .rel-card{
+  transition:none!important;
+}
+
+/* ─────────────────────────────────────────────
+   15. Reduced motion
+───────────────────────────────────────────── */
+
+@media (prefers-reduced-motion:reduce){
+  body.release-layout *,
+  body.release-layout *::before,
+  body.release-layout *::after{
+    animation:none!important;
+    transition:none!important;
+    scroll-behavior:auto!important;
+  }
+}

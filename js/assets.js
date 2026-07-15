@@ -1,4 +1,4 @@
-/* js/assets.js - LifeSim v13 Reforged asset, debt, housing and investment system */
+/* js/assets.js - LifeSim module */
 const Assets={
   housingPlans:{
     shared:{label:'Shared Room',icon:'🛏️',base:7600,happiness:-2,stress:2,desc:'Lowest rent, low privacy'},
@@ -28,22 +28,10 @@ const Assets={
   insuranceCosts:{health:800,car:600,life:500},
 
   ACTION_LIMITS:{
-    housing:2,
-    loan:2,
-    extraLoan:3,
-    creditRepair:1,
-    refinance:1,
-    insurance:3,
-    propertyMaintain:4,
-    propertyRenovate:1,
-    propertyManager:4,
-    buyProperty:2,
-    sellProperty:2,
-    vehicleService:4,
-    buyVehicle:2,
-    sellVehicle:2,
-    invest:3,
-    donate:4,
+    housing:1, loan:2, extraLoan:2, creditRepair:1, refinance:1, insurance:2,
+    propertyMaintain:3, propertyRenovate:2, propertyManager:2,
+    buyProperty:2, sellProperty:2, vehicleService:3, buyVehicle:2, sellVehicle:2,
+    invest:3, donate:2,
   },
 
   HISTORY_LIMIT:14,
@@ -87,6 +75,7 @@ const Assets={
         <div class="nw-sub">Cash ${fmt(G.money)} · Property ${fmt(pv)} · Vehicles ${fmt(vv)}${bv>0?` · Business ${fmt(bv)}`:''}${debt>0?` · Debt ${fmt(debt)}`:''}</div>
       </div>
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
+        ${this._metricBox('Cash On Hand',fmt(G.money||0),(G.money||0)>0?'var(--green)':'var(--muted)',debt>0?`Debt outstanding ${fmt(debt)}`:'No active debt')}
         ${this._metricBox('Credit Score',score,scoreMeta.color,`${scoreMeta.label} · ${scoreMeta.hint}`)}
         ${this._metricBox('Monthly Runway',runway>=99?'99+ mo':`${runway} mo`,risk.color,`${risk.label} · yearly overhead ${fmt(yearlyOverheads)}`)}
         ${this._metricBox('Housing',hasHome?'Owned':'Renting',hasHome?'var(--green)':'var(--yellow)',housingLabel)}
@@ -95,7 +84,7 @@ const Assets={
         ${this._metricBox('Asset Cashflow',fmt(assetCashflow),assetCashflow>=0?'var(--green)':'var(--orange)',`Rent ${fmt(rentalIncome)} - upkeep ${fmt(estimatedUpkeep)} - debt ${fmt(loanDue)}`)}
       </div>`;
 
-    h+=`<div class="info-box"><p>🏦 Finance view: assets should either improve your lifestyle or beat their carrying costs. Watch rental income, upkeep, loan payments and runway together before buying more.</p></div>`;
+    h+=this._renderFinanceCoach(G,{runway,debtRatio,assetCashflow,yearlyOverheads,hasHome,rentalCount});
 
     h+=this._renderDebtSection(G);
     h+=this._renderInsuranceSection(G,vehs);
@@ -111,20 +100,43 @@ const Assets={
     el.innerHTML=h;
   },
 
+  _assetSection(title,body,open=false){
+    if(!body)return '';
+    return `<details class="history-toggle asset-section" ${open?'open':''}><summary>${this._esc(title)}</summary><div class="history-toggle-body">${body.replace(/^<div class="sec">.*?<\/div>/,'')}</div></details>`;
+  },
+
+  _renderFinanceCoach(G,ctx){
+    const ideas=[];
+    if(ctx.runway<6)ideas.push({icon:'🧯',title:'Build runway',text:'Cash is thin. Prioritize emergency cash before big purchases.',tone:'var(--orange)'});
+    if(ctx.debtRatio>45)ideas.push({icon:'💳',title:'Debt pressure',text:'Debt is high relative to wealth. Pay collections or refinance before scaling.',tone:'var(--red)'});
+    if(!ctx.hasHome&&(G.money||0)>sc(25000)&&(G.creditScore||650)>=620)ideas.push({icon:'🏠',title:'Consider ownership',text:'You may be close to a property down payment.',tone:'var(--green)'});
+    if(ctx.assetCashflow<0&&ctx.rentalCount)ideas.push({icon:'🔧',title:'Fix cashflow',text:'Rentals are not beating upkeep and debt. Maintain, renovate, or reduce debt.',tone:'var(--yellow)'});
+    if(!ideas.length)ideas.push({icon:'✅',title:'Finances stable',text:'Runway, debt, and asset cashflow look manageable. You can choose growth or safety.',tone:'var(--green)'});
+    return `<div class="info-box" style="border-color:${ideas[0].tone}55;background:${ideas[0].tone}10">
+      <p><strong>${ideas[0].icon} ${this._esc(ideas[0].title)}:</strong> ${this._esc(ideas[0].text)}</p>
+    </div>`;
+  },
+
   _renderDebtSection(G){
-    const loanLeft=this._usesLeft('loan');
-    let h=`<div class="sec">Credit & Debt</div>`;
-    h+=`<div class="info-box"><p>🧾 Finance actions now have yearly limits: ${loanLeft} loan action${loanLeft!==1?'s':''} left this year. Age up to refresh.</p></div><div class="act-grid">`;
-    Object.entries(this.loanPresets).forEach(([id,p])=>{
-      const amount=sc(p.amount);
-      const locked=(G.creditScore||650)<p.minCredit||!this._loanRoom(G,amount);
-      h+=`<div class="card ${locked?'locked':''}" onclick="${locked?'':`Assets.takeLoan('${id}')`}"><span class="ci">${id==='education'?'🎓':id==='property'?'🏦':'💳'}</span><span class="cn">${p.label}</span><span class="cd">+${fmt(amount)} · ${Math.round(p.rate*100)}% APR · ${p.minCredit}+ score</span></div>`;
-    });
+    let h=`<div class="sec">Credit & Debt</div><div class="act-grid" style="margin-bottom:12px">`;
     if((G.debtCollections||0)>0){
       h+=`<div class="card danger" onclick="Assets.payCollections()"><span class="ci">⚠️</span><span class="cn">Pay Collections</span><span class="cd">Outstanding ${fmt(G.debtCollections)}</span></div>`;
     }
     const repairCost=this._creditRepairCost(G);
     h+=`<div class="card ${((G.money||0)<repairCost||(G.creditScore||650)>=780)?'locked':''}" onclick="${((G.money||0)<repairCost||(G.creditScore||650)>=780)?'':`Assets.creditRepair()`}"><span class="ci">🧾</span><span class="cn">Credit Repair</span><span class="cd">${fmt(repairCost)} - Improve score and reduce stress</span></div>`;
+    Object.entries(this.loanPresets).forEach(([id,preset])=>{
+      const amount=sc(preset.amount);
+      const locked=(G.creditScore||650)<preset.minCredit||!this._loanRoom(G,amount);
+      const reason=(G.creditScore||650)<preset.minCredit
+        ? `Need ${preset.minCredit}+ credit`
+        : 'Too much debt for another loan';
+      h+=`<div class="card ${locked?'locked':''}" onclick="${locked?'':`Assets.takeLoan('${id}')`}">
+        <span class="ci">💳</span>
+        <span class="cn">${this._esc(preset.label)}</span>
+        <span class="cd">${fmt(amount)} · ${Math.round(preset.rate*100)}% APR · ${preset.years} yr${preset.years!==1?'s':''}</span>
+        <span class="cd" style="opacity:.78;font-size:10px">${locked?this._esc(reason):this._esc(preset.desc)}</span>
+      </div>`;
+    });
     h+='</div>';
 
     if((G.loans||[]).length){
@@ -219,33 +231,49 @@ const Assets={
 
   _renderPropertyMarket(G){
     let h='<div class="sec">Real Estate Market</div>';
-    (PROPERTIES||[]).filter(p=>p.id!=='room').forEach(p=>{
-      const price=sc(p.price);
-      const down=Math.round(price*0.20);
-      const canCash=(G.money||0)>=price;
-      const canFinance=(G.creditScore||650)>=620&&(G.money||0)>=down&&this._loanRoom(G,price-down);
-      const income=p.rent>0?` · Est. rent ${fmt(sc(p.rent))}/yr`:'';
-      const tag=canCash?fmt(price):canFinance?`${fmt(down)} down`:'Need cash/credit';
-      h+=`<div class="row-card ${(canCash||canFinance)?'':'locked'}" onclick="${(canCash||canFinance)?`Assets.buyProp('${p.id}')`:''}">
-        <span class="ri">${p.icon}</span>
-        <div class="rd"><div class="rt">${this._esc(p.name)}</div><div class="rs">${this._esc(p.desc)}${income}${!canCash?` · finance from ${fmt(down)}`:''}</div></div>
-        <div class="rv">${tag}</div>
-      </div>`;
+    h+=`<div class="info-box"><p>🏠 Homes are unique lifestyle assets. Rental properties can be scaled, but they add upkeep, vacancy and debt pressure.</p></div>`;
+    const groups=[
+      ['Homes', (PROPERTIES||[]).filter(p=>p.id!=='room' && (p.rent||0)===0)],
+      ['Rental Income', (PROPERTIES||[]).filter(p=>(p.rent||0)>0)],
+    ];
+    groups.forEach(([label,list])=>{
+      if(!list.length)return;
+      h+=`<div class="asset-market-label">${this._esc(label)}</div>`;
+      list.forEach(p=>{
+        const price=sc(p.price);
+        const down=Math.round(price*0.20);
+        const count=(G.assets?.properties||[]).filter(x=>x.id===p.id).length;
+        const uniqueHome=(p.rent||0)===0;
+        const alreadyOwned=uniqueHome&&count>0;
+        const canCash=(G.money||0)>=price;
+        const canFinance=(G.creditScore||650)>=620&&(G.money||0)>=down&&this._loanRoom(G,price-down);
+        const income=p.rent>0?` · Est. rent ${fmt(sc(p.rent))}/yr`:'';
+        const tag=alreadyOwned?'Owned':canCash?fmt(price):canFinance?`${fmt(down)} down`:'Need cash/credit';
+        const click=(alreadyOwned||!(canCash||canFinance))?'':`Assets.buyProp('${p.id}')`;
+        h+=`<div class="row-card asset-market-card ${(alreadyOwned||!(canCash||canFinance))?'locked':''}" onclick="${click}">
+          <span class="ri">${p.icon}</span>
+          <div class="rd"><div class="rt">${this._esc(p.name)}${count?` <span class="asset-owned-pill">${count} owned</span>`:''}</div><div class="rs">${this._esc(p.desc)}${income}${!canCash&&!alreadyOwned?` · finance from ${fmt(down)}`:''}</div></div>
+          <div class="rv">${tag}</div>
+        </div>`;
+      });
     });
     return h;
   },
 
   _renderVehicleMarket(G){
     let h='<div class="sec">Vehicle Market</div>';
+    h+=`<div class="info-box"><p>🚗 Vehicle models are unique now. You can own one of each model, service it, sell it, then buy another later.</p></div>`;
     (VEHICLES||[]).forEach(v=>{
       const price=sc(v.price);
       const down=Math.round(price*0.15);
+      const owned=(G.assets?.vehicles||[]).some(x=>x.id===v.id);
       const canCash=(G.money||0)>=price;
       const canFinance=(G.creditScore||650)>=600&&(G.money||0)>=down&&this._loanRoom(G,price-down);
-      h+=`<div class="row-card ${(canCash||canFinance)?'':'locked'}" onclick="${(canCash||canFinance)?`Assets.buyVeh('${v.id}')`:''}">
+      const locked=owned||!(canCash||canFinance);
+      h+=`<div class="row-card asset-market-card ${locked?'locked':''}" onclick="${locked?'':`Assets.buyVeh('${v.id}')`}">
         <span class="ri">${v.icon}</span>
-        <div class="rd"><div class="rt">${this._esc(v.name)}</div><div class="rs">${this._esc(v.desc)}${!canCash?` · finance from ${fmt(down)}`:''}</div></div>
-        <div class="rv">${canCash?fmt(price):canFinance?`${fmt(down)} down`:'Locked'}</div>
+        <div class="rd"><div class="rt">${this._esc(v.name)}${owned?` <span class="asset-owned-pill">Owned</span>`:''}</div><div class="rs">${this._esc(v.desc)}${!canCash&&!owned?` · finance from ${fmt(down)}`:''}</div></div>
+        <div class="rv">${owned?'Owned':canCash?fmt(price):canFinance?`${fmt(down)} down`:'Locked'}</div>
       </div>`;
     });
     return h;
@@ -254,7 +282,7 @@ const Assets={
   _renderInvestments(G){
     const left=this._usesLeft('invest');
     let h=`<div class="sec">Capital Moves</div>
-      <div class="info-box"><p>📈 Investment actions are limited to ${left} more move${left!==1?'s':''} this year, so each click matters.</p></div>
+      <div class="info-box"><p>📈 Capital moves this year: ${left}. Pick the move that fits your risk level.</p></div>
       <div class="act-grid">`;
     Object.entries(this.investmentPlans).forEach(([id,p])=>{
       const amt=sc(p.amount);
@@ -269,10 +297,10 @@ const Assets={
     const lock=left<=0?'locked':'';
     return `<div class="sec">Charity</div>
       <div class="act-grid">
-        <div class="card ${lock}" onclick="${left<=0?'':`Assets.donate(1000)`}"><span class="ci">💝</span><span class="cn">Donate ${fmt(sc(1000))}</span><span class="cd">+Happiness +Karma · ${left} left this year</span></div>
-        <div class="card ${lock}" onclick="${left<=0?'':`Assets.donate(10000)`}"><span class="ci">❤️</span><span class="cn">Donate ${fmt(sc(10000))}</span><span class="cd">Meaningful gift · ${left} left</span></div>
-        <div class="card ${lock}" onclick="${left<=0?'':`Assets.donate(100000)`}"><span class="ci">🏥</span><span class="cn">Donate ${fmt(sc(100000))}</span><span class="cd">Major public gift · ${left} left</span></div>
-        <div class="card ${lock}" onclick="${left<=0?'':`Assets.donate(1000000)`}"><span class="ci">🌍</span><span class="cn">Donate ${fmt(sc(1000000))}</span><span class="cd">Legendary giving · ${left} left</span></div>
+        <div class="card ${lock}" onclick="${left<=0?'':`Assets.donate(1000)`}"><span class="ci">💝</span><span class="cn">Donate ${fmt(sc(1000))}</span><span class="cd">+Happiness +Karma · yearly giving action</span></div>
+        <div class="card ${lock}" onclick="${left<=0?'':`Assets.donate(10000)`}"><span class="ci">❤️</span><span class="cn">Donate ${fmt(sc(10000))}</span><span class="cd">Meaningful gift · yearly giving action</span></div>
+        <div class="card ${lock}" onclick="${left<=0?'':`Assets.donate(100000)`}"><span class="ci">🏥</span><span class="cn">Donate ${fmt(sc(100000))}</span><span class="cd">Major public gift · yearly giving action</span></div>
+        <div class="card ${lock}" onclick="${left<=0?'':`Assets.donate(1000000)`}"><span class="ci">🌍</span><span class="cn">Donate ${fmt(sc(1000000))}</span><span class="cd">Legendary giving · yearly giving action</span></div>
       </div>`;
   },
 
@@ -281,7 +309,7 @@ const Assets={
     const inv=(G.investmentHistory||[]).slice(0,4);
     const events=(G.assetEvents||[]).slice(0,4);
     if(!history.length&&!inv.length&&!events.length)return '';
-    let h='<div class="sec">Finance History</div>';
+    let h='<details class="history-toggle"><summary>Finance History</summary><div class="history-toggle-body">';
     if(history.length){
       history.forEach(row=>{
         h+=`<div class="row-card"><span class="ri">📊</span><div class="rd"><div class="rt">Age ${row.age} · Net worth ${fmt(row.netWorth)}</div><div class="rs">Cash ${fmt(row.cash)} · Assets ${fmt(row.assets)} · Debt ${fmt(row.debt)} · Credit ${row.credit}</div></div><div class="rv">${row.debt>0?'Debt':'OK'}</div></div>`;
@@ -293,7 +321,7 @@ const Assets={
     if(events.length){
       h+='<div class="info-box"><p>🧾 Recent asset moves: '+events.map(x=>`${this._esc(x.label||x.type)} ${x.amount?fmt(x.amount):''}`).join(' · ')+'</p></div>';
     }
-    return h;
+    return h+'</div></details>';
   },
 
   _renderMinor(G){
@@ -362,7 +390,7 @@ const Assets={
     if(!G)return false;
     this._resetActionYearIfNeeded(G);
     if(this._usesLeft(action)<=0){
-      UI.toast('You already used that finance action enough this year. Age up to refresh.','bad');
+      UI.toast('That finance action is used up for this year. Age up to refresh it.','bad');
       return false;
     }
     return true;
@@ -423,7 +451,7 @@ const Assets={
 
   _creditMeta(score){
     if(score>=760)return{label:'Excellent',color:'var(--green)',hint:'best rates'};
-    if(score>=670)return{label:'Good',color:'var(--teal)',hint:'finance available'};
+    if(score>=670)return{label:'Good',color:'var(--teal)',hint:'financing unlocked'};
     if(score>=580)return{label:'Fair',color:'var(--yellow)',hint:'limited options'};
     return{label:'Poor',color:'var(--red)',hint:'repair needed'};
   },
@@ -594,13 +622,15 @@ const Assets={
     const amount=sc(preset.amount);
     if((G.creditScore||650)<preset.minCredit){UI.toast(`Credit score ${preset.minCredit}+ required.`);return;}
     if(!this._loanRoom(G,amount)){UI.toast('Too much debt already. Improve net worth or repay loans first.');return;}
-    G.money+=amount;
-    G.loans.push(this._createLoan(type,preset.label,amount,preset.rate,preset.years));
+    G.money=Math.max(0,Math.round(num(G.money,0)+amount));
+    const loan=this._createLoan(type,preset.label,amount,preset.rate,preset.years);
+    G.loans.push(loan);
     this._markAction('loan');
     this._recordAssetEvent('loan',{label:preset.label,amount});
     this.changeCredit(type==='emergency'?-15:-8);
     G.stress=cl((G.stress||0)+(type==='emergency'?4:1));
-    Engine.log(`💳 Took out a ${preset.label.toLowerCase()} for ${fmt(amount)}.`, 'money');
+    Engine.log(`💳 Took out a ${preset.label.toLowerCase()} for ${fmt(amount)}. Cash increased, but net worth stays flat because the new debt offsets it.`, 'money');
+    UI.toast(`${preset.label}: ${fmt(amount)} added to cash.`, 'good');
     UI.update();
     this.render();
   },
@@ -774,6 +804,7 @@ const Assets={
     const p=(PROPERTIES||[]).find(x=>x.id===id);
     if(!p)return;
     if(p.id==='room'){UI.toast('Rent is a yearly living cost, not a property purchase.');return;}
+    if((p.rent||0)===0 && (G.assets?.properties||[]).some(x=>x.id===id)){UI.toast(`You already own ${p.name}. Buy rentals for scale, or sell this home first.`,'neutral');return;}
     const price=sc(p.price);
     const down=Math.round(price*0.20);
     const canFinance=(G.creditScore||650)>=620&&(G.money||0)>=down&&this._loanRoom(G,price-down);
@@ -840,6 +871,7 @@ const Assets={
     if(!this._canUseAction('buyVehicle'))return;
     const v=(VEHICLES||[]).find(x=>x.id===id);
     if(!v)return;
+    if((G.assets?.vehicles||[]).some(x=>x.id===id)){UI.toast(`You already own a ${v.name}. Sell it before buying the same model again.`,'neutral');return;}
     const price=sc(v.price);
     const down=Math.round(price*0.15);
     const canFinance=(G.creditScore||650)>=600&&(G.money||0)>=down&&this._loanRoom(G,price-down);
@@ -1027,7 +1059,7 @@ const Assets={
     cleanYear=this._processLoans()&&cleanYear;
     cleanYear=this._processAlimony()&&cleanYear;
     cleanYear=this._processCollections()&&cleanYear;
-    this._randomExpense();
+    if((G.age||0)>18)this._randomExpense();
 
     if(cleanYear){
       this.changeCredit(6);
@@ -1051,6 +1083,12 @@ const Assets={
 
   _applyLivingCosts(){
     const G=window.G;
+    if((G.age||0)===18&&!G.independenceHousingGraceUsed){
+      G.independenceHousingGraceUsed=true;
+      G.lastLivingCosts=0;
+      Engine.log('🏠 Transition year: family or shared housing covered basic living costs while you chose your next step.', 'good');
+      return true;
+    }
     const kids=dependentChildrenCount(G);
     const withPartner=cohabitingPartner(G);
     const hasHome=!!this._primaryHome(G);

@@ -1,4 +1,4 @@
-/* js/goals.js — LifeSim v13.2 personalized life goals
+/* js/goals.js — LifeSim module 
    Upgraded goals system:
    - stronger personalized plan dashboard
    - focus goal / pin system
@@ -24,13 +24,17 @@ const GOAL_REWARDS={
   property:{money:8000,happiness:7,stress:-3},
   legacy:{happiness:12,karma:8,fame:3},
   recovery:{health:10,happiness:10,stress:-10,karma:5},
+  childhood:{health:4,happiness:6,stress:-3},
+  learning:{smarts:6,happiness:3,stress:-2},
+  familychild:{happiness:7,karma:3,stress:-3},
+  youth:{smarts:4,fitness:4,happiness:3,stress:-2},
 };
 
 const GOAL_SKILLS=['coding','finance','fitness','music','cooking','writing','language','medicine','art','public_sp'];
 
 const Goals={
-  VERSION:13.2,
-  RECALIBRATE_GAP:4,
+  VERSION:1,
+  RECALIBRATE_GAP:2,
 
   _esc(v){
     if(typeof UI!=='undefined'&&UI&&typeof UI._esc==='function')return UI._esc(v);
@@ -125,12 +129,12 @@ const Goals={
   },
 
   regenerate(){
-    const G=window.G;if(!G)return;
+    const G=window.G;if(!G)return false;
     this._ensureState(G);
     const left=this.recalibrateCooldown(G);
     if(left>0){
       this._toast(`Goal recalibration available in ${left} year${left!==1?'s':''}.`);
-      return;
+      return false;
     }
     G.goalSeed=this._rand(1000,999999);
     G.lastGoalRecalibrateAge=G.age||0;
@@ -139,6 +143,12 @@ const Goals={
     this.ensurePersonalGoals(G,true);
     this._log('🎯 Life goals were recalibrated around your current path.','neutral');
     this._update();this.render();
+    return true;
+  },
+
+  // Backward-compatible public action used by older UI builds and saved layouts.
+  recalibrate(){
+    return this.regenerate();
   },
 
   recalibrateCooldown(G=window.G){
@@ -149,7 +159,8 @@ const Goals={
 
   _buildPersonalGoals(G){
     const pool=this._goalPool(G);
-    const want=G.difficulty==='extreme'?8:7;
+    const age=G.age||0;
+    const want=age<6?5:age<13?6:age<18?7:age<25?7:age<60?(G.difficulty==='extreme'?10:9):7;
     const scored=pool
       .filter(g=>!this._alreadyCompleted(G,g.id))
       .map((g,i)=>({...g,_score:this._scoreGoal(G,g)+((G.goalSeed+i*37)%23)}))
@@ -197,16 +208,94 @@ const Goals={
     return s;
   },
 
+  _youthGoalPool(G){
+    const age=G.age||0;
+    const parents=()=>{const arr=[G.rels?.father,G.rels?.mother].filter(Boolean);return arr.length?Math.round(arr.reduce((a,p)=>a+(p.love||50),0)/arr.length):50;};
+    if(age<=2)return[
+      {id:'baby_health_75',kind:'health',icon:'❤️',name:'Healthy Start',desc:'Reach 75+ health during early development',type:'stat',stat:'health',target:75,reward:'childhood',base:90,tier:'silver',category:'Growth'},
+      {id:'baby_happy_75',kind:'happiness',icon:'😊',name:'Safe & Happy',desc:'Reach 75+ happiness',type:'stat',stat:'happiness',target:75,reward:'childhood',base:88,tier:'silver',category:'Growth'},
+      {id:'baby_bond_75',kind:'family',icon:'🤗',name:'Secure Family Bond',desc:'Build an average 75+ bond with parents',type:'parentBond',target:75,reward:'familychild',base:86,tier:'gold',category:'Family'},
+      {id:'baby_mind_55',kind:'learning',icon:'🧩',name:'Curious Beginning',desc:'Reach 55+ smarts through safe play and stories',type:'stat',stat:'smarts',target:55,reward:'learning',base:82,tier:'silver',category:'Learning'},
+      {id:'baby_fit_58',kind:'fitness',icon:'🧸',name:'Active Development',desc:'Reach 58+ fitness through age-safe movement',type:'stat',stat:'fitness',target:58,reward:'youth',base:76,tier:'bronze',category:'Growth'},
+    ];
+    if(age<=5)return[
+      {id:'early_health_78',kind:'health',icon:'❤️',name:'Strong Early Health',desc:'Reach 78+ health',type:'stat',stat:'health',target:78,reward:'childhood',base:88,tier:'silver',category:'Growth'},
+      {id:'early_happy_80',kind:'happiness',icon:'😊',name:'Joyful Childhood',desc:'Reach 80+ happiness',type:'stat',stat:'happiness',target:80,reward:'childhood',base:86,tier:'silver',category:'Growth'},
+      {id:'early_bond_78',kind:'family',icon:'👪',name:'Close Family',desc:'Build an average 78+ bond with parents',type:'parentBond',target:78,reward:'familychild',base:84,tier:'gold',category:'Family'},
+      {id:'early_smart_60',kind:'learning',icon:'📖',name:'Ready to Learn',desc:'Reach 60+ smarts before school years',type:'stat',stat:'smarts',target:60,reward:'learning',base:82,tier:'silver',category:'Learning'},
+      {id:'early_talent_5',kind:'talent',icon:'🎨',name:'Discover a Talent',desc:'Build 5 youth talent practice points',type:'youthTalent',target:5,reward:'youth',base:78,tier:'bronze',category:'Learning'},
+    ];
+    if(age<=12)return[
+      {id:'school_perf_75',kind:'school',icon:'🎒',name:'School Confidence',desc:'Reach 75+ school performance',type:'schoolPerformance',target:75,reward:'learning',base:90,tier:'gold',category:'School'},
+      {id:'school_smart_70',kind:'learning',icon:'📚',name:'Strong Foundations',desc:'Reach 70+ smarts',type:'stat',stat:'smarts',target:70,reward:'learning',base:84,tier:'silver',category:'School'},
+      {id:'school_friends_2',kind:'friends',icon:'🫶',name:'Healthy Friendships',desc:'Have at least 2 friends',type:'friendCount',target:2,reward:'familychild',base:78,tier:'silver',category:'Social'},
+      {id:'school_talent_12',kind:'talent',icon:'🌟',name:'Growing Talent',desc:'Build 12 total youth talent practice points',type:'youthTalent',target:12,reward:'youth',base:76,tier:'silver',category:'Learning'},
+      {id:'school_health_78',kind:'health',icon:'❤️',name:'Healthy Routine',desc:'Reach 78+ health',type:'stat',stat:'health',target:78,reward:'childhood',base:74,tier:'silver',category:'Wellbeing'},
+      {id:'school_happy_78',kind:'happiness',icon:'😊',name:'Balanced Childhood',desc:'Reach 78+ happiness',type:'stat',stat:'happiness',target:78,reward:'childhood',base:72,tier:'silver',category:'Wellbeing'},
+    ];
+    return[
+      {id:'teen_perf_78',kind:'school',icon:'📝',name:'Finish School Strong',desc:'Reach 78+ school performance',type:'schoolPerformance',target:78,reward:'learning',base:90,tier:'gold',category:'School'},
+      {id:'teen_smart_75',kind:'learning',icon:'🧠',name:'Academic Momentum',desc:'Reach 75+ smarts',type:'stat',stat:'smarts',target:75,reward:'learning',base:84,tier:'gold',category:'School'},
+      {id:'teen_skill_1',kind:'skill',icon:'🎓',name:'Choose a Real Skill',desc:'Reach level 1 in any adult skill',type:'anySkill',target:1,reward:'youth',base:82,tier:'silver',category:'Skills'},
+      {id:'teen_friends_3',kind:'friends',icon:'🫶',name:'Support Circle',desc:'Have at least 3 friends',type:'friendCount',target:3,reward:'familychild',base:76,tier:'silver',category:'Social'},
+      {id:'teen_health_75',kind:'health',icon:'❤️',name:'Protect Your Health',desc:'Reach 75+ health',type:'stat',stat:'health',target:75,reward:'childhood',base:72,tier:'silver',category:'Wellbeing'},
+      {id:'teen_stress_35',kind:'mind',icon:'🧘',name:'Manage Pressure',desc:'Keep stress at 35 or lower',type:'maxStat',stat:'stress',target:35,reward:'childhood',base:74,tier:'silver',category:'Wellbeing'},
+      {id:'teen_job_path',kind:'career',icon:'💼',name:'Prepare for Independence',desc:'Start a job, university path or serious skill direction',type:'teenPath',target:1,reward:'youth',base:age>=16?88:60,tier:'gold',category:'Future'},
+    ];
+  },
+
+  _youngAdultGoalPool(G){
+    const costMult=countryCostMult(G);
+    const starterCash=Math.max(3000,Math.round(((G.lastLivingCosts||5000)+(G.food?.lastCost||1200))*0.6));
+    const starterInvest=Math.max(2500,Math.round(5000*Math.max(.55,Math.min(1.7,costMult))));
+    return[
+      {id:'young_direction',kind:'direction',icon:'🧭',name:'Find Your Direction',desc:'Start a job, education path or serious skill track',type:'teenPath',target:1,reward:'career',base:98,tier:'gold',category:'Foundation'},
+      {id:'young_skill_2',kind:'skill',icon:'🎓',name:'Build a Useful Skill',desc:'Reach level 2 in any specialist skill',type:'anySkill',target:2,reward:'skill',base:92,tier:'gold',category:'Skills'},
+      {id:'young_cash_'+starterCash,kind:'cash',icon:'🏦',name:'Starter Safety Fund',desc:`Keep ${fmtFull(starterCash)} in cash`,type:'cash',target:starterCash,reward:'finance',base:89,tier:'silver',category:'Finance'},
+      {id:'young_health_78',kind:'health',icon:'❤️',name:'Healthy Foundation',desc:'Reach 78+ health',type:'stat',stat:'health',target:78,reward:'happiness',base:86,tier:'silver',category:'Wellbeing'},
+      {id:'young_stress_45',kind:'mind',icon:'🧘',name:'Manage New Pressure',desc:'Keep stress at 45 or lower',type:'maxStat',stat:'stress',target:45,reward:'happiness',base:84,tier:'silver',category:'Wellbeing'},
+      {id:'young_credit_650',kind:'credit',icon:'💳',name:'Build Responsible Credit',desc:'Reach a 650+ credit score',type:'credit',target:650,reward:'finance',base:76,tier:'silver',category:'Finance'},
+      {id:'young_friends_3',kind:'friends',icon:'🫶',name:'Keep a Support Circle',desc:'Have at least 3 friends',type:'friendCount',target:3,reward:'family',base:74,tier:'silver',category:'Social'},
+      {id:'young_jobperf_70',kind:'career',icon:'📈',name:'Become Dependable',desc:'Reach 70+ job performance',type:'jobPerf',target:70,reward:'career',career:true,base:72,tier:'silver',category:'Career'},
+      {id:'young_degree_70',kind:'education',icon:'🎓',name:'Complete Higher Education',desc:'Graduate university with 70+ smarts',type:'educationSmart',target:70,reward:'smarts',base:70,tier:'gold',category:'Education'},
+      {id:'young_invest_'+starterInvest,kind:'invest',icon:'📈',name:'Learn Long-Term Investing',desc:`Build a ${fmtFull(starterInvest)} starter portfolio`,type:'stocks',target:starterInvest,reward:'finance',base:58,tier:'silver',category:'Finance'},
+      {id:'young_travel_3',kind:'travel',icon:'🌍',name:'Broaden Your World',desc:'Visit 3 countries when affordable',type:'travel',target:3,reward:'travel',base:55,tier:'silver',category:'Lifestyle'},
+    ];
+  },
+
+  _seniorGoalPool(G){
+    const bestSkill=Math.max(0,...Object.values(G.skills||{}).map(Number));
+    const friendTarget=Math.max(1,Math.min(4,(G.rels?.friends||[]).length||1));
+    const reserve=Math.max(2500,Math.round(((G.lastLivingCosts||4000)+(G.food?.lastCost||1200))*0.5));
+    return[
+      {id:'senior_health_70',kind:'health',icon:'❤️',name:'Protect Daily Health',desc:'Maintain 70+ health',type:'stat',stat:'health',target:70,reward:'happiness',base:96,tier:'gold',category:'Wellbeing'},
+      {id:'senior_mind_72',kind:'mind',icon:'🌿',name:'Protect Mental Wellbeing',desc:'Reach 72+ mental wellbeing',type:'stat',stat:'mentalHealth',target:72,reward:'happiness',base:92,tier:'gold',category:'Wellbeing'},
+      {id:'senior_stress_40',kind:'calm',icon:'🧘',name:'Choose a Calmer Pace',desc:'Keep stress at 40 or lower',type:'maxStat',stat:'stress',target:40,reward:'happiness',base:88,tier:'silver',category:'Wellbeing'},
+      {id:'senior_happy_78',kind:'happiness',icon:'😊',name:'Enjoy the Chapter',desc:'Reach 78+ happiness',type:'stat',stat:'happiness',target:78,reward:'happiness',base:86,tier:'silver',category:'Lifestyle'},
+      {id:'senior_friends_'+friendTarget,kind:'friends',icon:'🫶',name:'Stay Connected',desc:`Keep at least ${friendTarget} close friend${friendTarget===1?'':'s'}`,type:'friendCount',target:friendTarget,reward:'family',base:80,tier:'silver',category:'Relationships'},
+      {id:'senior_relationship_80',kind:'relationship',icon:'💞',name:'Nurture Your Partnership',desc:'Reach 80+ partner intimacy',type:'relationship',target:80,reward:'family',family:true,base:76,tier:'gold',category:'Relationships'},
+      {id:'senior_skill_'+Math.min(5,bestSkill+1),kind:'skill',icon:'🎨',name:'Keep Learning',desc:`Reach level ${Math.min(5,bestSkill+1)} in any specialist skill`,type:'anySkill',target:Math.min(5,bestSkill+1),reward:'skill',base:72,tier:'silver',category:'Purpose'},
+      {id:'senior_reputation_70',kind:'legacy',icon:'🤲',name:'Leave Good Behind',desc:'Reach 70+ reputation',type:'stat',stat:'reputation',target:70,reward:'legacy',base:70,tier:'gold',category:'Legacy'},
+      {id:'senior_reserve_'+reserve,kind:'cash',icon:'🧯',name:'Comfortable Reserve',desc:`Keep ${fmtFull(reserve)} accessible for essentials`,type:'cash',target:reserve,reward:'finance',base:62,tier:'silver',category:'Security'},
+      {id:'senior_debtfree',kind:'debtfree',icon:'🧾',name:'Simplify Finances',desc:'Clear loans and collections',type:'debtFree',target:0,reward:'finance',debt:true,base:60,tier:'silver',category:'Security'},
+    ];
+  },
+
   _goalPool(G){
-    const mult=G.country?.mult||1;
-    const richTarget=Math.round((G.difficulty==='easy'?1500000:G.difficulty==='extreme'?180000:550000)*Math.max(0.55,Math.min(2,mult)));
+    if((G.age||0)<18)return this._youthGoalPool(G);
+    if((G.age||0)<25)return this._youngAdultGoalPool(G);
+    if((G.age||0)>=60)return this._seniorGoalPool(G);
+    const costMult=countryCostMult(G);
+    const salaryMult=countrySalaryMult(G);
+    const wealthMult=countryWealthMult(G);
+    const richTarget=Math.round((G.difficulty==='easy'?1500000:G.difficulty==='extreme'?180000:550000)*Math.max(0.45,Math.min(1.9,wealthMult)));
     const lifeTarget=Math.max(65,Math.min(92,(G.country?.lifeExp||78)+(G.trait==='resilient'?5:0)));
     const travelTarget=G.country?.name==='United States'||G.country?.name==='Russia'?8:10;
     const chosenSkill=this._skillFocus(G);
     const skillName=this._skillName(chosenSkill);
-    const salaryTarget=Math.round((G.difficulty==='easy'?95000:G.difficulty==='extreme'?42000:65000)*Math.max(0.65,Math.min(1.7,mult)));
+    const salaryTarget=Math.round((G.difficulty==='easy'?95000:G.difficulty==='extreme'?42000:65000)*Math.max(0.55,Math.min(1.9,salaryMult)));
     const cashTarget=Math.max(15000,Math.round(((G.lastLivingCosts||12000)+(G.food?.lastCost||2500)+(G.lastAssetUpkeep||0))*1.25));
-    const propertyTarget=Math.round((G.difficulty==='easy'?350000:G.difficulty==='extreme'?90000:180000)*Math.max(0.55,Math.min(2,mult)));
+    const propertyTarget=Math.round((G.difficulty==='easy'?350000:G.difficulty==='extreme'?90000:180000)*Math.max(0.55,Math.min(2,costMult)));
 
     return[
       {id:'money_'+richTarget,kind:'money',icon:'💰',name:'Build Real Security',desc:`Reach ${fmtFull(richTarget)} net worth`,type:'networth',target:richTarget,reward:'money',ambition:'wealth',traits:['ambitious','frugal'],base:72,tier:'gold',category:'Finance'},
@@ -214,31 +303,39 @@ const Goals={
       {id:'emergency_fund',kind:'money2',icon:'🧯',name:'Emergency Fund',desc:'Keep at least 1 year of living costs in cash',type:'cashReserve',target:1,reward:'finance',traits:['frugal','disciplined'],diff:['hard','extreme'],base:64,tier:'silver',category:'Finance'},
       {id:'credit_760',kind:'credit',icon:'💳',name:'Excellent Credit',desc:'Reach a 760+ credit score',type:'credit',target:760,reward:'finance',traits:['disciplined','frugal'],base:60,debt:true,tier:'silver',category:'Finance'},
       {id:'debt_free',kind:'debtfree',icon:'🧾',name:'Debt-Free Chapter',desc:'Clear all loans and collections',type:'debtFree',target:0,reward:'finance',traits:['frugal','disciplined'],diff:['hard','extreme'],base:49,debt:true,tier:'silver',category:'Finance'},
+      {id:'cash_50k',kind:'cash2',icon:'💵',name:'Liquid Confidence',desc:'Keep $50K cash on hand',type:'cash',target:50000,reward:'finance',traits:['frugal','disciplined'],adult:true,base:42,tier:'gold',category:'Finance'},
 
       {id:'happy_90',kind:'happiness',icon:'😊',name:'Protect Your Peace',desc:'Reach 90+ happiness',type:'stat',stat:'happiness',target:90,reward:'happiness',traits:['empath','creative','lucky','stoic'],base:56,tier:'silver',category:'Wellbeing'},
       {id:'low_stress_5',kind:'mind',icon:'🧘',name:'Calm System',desc:'Keep stress under 30 for 5 years',type:'streak',field:'lowStressStreak',target:5,reward:'happiness',traits:['stoic','disciplined'],base:54,tier:'gold',category:'Wellbeing'},
       {id:'health_'+lifeTarget,kind:'health',icon:'💪',name:'Outlive the Odds',desc:`Reach age ${lifeTarget} with 60+ health`,type:'ageHealth',target:lifeTarget,health:60,reward:'health',ambition:'healthy',traits:['athletic','resilient','naturalist'],country:c=>(c.lifeExp||80)<76,base:66,tier:'legend',category:'Wellbeing'},
       {id:'fit_85',kind:'fitness',icon:'🏋️',name:'Athletic Body',desc:'Reach 85+ fitness',type:'stat',stat:'fitness',target:85,reward:'health',ambition:'healthy',traits:['athletic','disciplined'],young:true,base:58,tier:'gold',category:'Wellbeing'},
       {id:'recovery_3',kind:'recovery',icon:'🌱',name:'Stay Clean',desc:'Hold a 3-year recovery streak',type:'recovery',target:3,reward:'recovery',recovery:true,base:40,tier:'gold',category:'Wellbeing'},
+      {id:'health_90',kind:'health2',icon:'❤️',name:'Peak Health',desc:'Reach 90+ health',type:'stat',stat:'health',target:90,reward:'health',traits:['athletic','resilient','naturalist'],base:44,tier:'gold',category:'Wellbeing'},
 
       {id:'family_2',kind:'family',icon:'👨‍👩‍👧',name:'A Warm Home',desc:'Have a serious partner and 2 children',type:'family',children:2,reward:'family',ambition:'family',traits:['empath','charming'],base:55,family:true,tier:'gold',category:'Family'},
       {id:'relationship_80',kind:'relationship',icon:'💞',name:'Deep Bond',desc:'Have a partner with 80+ intimacy',type:'relationship',target:80,reward:'family',ambition:'family',traits:['empath','charming'],base:47,family:true,tier:'silver',category:'Family'},
       {id:'parent_present',kind:'parenting',icon:'🧸',name:'Present Parent',desc:'Have children and keep happiness 70+',type:'parentHappy',target:70,reward:'legacy',ambition:'family',traits:['empath','disciplined'],base:44,family:true,tier:'silver',category:'Family'},
+      {id:'relationship_90',kind:'relationship2',icon:'💍',name:'Soulmate Energy',desc:'Have a partner with 90+ intimacy',type:'relationship',target:90,reward:'family',ambition:'family',traits:['empath','charming'],base:38,family:true,tier:'gold',category:'Family'},
 
-      {id:'career_'+salaryTarget,kind:'career',icon:'💼',name:'Career Momentum',desc:`Earn ${fmtFull(sc(salaryTarget))}/yr salary`,type:'careerSalary',target:salaryTarget,reward:'career',ambition:'career',traits:['ambitious','disciplined'],base:60,career:true,tier:'gold',category:'Career'},
+      {id:'career_'+salaryTarget,kind:'career',icon:'💼',name:'Career Momentum',desc:`Earn ${fmtFull(salaryScale(salaryTarget,G),G)}/yr salary`,type:'careerSalary',target:salaryTarget,reward:'career',ambition:'career',traits:['ambitious','disciplined'],base:60,career:true,tier:'gold',category:'Career'},
       {id:'job_perf_85',kind:'career2',icon:'📈',name:'Trusted Professional',desc:'Reach 85+ job performance',type:'jobPerf',target:85,reward:'career',traits:['disciplined','ambitious'],base:45,career:true,tier:'silver',category:'Career'},
       {id:'degree_80',kind:'education',icon:'🎓',name:'Serious Education',desc:'Graduate university with 80+ smarts',type:'educationSmart',target:80,reward:'smarts',ambition:'academic',traits:['intellectual','scholar'],young:true,base:59,tier:'gold',category:'Career'},
+      {id:'career_120k',kind:'career3',icon:'🏢',name:'Executive Income',desc:`Earn ${fmtFull(salaryScale(120000,G),G)}+/yr salary`,type:'careerSalary',target:120000,reward:'career',ambition:'career_top',traits:['ambitious','disciplined'],base:35,career:true,tier:'legend',category:'Career'},
 
       {id:'fame_50',kind:'fame',icon:'⭐',name:'Public Name',desc:'Reach 50 fame',type:'stat',stat:'fame',target:50,reward:'fame',ambition:'fame',traits:['charming','creative','visionary'],base:50,social:true,tier:'gold',category:'Fame'},
       {id:'followers_100k',kind:'social',icon:'📱',name:'Real Audience',desc:'Reach 100K followers',type:'followers',target:100000,reward:'fame',ambition:'fame',traits:['charming','creative','visionary'],base:43,social:true,tier:'legend',category:'Fame'},
+      {id:'fame_75',kind:'fame2',icon:'🌟',name:'Household Name',desc:'Reach 75 fame',type:'stat',stat:'fame',target:75,reward:'fame',ambition:'fame',traits:['charming','creative','visionary'],base:32,social:true,tier:'legend',category:'Fame'},
 
       {id:'business_250k',kind:'business',icon:'🏢',name:'Local Empire',desc:'Build a business worth $250K+',type:'businessValue',target:250000,reward:'business',ambition:'entrepreneur',traits:['ambitious','visionary'],base:55,business:true,tier:'gold',category:'Business'},
       {id:'business_profit_50k',kind:'business2',icon:'💵',name:'Profitable Operator',desc:'Earn $50K+ yearly business profit',type:'businessProfit',target:50000,reward:'business',ambition:'entrepreneur',traits:['ambitious','visionary'],base:46,business:true,tier:'gold',category:'Business'},
+      {id:'business_1m',kind:'business3',icon:'🏦',name:'Seven-Figure Company',desc:'Build a business worth $1M+',type:'businessValue',target:1000000,reward:'business',ambition:'entrepreneur',traits:['ambitious','visionary'],base:30,business:true,tier:'legend',category:'Business'},
 
-      {id:'property_'+propertyTarget,kind:'property',icon:'🏠',name:'Own Something Real',desc:`Own property worth ${fmtFull(sc(propertyTarget))}+`,type:'propertyValue',target:sc(propertyTarget),reward:'property',ambition:'wealth',traits:['frugal','ambitious'],adult:true,base:46,tier:'gold',category:'Assets'},
-      {id:'rental_income_20k',kind:'rental',icon:'🏘️',name:'Rental Cashflow',desc:'Earn $20K+ yearly rental income',type:'rentalIncome',target:20000,reward:'property',ambition:'investor',traits:['frugal','ambitious'],adult:true,base:39,tier:'gold',category:'Assets'},
+      {id:'property_'+propertyTarget,kind:'property',icon:'🏠',name:'Own Something Real',desc:`Own property worth ${fmtFull(sc(propertyTarget,G),G)}+`,type:'propertyValue',target:sc(propertyTarget,G),reward:'property',ambition:'wealth',traits:['frugal','ambitious'],adult:true,base:46,tier:'gold',category:'Assets'},
+      {id:'rental_income_20k',kind:'rental',icon:'🏘️',name:'Rental Cashflow',desc:`Earn ${fmtFull(sc(20000,G),G)}+ yearly rental income`,type:'rentalIncome',target:sc(20000,G),reward:'property',ambition:'investor',traits:['frugal','ambitious'],adult:true,base:39,tier:'gold',category:'Assets'},
+      {id:'property_750k',kind:'property2',icon:'🏡',name:'Property Portfolio',desc:`Own property worth ${fmtFull(sc(750000,G),G)}+`,type:'propertyValue',target:sc(750000,G),reward:'property',ambition:'investor',traits:['frugal','ambitious'],adult:true,base:31,tier:'legend',category:'Assets'},
 
       {id:'travel_'+travelTarget,kind:'travel',icon:'🌍',name:'See Beyond Home',desc:`Visit ${travelTarget} countries`,type:'travel',target:travelTarget,reward:'travel',ambition:'traveller',traits:['curious','charming'],base:51,tier:'silver',category:'Lifestyle'},
+      {id:'travel_20',kind:'travel2',icon:'🧳',name:'Worldly Life',desc:'Visit 20 countries',type:'travel',target:20,reward:'travel',ambition:'traveller',traits:['curious','charming'],base:29,tier:'legend',category:'Lifestyle'},
       {id:'skill_'+chosenSkill,kind:'skill',icon:'🎯',name:`Master ${skillName}`,desc:`Reach level 4 in ${skillName}`,type:'skill',skill:chosenSkill,target:4,reward:'skill',ambition:'sage',traits:['scholar','disciplined','intellectual'],base:64,tier:'gold',category:'Skills'},
       {id:'stocks_100k',kind:'invest',icon:'📈',name:'Investor Brain',desc:'Build a stock portfolio worth $100K+',type:'stocks',target:100000,reward:'finance',ambition:'investor',traits:['frugal','intellectual'],adult:true,base:57,tier:'gold',category:'Finance'},
 
@@ -319,7 +416,14 @@ const Goals={
       const denom=Math.max(1,Math.abs(netWorth(G))+debt);
       return{current:Math.max(0,denom-debt),target:denom,label:debt<=0?'Debt cleared':`${money(debt)} debt left`,pct:debt<=0?100:Math.max(0,100-Math.min(100,Math.round(debt/denom*100))),hint:'Pay off loans and collections.'};
     }
-    if(g.type==='stat')return{...count(G[g.stat]||0,g.target),hint:`Improve ${this._cap(g.stat)} through actions and life choices.`};
+    if(g.type==='stat')return{...count(G[g.stat]||0,g.target),hint:`Improve ${this._cap(g.stat)} through age-appropriate actions and life choices.`};
+    if(g.type==='maxStat'){const current=G[g.stat]||0;return{current,target:g.target,label:`${Math.round(current)} / max ${g.target}`,pct:current<=g.target?100:Math.max(0,Math.round((1-(current-g.target)/Math.max(1,100-g.target))*100)),hint:`Lower ${this._cap(g.stat)} through recovery and support.`};}
+    if(g.type==='parentBond'){const arr=[G.rels?.father,G.rels?.mother].filter(Boolean);const bond=arr.length?Math.round(arr.reduce((a,p)=>a+(p.love||50),0)/arr.length):0;return{...count(bond,g.target),hint:'Spend meaningful time with parents in the Family tab.'};}
+    if(g.type==='schoolPerformance')return{...count(G.schoolPerformance||0,g.target),hint:'Use School actions and keep stress manageable.'};
+    if(g.type==='friendCount')return{...count((G.rels?.friends||[]).length,g.target,'friends'),hint:'Build friendships through age-appropriate social actions.'};
+    if(g.type==='youthTalent')return{...count(Object.values(G.youthTalents||{}).reduce((a,v)=>a+(Number(v)||0),0),g.target,'practice points'),hint:'Practice reading, sport, creativity, curiosity or social confidence.'};
+    if(g.type==='anySkill'){const best=Math.max(0,...Object.values(G.skills||{}).map(Number));return{...count(best,g.target,'skill level'),hint:'Train any specialist skill in the Skills tab.'};}
+    if(g.type==='teenPath'){const ready=!!G.career||!!G.inUniversity||G.education==='high_school'||Math.max(0,...Object.values(G.skills||{}).map(Number))>=1;return{current:ready?1:0,target:1,label:ready?'Direction started':'Choose a school, job or skill path',pct:ready?100:0,hint:'Use Career or Skills to begin a realistic next step.'};}
     if(g.type==='ageHealth'){
       const agePart=Math.min(70,Math.round(((G.age||0)/g.target)*70));
       const healthPart=(G.health||0)>=g.health?30:Math.round(((G.health||0)/g.health)*30);
@@ -338,7 +442,7 @@ const Goals={
       return{current:profit,target:g.target,label:`${money(profit)} / ${money(g.target)} profit`,pct:pct(profit,g.target),hint:'Scale business profit above expenses.'};
     }
     if(g.type==='educationSmart')return{current:G.smarts||0,target:g.target,label:`${G.education==='university'?'University done':'Need university'} · Smarts ${Math.round(G.smarts||0)}/${g.target}`,pct:Math.min(100,Math.round((G.education==='university'?55:0)+((G.smarts||0)/g.target)*45)),hint:'Graduate and keep building smarts.'};
-    if(g.type==='careerSalary')return{current:G.career?.salary||0,target:g.target,label:`${money(sc(G.career?.salary||0))} / ${money(sc(g.target))}/yr`,pct:pct(G.career?.salary||0,g.target),hint:'Promotions and better jobs move this goal.'};
+    if(g.type==='careerSalary')return{current:G.career?.salary||0,target:g.target,label:`${money(salaryScale(G.career?.salary||0,G))} / ${money(salaryScale(g.target,G))}/yr`,pct:pct(G.career?.salary||0,g.target),hint:'Promotions and better jobs move this goal.'};
     if(g.type==='jobPerf')return{...count(G.jobPerf||0,g.target),hint:'Work harder, reduce stress, and improve career skills.'};
     if(g.type==='followers')return{current:G.followers||0,target:g.target,label:`${typeof fmtFollowers==='function'?fmtFollowers(G.followers||0):this._fmtNum(G.followers||0)} / ${typeof fmtFollowers==='function'?fmtFollowers(g.target):this._fmtNum(g.target)}`,pct:pct(G.followers||0,g.target),hint:'Use Social actions to grow an audience.'};
     if(g.type==='propertyValue'){
@@ -374,6 +478,13 @@ const Goals={
     if(g.type==='credit')return(G.creditScore||0)>=g.target;
     if(g.type==='debtFree')return this._totalDebt(G)<=0&&G.age>=18;
     if(g.type==='stat')return(G[g.stat]||0)>=g.target;
+    if(g.type==='maxStat')return(G[g.stat]||0)<=g.target;
+    if(g.type==='parentBond'){const arr=[G.rels?.father,G.rels?.mother].filter(Boolean);return arr.length&&arr.reduce((a,p)=>a+(p.love||50),0)/arr.length>=g.target;}
+    if(g.type==='schoolPerformance')return(G.schoolPerformance||0)>=g.target;
+    if(g.type==='friendCount')return(G.rels?.friends||[]).length>=g.target;
+    if(g.type==='youthTalent')return Object.values(G.youthTalents||{}).reduce((a,v)=>a+(Number(v)||0),0)>=g.target;
+    if(g.type==='anySkill')return Math.max(0,...Object.values(G.skills||{}).map(Number))>=g.target;
+    if(g.type==='teenPath')return!!G.career||!!G.inUniversity||G.education==='high_school'||Math.max(0,...Object.values(G.skills||{}).map(Number))>=1;
     if(g.type==='ageHealth')return G.age>=g.target&&G.health>=g.health;
     if(g.type==='family')return!!G.rels?.partner&&(['serious','engaged','married'].includes(G.rels.partner.stage)||G.rels.partner.married)&&(G.rels.children||[]).length>=g.children;
     if(g.type==='relationship')return(G.rels?.partner?.intimacy||0)>=g.target;
@@ -514,7 +625,7 @@ const Goals={
     const goals=this.ensurePersonalGoals(G);
     const done=G.completedGoals||[];
     const status=this._planStatus(G,goals);
-    const ambDef=G.ambition&&typeof LIFE_AMBITIONS!=='undefined'?LIFE_AMBITIONS.find(a=>a.id===G.ambition):null;
+    const ambDef=(G.age||0)>=18&&G.ambition&&typeof LIFE_AMBITIONS!=='undefined'?LIFE_AMBITIONS.find(a=>a.id===G.ambition):null;
     const cooldown=this.recalibrateCooldown(G);
     const recommended=this._recommendedGoal(G,goals);
     const focus=goals.find(g=>g.id===G.focusGoalId&&!done.includes(g.id))||recommended;
@@ -524,10 +635,9 @@ const Goals={
 
     let h=`<div class="nw-box" style="position:relative;overflow:hidden">
       <div style="position:absolute;right:-45px;top:-55px;width:160px;height:160px;border-radius:50%;background:var(--accent)18;filter:blur(10px);pointer-events:none"></div>
-      <div class="nw-lbl">🎯 Personalized Life Plan</div>
-      <div class="nw-amt" style="font-size:24px;color:${status.pct>=70?'var(--green)':status.pct>=35?'var(--yellow)':'var(--accent)'}">${status.completed} / ${status.total}</div>
+      <div class="nw-lbl">🎯 ${G.age<18?'Age-Appropriate Growth Plan':'Personalized Life Plan'}</div>
       <div class="prog-bar" style="margin:8px 0 5px;height:9px"><div class="prog-fill" style="width:${status.pct}%;background:linear-gradient(90deg,var(--accent),var(--accent2))"></div></div>
-      <div class="nw-sub">${status.pct}% completed · ${status.avg}% average progress · ${status.ready} ready to claim · plan age ${ageGap} yr</div>
+      <div class="nw-sub">${status.pct}% completed · ${status.avg}% average progress · ${status.ready} ready to claim · ${ageGap===0?'new plan':`plan active ${ageGap} year${ageGap!==1?'s':''}`}</div>
     </div>`;
 
     if(focus){
@@ -552,13 +662,13 @@ const Goals={
 
     if(ambDef){
       const achieved=!!G.ambitionAchieved;
-      h+=`<div style="background:var(--s2);border:1.5px solid ${achieved?'rgba(251,191,36,.5)':'rgba(124,111,255,.35)'};border-radius:14px;padding:14px;margin-bottom:14px"><div style="font-size:10px;font-weight:900;color:var(--muted);text-transform:uppercase;letter-spacing:1.2px;margin-bottom:8px">🌟 Life Ambition</div><div style="display:flex;align-items:center;gap:11px"><div style="font-size:28px">${ambDef.icon}</div><div><div style="font-size:15px;font-weight:900;color:${achieved?'var(--yellow)':'var(--txt)'}">${this._esc(ambDef.name)} ${achieved?'✅':''}</div><div style="font-size:11px;color:var(--muted);font-weight:600;margin-top:2px">${this._esc(ambDef.desc)}</div><div style="font-size:11px;color:${achieved?'var(--yellow)':'var(--accent)'};font-weight:700;margin-top:4px">${achieved?'Life ambition achieved!':'Highest legacy bonus path.'}</div></div></div></div>`;
+      h+=`<div style="background:var(--s2);border:1.5px solid ${achieved?'rgba(251,191,36,.5)':'rgba(124,111,255,.35)'};border-radius:14px;padding:14px;margin-bottom:14px"><div style="font-size:10px;font-weight:900;color:var(--muted);text-transform:uppercase;letter-spacing:1.2px;margin-bottom:8px">🌟 Long-Term Life Ambition · Not a yearly quest</div><div style="display:flex;align-items:center;gap:11px"><div style="font-size:28px">${ambDef.icon}</div><div><div style="font-size:15px;font-weight:900;color:${achieved?'var(--yellow)':'var(--txt)'}">${this._esc(ambDef.name)} ${achieved?'✅':''}</div><div style="font-size:11px;color:var(--muted);font-weight:600;margin-top:2px">${this._esc(ambDef.desc)}</div><div style="font-size:11px;color:${achieved?'var(--yellow)':'var(--accent)'};font-weight:700;margin-top:4px">${achieved?'Life ambition achieved!':'Highest legacy bonus path.'}</div></div></div></div>`;
     }
 
     h+=`<div style="display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:8px;margin-bottom:12px">
       ${this._metricBox('Goal Progress',`${status.pct}%`,`${status.completed} completed`,status.pct>=70?'var(--green)':status.pct>=35?'var(--yellow)':'var(--accent)')}
       ${this._metricBox('Avg Progress',`${status.avg}%`,`${status.ready} ready`,status.avg>=70?'var(--green)':status.avg>=35?'var(--yellow)':'var(--cyan)')}
-      ${this._metricBox('Recalibration',cooldown?`${cooldown} yr`:'Ready',cooldown?'Age up to refresh':'Can generate a new plan',cooldown?'var(--muted)':'var(--green)')}
+      ${this._metricBox('Recalibration',cooldown?`${cooldown} yr`:'Ready',cooldown?'Current plan stays meaningful':'Can generate a new plan',cooldown?'var(--muted)':'var(--green)')}
       ${this._metricBox('Rewards Earned',fmt(G.goalStats?.totalRewards||0),`${G.goalStats?.completed||0} lifetime goals`,'var(--yellow)')}
     </div>`;
 
@@ -614,7 +724,7 @@ const Goals={
       ? "UI.toast('Goal recalibration is still cooling down.')"
       : "Goals.regenerate()";
 
-    h+=`<div class="act-grid"><div class="card ${cooldown?'locked':''}" onclick="${recalibrateAction}"><span class="ci">${cooldown?'🔒':'🔄'}</span><span class="cn">Recalibrate Goals</span><span class="cd">${cooldown?`Available in ${cooldown} year${cooldown!==1?'s':''}`:'New path from current life'}</span></div></div>`;
+    h+=`<div class="act-grid"><div class="card${cooldown?' disabled':''}" role="button" tabindex="0" aria-disabled="${cooldown?'true':'false'}" onclick="${recalibrateAction}"><span class="ci">🔄</span><span class="cn">Recalibrate Goals</span><span class="cd">${cooldown?`Available in ${cooldown} year${cooldown!==1?'s':''}`:'New path from current life'}</span></div></div>`;
 
     if((G.goalHistory||[]).length){
       h+=`<div class="sec">🏆 Recent Goal History</div>`;
@@ -678,7 +788,7 @@ const Goals={
       }
     });
 
-    if(G.ambition&&!G.ambitionAchieved&&typeof LIFE_AMBITIONS!=='undefined'){
+    if((G.age||0)>=18&&G.ambition&&!G.ambitionAchieved&&typeof LIFE_AMBITIONS!=='undefined'){
       const ambDef=LIFE_AMBITIONS.find(a=>a.id===G.ambition);
       if(ambDef){
         try{

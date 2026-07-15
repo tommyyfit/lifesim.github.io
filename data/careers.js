@@ -1,11 +1,11 @@
-/* data/careers.js — LifeSim v13 Reforged career catalogue */
+/* data/careers.js — LifeSim data */
 
 const CAREERS=[
   // Teen / early jobs
-  {id:'barista',icon:'☕',title:'Barista',cat:'Service',salary:22000,req:'none',minAge:16,prestige:1,smartsReq:0,stressAdd:3,skillReq:null,desc:'Coffee shop work, basic income and social experience.'},
-  {id:'cashier',icon:'🛒',title:'Cashier',cat:'Retail',salary:21000,req:'none',minAge:16,prestige:1,smartsReq:0,stressAdd:3,skillReq:null,desc:'Retail counter work with predictable hours.'},
-  {id:'waiter',icon:'🍽️',title:'Waiter',cat:'Service',salary:25000,req:'none',minAge:16,prestige:1,smartsReq:0,stressAdd:5,skillReq:null,desc:'Tips, long shifts and people skills.'},
-  {id:'farmhand',icon:'🌾',title:'Farm Worker',cat:'Agriculture',salary:23000,req:'none',minAge:16,prestige:1,smartsReq:0,stressAdd:4,skillReq:{fitness:1},desc:'Hard outdoor work and practical grit.'},
+  {id:'barista',icon:'☕',title:'Barista',cat:'Service',salary:22000,req:'none',minAge:18,prestige:1,smartsReq:0,stressAdd:3,skillReq:null,desc:'Coffee shop work, basic income and social experience.'},
+  {id:'cashier',icon:'🛒',title:'Cashier',cat:'Retail',salary:21000,req:'none',minAge:18,prestige:1,smartsReq:0,stressAdd:3,skillReq:null,desc:'Retail counter work with predictable hours.'},
+  {id:'waiter',icon:'🍽️',title:'Waiter',cat:'Service',salary:25000,req:'none',minAge:18,prestige:1,smartsReq:0,stressAdd:5,skillReq:null,desc:'Tips, long shifts and people skills.'},
+  {id:'farmhand',icon:'🌾',title:'Farm Worker',cat:'Agriculture',salary:23000,req:'none',minAge:18,prestige:1,smartsReq:0,stressAdd:4,skillReq:{fitness:1},desc:'Hard outdoor work and practical grit.'},
 
   // No degree
   {id:'delivery',icon:'📦',title:'Delivery Driver',cat:'Logistics',salary:33000,req:'none',minAge:18,prestige:1,smartsReq:0,stressAdd:4,skillReq:null,desc:'Fast-moving work with decent entry-level pay.'},

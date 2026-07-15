@@ -1,4 +1,4 @@
-/* js/stocks.js — LifeSim v13 Reforged market simulator */
+/* js/stocks.js — LifeSim module */
 
 const STOCK_LIST=[
   {id:'AAPL',name:'Apple Inc.',icon:'📱',sector:'Technology',basePrice:190,vol:.16,div:.005,quality:1.08,beta:1.05,desc:'Premium hardware, services and ecosystem.'},
@@ -16,7 +16,7 @@ const STOCK_LIST=[
 ];
 
 const Stocks={
-  VERSION:13.1,
+  VERSION:1,
 
   _esc(v){
     if(typeof escHTML==='function')return escHTML(v);
@@ -41,6 +41,16 @@ const Stocks={
     else console.log('[LifeSim]',msg);
   },
 
+
+  _adultOnly(){
+    const G=window.G;
+    if(!G||(G.age||0)<18){
+      this._toast('Investing unlocks at age 18.','neutral');
+      return false;
+    }
+    return true;
+  },
+
   _log(msg,type='neutral'){
     if(typeof Engine!=='undefined'&&Engine&&typeof Engine.log==='function')Engine.log(msg,type);
     else console.log(`[${type}]`,msg);
@@ -57,6 +67,39 @@ const Stocks={
   _confirm(msg){
     if(typeof confirm==='function')return confirm(msg);
     return true;
+  },
+
+  _attr(value){
+    return this._esc(String(value??''));
+  },
+
+  _stableKey(kind,id){
+    return `stocks:${kind}:${String(id??'')}`;
+  },
+
+  _afterStockAction(id,kind='market'){
+    this._update();
+
+    const panel=document.getElementById('tab-stocks');
+    if(!panel||!panel.classList.contains('active'))return;
+
+    const coreRender=(this.render&&this.render.__originalRender)
+      ? this.render.__originalRender.bind(this)
+      : this.render.bind(this);
+
+    const preferred=(kind==='holding'&&document.querySelector(`[data-stable-key="${this._stableKey('holding',id)}"]`))
+      ?this._stableKey('holding',id)
+      :this._stableKey('market',id);
+
+    if(typeof UI!=='undefined'&&UI&&typeof UI.stableRender==='function'){
+      UI.stableRender(panel,coreRender,{
+        preferredKey:preferred,
+        fallbackKey:this._stableKey('market',id)
+      });
+      return;
+    }
+
+    coreRender();
   },
 
   init(){
@@ -178,6 +221,9 @@ const Stocks={
   tick(){
     const G=window.G;if(!G)return;
     this.init();
+    // Prices and portfolio income do not run for a child, even when an old
+    // save contains stock data that should not have existed yet.
+    if((G.age||0)<18)return;
 
     const S=G.stocks;
     const oldValue=this.portfolioValue();
@@ -354,6 +400,7 @@ const Stocks={
 
   buy(id,shares){
     const G=window.G;if(!G)return;
+    if(!this._adultOnly())return;
     this.init();
 
     const st=STOCK_LIST.find(x=>x.id===id);
@@ -379,12 +426,12 @@ const Stocks={
     G.stocks.totalBought=(G.stocks.totalBought||0)+total;
 
     this._log(`📈 Bought ${shares}x ${id} at ${fmt(price)} each. Fee ${fmt(fee)}.`, 'money');
-    this._update();
-    this.render();
+    this._afterStockAction(id,'market');
   },
 
   buyMax(id){
     const G=window.G;if(!G)return;
+    if(!this._adultOnly())return;
     this.init();
 
     const st=STOCK_LIST.find(x=>x.id===id);
@@ -404,6 +451,7 @@ const Stocks={
 
   buyAmount(id,amount){
     const G=window.G;if(!G)return;
+    if(!this._adultOnly())return;
     this.init();
 
     const st=STOCK_LIST.find(x=>x.id===id);
@@ -422,6 +470,7 @@ const Stocks={
 
   sell(id,shares){
     const G=window.G;if(!G)return;
+    if(!this._adultOnly())return;
     this.init();
 
     const st=STOCK_LIST.find(x=>x.id===id);
@@ -452,25 +501,51 @@ const Stocks={
     }
 
     this._log(`📉 Sold ${shares}x ${id} for ${fmt(total)} after fee (${profit>=0?'+':''}${fmt(profit)} realized).`, profit>=0?'money':'bad');
-    this._update();
-    this.render();
+    this._afterStockAction(id,(G.stocks.portfolio[id]||0)>0?'holding':'market');
   },
 
   sellAll(){
     const G=window.G;if(!G)return;
+    if(!this._adultOnly())return;
     this.init();
 
     const ids=Object.keys(G.stocks.portfolio||{}).filter(id=>(G.stocks.portfolio[id]||0)>0);
     if(!ids.length){this._toast('No holdings to sell.');return;}
     if(!this._confirm('Sell your entire stock portfolio?\n\nThis cannot be undone.'))return;
 
-    ids.forEach(id=>this.sell(id,G.stocks.portfolio[id]||0));
+    let totalCash=0;
+    let totalProfit=0;
+
+    ids.forEach(id=>{
+      const st=STOCK_LIST.find(x=>x.id===id);
+      if(!st)return;
+      const shares=G.stocks.portfolio[id]||0;
+      const price=G.stocks.prices[id]||st.basePrice;
+      const subtotal=Math.round(price*shares);
+      const fee=this._tradeFee(subtotal);
+      const total=Math.max(0,subtotal-fee);
+      const profit=Math.round((price-(G.stocks.costBasis[id]||price))*shares-fee);
+      totalCash+=total;
+      totalProfit+=profit;
+      delete G.stocks.portfolio[id];
+      delete G.stocks.costBasis[id];
+    });
+
+    G.money=(G.money||0)+totalCash;
+    G.stocks.realizedPnl=(G.stocks.realizedPnl||0)+totalProfit;
+    G.stocks.totalSold=(G.stocks.totalSold||0)+totalCash;
+    this._log(`🚨 Sold entire portfolio for ${fmt(totalCash)} (${totalProfit>=0?'+':''}${fmt(totalProfit)} realized).`, totalProfit>=0?'money':'bad');
+    this._afterStockAction('AAPL','market');
   },
 
   render(){
     const G=window.G;if(!G)return;
     const el=document.getElementById('tab-stocks');if(!el)return;
     this.init();
+    if((G.age||0)<18){
+      el.innerHTML='<div class="empty"><span class="ei">📈</span><p>Investing unlocks at age 18.</p></div>';
+      return;
+    }
 
     const S=G.stocks;
     const port=S.portfolio;
@@ -499,10 +574,12 @@ const Stocks={
 
     h+=`<div class="info-box" style="border-color:${note.color}55;background:${note.color}10"><p style="margin:0"><strong>${this._esc(note.icon)} Investor Note:</strong> <span style="font-weight:900;color:${note.color}">${this._esc(note.title)}</span> · ${this._esc(note.text)}</p></div>`;
     h+=`<div class="info-box"><p>📊 This is a simplified fictional market sim using real-world inspired names. Finance skill improves long-term drift and lowers trade friction slightly.</p></div>`;
-    h+=this._allocationHTML();
-
-    h+=this._renderHoldings(G);
+    // Keep the main trading list directly under the summary. Sections that can
+    // appear/disappear after a buy (allocation + holdings) are rendered below
+    // Market, so the clicked Market row is not physically pushed up/down.
     h+=this._renderMarket(G);
+    h+=this._allocationHTML();
+    h+=this._renderHoldings(G);
 
     el.innerHTML=h;
   },
@@ -549,7 +626,7 @@ const Stocks={
         const gainPct=basisPrice>0?Math.round(((price-basisPrice)/basisPrice)*1000)/10:0;
         const half=Math.max(1,Math.floor(qty/2));
 
-        h+=`<div class="row-card" style="border-color:${gain>=0?'rgba(74,222,128,.28)':'rgba(248,113,113,.28)'}">
+        h+=`<div class="row-card" data-stable-key="${this._attr(this._stableKey('holding',id))}" data-stock-id="${this._attr(id)}" data-stock-kind="holding" style="border-color:${gain>=0?'rgba(74,222,128,.28)':'rgba(248,113,113,.28)'}">
           <span class="ri">${st.icon}</span>
           <div class="rd">
             <div class="rt">${this._esc(st.name)} <span style="font-size:10px;color:var(--muted)">${st.id}</span></div>
@@ -565,7 +642,7 @@ const Stocks={
       });
 
     h+=`<div class="act-grid" style="margin-top:10px">
-      <div class="card danger" onclick="Stocks.sellAll()"><span class="ci">🚨</span><span class="cn">Sell Entire Portfolio</span><span class="cd">Cash out all holdings</span></div>
+      <div class="card danger" data-stable-key="${this._attr(this._stableKey('action','sell-all'))}" onclick="Stocks.sellAll()"><span class="ci">🚨</span><span class="cn">Sell Entire Portfolio</span><span class="cd">Cash out all holdings</span></div>
     </div>`;
 
     return h;
@@ -585,11 +662,11 @@ const Stocks={
       const held=port[st.id]||0;
       const buy5=Math.round(price*5+this._tradeFee(price*5));
 
-      h+=`<div class="row-card" style="padding:10px 12px">
+      h+=`<div class="row-card" data-stable-key="${this._attr(this._stableKey('market',st.id))}" data-stock-id="${this._attr(st.id)}" data-stock-kind="market" style="padding:10px 12px">
         <span class="ri">${st.icon}</span>
         <div class="rd">
           <div class="rt">${this._esc(st.name)} <span style="font-size:10px;color:var(--muted)">${st.id} · ${this._esc(st.sector)}</span></div>
-          <div class="rs">${this._esc(st.desc)} · ${this._riskLabel(st)}${st.div?` · Dividend ${(st.div*100).toFixed(1)}%`:''}${held?` · Holding ${held}`:''}</div>
+          <div class="rs">${this._esc(st.desc)} · ${this._riskLabel(st)}${st.div?` · Dividend ${(st.div*100).toFixed(1)}%`:''} · Holding ${held||0}</div>
           <div style="margin-top:4px">${this._spark(st.id)}</div>
         </div>
         <div style="text-align:right;flex-shrink:0">

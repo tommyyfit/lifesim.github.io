@@ -1,9 +1,51 @@
-/* data/events.js — LifeSim v13 Reforged event pack */
+/* data/events.js — LifeSim data */
 
 const EV=(icon,type,title,text,choices)=>({icon,type,title,text,choices});
 const CH=(t,e={})=>({t,e});
 
 const EVENTS={
+  earlyChildhood:[
+    EV('👣','special','First Steps','You found your balance and took a few brave steps across the room.',[
+      CH('👏 Keep trying',{fitness:5,happiness:7,health:2}),
+      CH('🤗 Walk into a parent’s arms',{happiness:9,stress:-3,parentBond:3}),
+    ]),
+    EV('📖','good','Bedtime Story','A familiar voice turned a simple picture book into a whole new world.',[
+      CH('🌙 Listen quietly',{smarts:5,happiness:5,stress:-4}),
+      CH('👉 Point at every picture',{smarts:7,happiness:4}),
+    ]),
+    EV('🧸','neutral','Favorite Toy','One toy became your trusted companion everywhere you went.',[
+      CH('😊 Keep it close',{happiness:7,stress:-4}),
+      CH('🤝 Share it during playtime',{happiness:6,karma:2}),
+    ]),
+    EV('🗣️','special','A New Word','You surprised your family by clearly saying a new word.',[
+      CH('😄 Say it again',{smarts:6,happiness:8}),
+      CH('🎵 Turn it into a little song',{smarts:4,happiness:9}),
+    ]),
+    EV('🌳','good','Family Picnic','Your family spent a calm afternoon outside together.',[
+      CH('⚽ Move and explore',{fitness:5,health:3,happiness:6}),
+      CH('🧺 Stay close to family',{happiness:8,stress:-4,parentBond:3}),
+    ]),
+    EV('🩺','neutral','Routine Checkup','A normal childhood checkup made sure your development was on track.',[
+      CH('🙂 Stay calm',{health:5,stress:-3}),
+      CH('❓ Ask curious questions',{health:3,smarts:4}),
+    ]),
+    EV('🌧️','neutral','Rainy Day Indoors','Rain kept everyone inside, so the living room became a play space.',[
+      CH('🎨 Make something',{happiness:6,smarts:3}),
+      CH('🧩 Solve a simple puzzle',{smarts:6,happiness:4}),
+    ]),
+    EV('😨','bad','A Small Scare','A loud noise frightened you more than anyone expected.',[
+      CH('🤗 Seek comfort',{happiness:4,stress:-5,parentBond:3}),
+      CH('🫁 Breathe and settle',{mentalHealth:4,stress:-4}),
+    ]),
+    EV('🍌','good','Helping in the Kitchen','You were given one tiny, safe job while the family prepared food.',[
+      CH('🥣 Help carefully',{smarts:4,happiness:6,karma:1}),
+      CH('😋 Taste the result',{health:2,happiness:8}),
+    ]),
+    EV('🫶','good','Play Date','Another child visited and the two of you slowly learned to play together.',[
+      CH('🤝 Share and cooperate',{happiness:7,karma:2}),
+      CH('🏃 Invent a game',{fitness:4,happiness:7,smarts:2}),
+    ]),
+  ],
   childhood:[
     EV('🍦','good','Ice Cream Day','Your parent bought you ice cream on the walk home. For a few minutes, life felt perfect.',[
       CH('😋 Savour every bite',{happiness:8}),
@@ -24,7 +66,7 @@ const EVENTS={
     ]),
     EV('🤒','bad','Bad Illness','You caught a nasty virus and missed school for a week.',[
       CH('🛌 Rest properly',{health:-3,happiness:3,stress:-3}),
-      CH('💊 Take medicine',{health:-2,money:-60}),
+      CH('💊 Let family handle medicine',{health:-2,stress:-1}),
       CH('🏃 Push through',{health:-12,happiness:-5,stress:7}),
     ]),
     EV('🎂','special','Birthday Party','Your birthday party was full of friends, music and chaos.',[
@@ -68,7 +110,7 @@ const EVENTS={
       CH('📱 Miss home',{happiness:4,stress:2}),
     ]),
     EV('🐱','neutral','Injured Stray Cat','You found a small injured cat behind the school.',[
-      CH('🏥 Take it to the vet',{happiness:10,money:-120,karma:4}),
+      CH('🏥 Ask an adult to take it to the vet',{happiness:10,karma:4}),
       CH('🏠 Nurse it at home',{happiness:7,karma:2}),
       CH('😞 Walk past',{happiness:-7,karma:-3}),
     ]),
@@ -214,6 +256,25 @@ const EVENTS={
     EV('🎨','neutral','Youth Art Exhibition','Your art teacher submitted your work to an exhibition.',[
       CH('🖼️ Attend and network',{happiness:10,looks:4,fame:6}),
       CH('😊 Let it show',{happiness:5}),
+    ]),
+    // v21: new teen events
+    EV('📱','neutral','Social Media Comparison','Scrolling through perfect lives online makes you feel inadequate.',[
+      CH('📵 Take a week off screens',{happiness:10,stress:-8,mentalHealth:5}),
+      CH('🤳 Post your own highlights',{happiness:6,fame:4,stress:2}),
+      CH('📓 Journal about it',{happiness:8,smarts:3,stress:-4}),
+    ]),
+    EV('🛹','neutral','New Hobby','A friend introduced you to skateboarding and you are hooked.',[
+      CH('🛹 Train seriously',{fitness:9,health:4,happiness:13,stress:-6}),
+      CH('😊 Fun on weekends',{fitness:4,happiness:8}),
+      CH('😬 Too risky',{happiness:-2}),
+    ]),
+    EV('🍳','good','Cooking Discovery','You tried making a meal from scratch and it turned out amazing.',[
+      CH('👨‍🍳 Take cooking seriously',{happiness:12,health:5,smarts:3,stress:-5}),
+      CH('😊 Keep it casual',{happiness:7,health:2}),
+    ]),
+    EV('🤝','neutral','Mentorship Offer','An older student offered to mentor you through tough coursework.',[
+      CH('📚 Accept gratefully',{smarts:10,happiness:8,stress:-5}),
+      CH('🙅 Handle it alone',{smarts:3,stress:4}),
     ]),
   ],
 
@@ -370,6 +431,31 @@ const EVENTS={
       CH('🚔 Report and freeze accounts',{money:-3000,happiness:-9,stress:14}),
       CH('🧑‍💻 Handle it yourself',{money:-8000,happiness:-13,stress:18}),
       CH('💳 Pay everything',{money:-12000,happiness:-8,stress:8}),
+    ]),
+    // v21: new adult events
+    EV('🧘','good','Wellness Retreat','A wellness retreat advertisement caught your eye.',[
+      CH('🌿 Book the full retreat',{happiness:22,stress:-20,health:8,money:-1800}),
+      CH('🧘 Try local classes',{happiness:12,stress:-10,money:-200}),
+      CH('📵 Ignore it',{}),
+    ]),
+    EV('🎂','special','Milestone Birthday','You just turned 40. Friends threw you a surprise party.',[
+      CH('🎉 Party hard',{happiness:22,stress:-8,fame:4}),
+      CH('🪞 Reflect quietly',{happiness:14,smarts:4}),
+      CH('😔 Feel old',{happiness:-6,stress:5}),
+    ]),
+    EV('📉','bad','Market Crash','The economy dipped sharply and your savings took a hit.',[
+      CH('🧮 Rebalance portfolio',{money:-8000,smarts:5,stress:8}),
+      CH('😰 Panic sell',{money:-15000,stress:14}),
+      CH('🧘 Ride it out',{stress:6}),
+    ]),
+    EV('🧑‍🤝‍🧑','good','Old Friend Reconnects','Someone you lost touch with reached out after ten years.',[
+      CH('☕ Meet for coffee',{happiness:16,stress:-6,karma:3}),
+      CH('💬 Catch up online',{happiness:10,stress:-3}),
+      CH('🙅 Too busy right now',{happiness:-2}),
+    ]),
+    EV('🏆','special','Personal Record','You smashed a personal fitness goal you set two years ago.',[
+      CH('💪 Train even harder',{fitness:10,health:6,happiness:16}),
+      CH('🎉 Celebrate the moment',{happiness:14,stress:-8}),
     ]),
   ],
 

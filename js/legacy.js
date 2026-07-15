@@ -1,9 +1,9 @@
-/* js/legacy.js — LifeSim v13 Reforged Legacy / Dynasty / Prestige System */
+/* js/legacy.js — LifeSim module */
 
 const Legacy={
-  VERSION:13,
-  PRESTIGE_KEY:'ls13_prestige',
-  OLD_KEYS:['ls12_prestige','ls11_prestige','ls8_prestige'],
+  VERSION:1,
+  PRESTIGE_KEY:'ls15_prestige',
+  OLD_KEYS:['ls14_prestige','ls12_prestige','ls11_prestige','ls8_prestige'],
 
   load(){
     try{
@@ -71,7 +71,7 @@ const Legacy={
     const lives=Math.max(0,Math.round(d.livesPlayed||0));
     const total=Math.max(0,Math.round(d.totalScore||0));
     return{
-      version:13,
+      version:14,
       livesPlayed:lives,
       totalScore:total,
       avgScore:lives?Math.round(total/lives):0,
@@ -223,15 +223,20 @@ const Legacy={
     const rank=this.rankLabel(p.livesPlayed,p.totalScore);
 
     if(p.livesPlayed===0){
-      el.innerHTML=`<span style="font-size:11px;color:var(--muted);font-weight:700">🌱 Begin your dynasty — play your first life!</span>`;
+      el.innerHTML=`<div class="prestige-card"><div class="prestige-main" style="grid-column:1 / -1"><div class="prestige-rank" style="color:${rank.color}">🌱 Begin your dynasty</div><span class="prestige-sub">Play your first life to unlock prestige, records, inheritance, and dynasty progress.</span></div></div>`;
       return;
     }
 
     el.innerHTML=`
-      <span style="font-size:11px;font-weight:900;color:${rank.color}">${rank.icon} ${this._esc(rank.label)}</span>
-      <span style="font-size:11px;font-weight:700;color:var(--muted)"> · ${p.livesPlayed} live${p.livesPlayed!==1?'s':''} · Score: ${p.totalScore.toLocaleString()} · Avg: ${p.avgScore}</span>
-      ${p.bestGrade?`<span style="font-size:11px;font-weight:700;color:var(--yellow)"> · Best: ${this._esc(p.bestGrade)}</span>`:''}
-      ${p.dynastyName?`<span style="font-size:11px;font-weight:700;color:var(--muted)"> · Dynasty: ${this._esc(p.dynastyName)}</span>`:''}
+      <div class="prestige-card">
+        <div class="prestige-main">
+          <div class="prestige-rank" style="color:${rank.color}">${rank.icon} ${this._esc(rank.label)}</div>
+          <span class="prestige-sub">${this._esc(p.dynastyName||'New')} dynasty · Next: ${this._esc(rank.next)}</span>
+        </div>
+        <div class="prestige-stat"><strong>${p.livesPlayed}</strong><small>Lives played</small></div>
+        <div class="prestige-stat"><strong>${p.totalScore.toLocaleString()}</strong><small>Total score · avg ${p.avgScore}</small></div>
+        <div class="prestige-stat"><strong>${this._esc(p.bestGrade||'—')}</strong><small>Best grade · score ${p.bestScore}</small></div>
+      </div>
     `;
   },
 
@@ -268,52 +273,79 @@ const Legacy={
 
     if(!opts.length){
       el.style.display='none';
-      Legacy._selectedOpt='none';
-      Legacy._selectedBonus=0;
+      this._selectedOpt='none';
+      this._selectedBonus=0;
       return;
     }
 
+    const first=opts[0];
+    this._selectedOpt=first.id;
+    this._selectedBonus=Number(first.bonus)||0;
+
     el.style.display='block';
     el.innerHTML=`
-      <div style="font-size:10px;font-weight:900;color:var(--muted);text-transform:uppercase;letter-spacing:1.2px;margin-bottom:8px">🌳 Legacy Inheritance · Grade ${this._esc(lastGrade)} ancestor</div>
-      <div id="legacy-opts" style="display:flex;flex-direction:column;gap:6px">
-        ${opts.map(o=>`
-          <button type="button" class="legacy-opt-btn" id="lopt-${this._esc(o.id)}" onclick="Legacy.selectInheritance('${this._esc(o.id)}',${Number(o.bonus)||0})" style="display:flex;align-items:center;gap:10px;background:var(--s2);border:1.5px solid var(--b1);border-radius:10px;padding:8px 12px;cursor:pointer;text-align:left;transition:.15s">
-            <span style="font-size:18px">${o.icon}</span>
-            <div>
-              <div style="font-size:12px;font-weight:800;color:var(--txt)">${this._esc(o.label)}</div>
-              <div style="font-size:11px;color:var(--muted)">${this._esc(o.desc)}</div>
-            </div>
-          </button>`).join('')}
-        <button type="button" class="legacy-opt-btn" id="lopt-none" onclick="Legacy.selectInheritance('none',0)" style="display:flex;align-items:center;gap:10px;background:var(--s2);border:1.5px solid var(--b1);border-radius:10px;padding:8px 12px;cursor:pointer;text-align:left;opacity:.65">
-          <span style="font-size:18px">🚫</span>
+      <div class="legacy-legacy-card">
+        <div class="legacy-legacy-card-head">
           <div>
-            <div style="font-size:12px;font-weight:800;color:var(--txt)">Start Fresh</div>
-            <div style="font-size:11px;color:var(--muted)">Decline the inheritance — forge your own path</div>
+            <div class="legacy-legacy-card-kicker">🌳 Legacy Start Bonus</div>
+            <strong>Choose one inherited advantage</strong>
+            <small>Your last life finished as Grade ${this._esc(lastGrade)}. Pick one clean bonus, or start fresh with no boost.</small>
           </div>
-        </button>
+          <span>Optional</span>
+        </div>
+        <div id="legacy-opts" class="legacy-options legacy-options-legacy-card" role="radiogroup" aria-label="Choose legacy inheritance">
+          ${opts.map((o,i)=>`
+            <button type="button" class="legacy-opt-btn legacy-opt-legacy-card ${i===0?'selected':''}" id="lopt-${this._esc(o.id)}" data-legacy-id="${this._esc(o.id)}" data-legacy-bonus="${Number(o.bonus)||0}" role="radio" aria-checked="${i===0?'true':'false'}">
+              <span class="legacy-opt-icon" aria-hidden="true">${o.icon}</span>
+              <span class="legacy-opt-copy">
+                <strong>${this._esc(o.label)}</strong>
+                <small>${this._esc(o.desc)}</small>
+              </span>
+            </button>`).join('')}
+          <button type="button" class="legacy-opt-btn legacy-opt-legacy-card legacy-none" id="lopt-none" data-legacy-id="none" data-legacy-bonus="0" role="radio" aria-checked="false">
+            <span class="legacy-opt-icon" aria-hidden="true">🚫</span>
+            <span class="legacy-opt-copy">
+              <strong>Start Fresh</strong>
+              <small>No inheritance bonus. Clean run, clean story.</small>
+            </span>
+          </button>
+        </div>
       </div>`;
 
-    Legacy._selectedOpt=opts[0].id;
-    Legacy._selectedBonus=opts[0].bonus;
-    document.getElementById('lopt-'+opts[0].id)?.style.setProperty('border-color','var(--accent)');
+    this._bindLegacyOptions(el);
   },
 
   _selectedOpt:'none',
   _selectedBonus:0,
 
+  _bindLegacyOptions(root=document){
+    const wrap=root.querySelector?.('#legacy-opts');
+    if(!wrap||wrap.dataset.bound==='1')return;
+    wrap.dataset.bound='1';
+    wrap.addEventListener('click',e=>{
+      const btn=e.target.closest?.('.legacy-opt-btn');
+      if(!btn||!wrap.contains(btn))return;
+      e.preventDefault();
+      this.selectInheritance(btn.dataset.legacyId||'none',Number(btn.dataset.legacyBonus)||0);
+    });
+    wrap.addEventListener('keydown',e=>{
+      if(e.key!=='Enter'&&e.key!==' ')return;
+      const btn=e.target.closest?.('.legacy-opt-btn');
+      if(!btn)return;
+      e.preventDefault();
+      btn.click();
+    });
+  },
+
   selectInheritance(id,bonus){
-    this._selectedOpt=id;
+    this._selectedOpt=id||'none';
     this._selectedBonus=Number(bonus)||0;
     document.querySelectorAll('.legacy-opt-btn').forEach(b=>{
-      b.style.borderColor='var(--b1)';
-      b.style.opacity='';
+      const active=(b.dataset.legacyId||'none')===this._selectedOpt;
+      b.classList.toggle('selected',active);
+      b.setAttribute('aria-checked',active?'true':'false');
     });
-    const btn=document.getElementById('lopt-'+id);
-    if(btn){
-      btn.style.borderColor='var(--accent)';
-      if(id==='none')btn.style.opacity='1';
-    }
+    if(typeof Create!=='undefined'&&Create.updatePreview)Create.updatePreview();
   },
 };
 

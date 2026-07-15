@@ -3,24 +3,34 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover">
-<meta name="description" content="LifeSim v14 — a premium browser-based life simulation game where every choice shapes your money, health, relationships, legacy, career, crime path, gangs, and dynasty.">
-<meta name="theme-color" content="#7c6fff">
+<meta name="description" content="LifeSim v24.2.1: Fun First — connected story arcs, evolving relationships, clearer yearly choices, legacy and optional local Ollama storytelling.">
+<meta name="theme-color" content="#06b6d4">
 <meta name="color-scheme" content="dark light">
-<meta name="application-name" content="LifeSim v14">
-<meta name="author" content="LifeSim">
-<meta property="og:title" content="LifeSim v14">
-<meta property="og:description" content="Every choice shapes your story, empire, underworld, and legacy.">
+<meta name="application-name" content="LifeSim">
+<meta name="author" content="tommyy.fit">
+<meta property="og:title" content="LifeSim">
+<meta property="og:description" content="Life simulation game with career, family, health, and legacy systems.">
 <meta property="og:type" content="website">
-<title>LifeSim v14 — Legacy & Underworld</title>
+<title>LifeSim v24.2.1: Fun First</title>
+<link rel="icon" type="image/svg+xml" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Cdefs%3E%3ClinearGradient id='g' x1='0' x2='1' y1='0' y2='1'%3E%3Cstop offset='0%25' stop-color='%237c6fff'/%3E%3Cstop offset='100%25' stop-color='%2322d3ee'/%3E%3C/linearGradient%3E%3C/defs%3E%3Crect width='64' height='64' rx='16' fill='%230c0b19'/%3E%3Ccircle cx='32' cy='32' r='21' fill='url(%23g)'/%3E%3Cpath d='M18 32h28M32 18c5 4 8 9 8 14s-3 10-8 14c-5-4-8-9-8-14s3-10 8-14Z' fill='none' stroke='white' stroke-width='3.2' stroke-linecap='round' stroke-linejoin='round'/%3E%3Ccircle cx='48' cy='16' r='5' fill='%23fbbf24'/%3E%3C/svg%3E">
 
-<link rel="preconnect" href="https://fonts.googleapis.com">
-<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Nunito:wght@400;600;700;800;900&display=swap" rel="stylesheet">
 
 <link rel="stylesheet" href="css/base.css">
 <link rel="stylesheet" href="css/components.css">
 <link rel="stylesheet" href="css/screens.css">
 <link rel="stylesheet" href="css/animations.css">
+<link rel="stylesheet" href="css/game-theme.css">
+<link rel="stylesheet" href="css/app-layout.css">
+<link rel="stylesheet" href="css/section-polish.css">
+<link rel="stylesheet" href="css/shell-theme.css">
+<link rel="stylesheet" href="css/life-systems.css">
+<link rel="stylesheet" href="css/lifesim-v22.css">
+<link rel="stylesheet" href="css/lifesim-v23.css">
+<link rel="stylesheet" href="css/age-logic.css">
+<link rel="stylesheet" href="css/ui-hotfix.css">
+<link rel="stylesheet" href="css/lifesim-v24.css">
+<link rel="stylesheet" href="css/lifesim-v24-ux.css">
+<link rel="stylesheet" href="css/lifesim-fun-first.css">
 </head>
 
 <body>
@@ -29,54 +39,81 @@
     <div style="max-width:520px">
       <div style="font-size:42px;margin-bottom:10px">⚠️</div>
       <h1 style="margin:0 0 8px;font-size:24px">JavaScript is required</h1>
-      <p style="margin:0;color:#cbd5e1;line-height:1.6">LifeSim v14 runs fully in your browser. Please enable JavaScript to play.</p>
+      <p style="margin:0;color:#cbd5e1;line-height:1.6">LifeSim</p>
     </div>
   </div>
 </noscript>
 
-<a href="#game-content" class="skip-link" style="position:absolute;left:-999px;top:auto;width:1px;height:1px;overflow:hidden">Skip to game content</a>
+<a href="#game-content" class="skip-link">Skip to game content</a>
 
-<div id="app" data-version="14.0">
+<div id="app" data-version="24.2.1" data-build="24.2.1-fun-first">
 
 <!-- SPLASH -->
 <div id="splash-screen" class="screen active" aria-label="Main menu">
   <div class="splash-glow" aria-hidden="true"></div>
 
-  <div class="splash-logo">
-    <div class="ver-badge" style="margin-bottom:12px">v14.0 — LEGACY &amp; UNDERWORLD EDITION</div>
-    <span class="logo-emoji" aria-hidden="true">🌍</span>
-    <h1>LifeSim</h1>
-    <p class="tagline">Every choice becomes your legacy</p>
+  <main class="splash-shell">
+    <header class="splash-toolbar">
+      <div class="splash-build" aria-label="Current version">
+        <span class="splash-build-dot" aria-hidden="true"></span>
+        <span>LifeSim v24.2.1 · Fun First</span>
+      </div>
+      <button type="button" id="btn-updates" class="update-log-fab" onclick="return App.showUpdates(event)" aria-haspopup="dialog" aria-controls="updates-modal" aria-label="Open update log">
+        <span aria-hidden="true">📰</span>
+        <strong>What’s new</strong>
+      </button>
+    </header>
 
-    <div style="display:flex;gap:8px;justify-content:center;flex-wrap:wrap;margin-top:10px">
-      <span class="ver-badge" style="font-size:10px">🏴 Gangs</span>
-      <span class="ver-badge" style="font-size:10px">👑 Legacy</span>
-      <span class="ver-badge" style="font-size:10px">📊 Life Stats</span>
-      <span class="ver-badge" style="font-size:10px">💼 Careers</span>
-    </div>
-  </div>
+    <section class="splash-main-card" aria-label="Start LifeSim">
+      <div class="splash-brand-panel">
+        <div class="splash-logo">
+          <span class="logo-emoji" aria-hidden="true">🌍</span>
+          <div>
+            <h1>LifeSim</h1>
+            <p class="tagline">Every year changes you. Every choice follows you.</p>
+          </div>
+        </div>
 
-  <div class="splash-menu" role="menu" aria-label="Main menu actions">
-    <button type="button" class="btn-primary btn-pulse" onclick="App.newLife()">🌟 Start New Life</button>
-    <button type="button" class="btn-secondary" id="btn-continue" onclick="App.loadGame()" disabled>📖 Continue Life</button>
-    <button type="button" class="btn-secondary" onclick="App.showHOF()">🏆 Hall of Fame</button>
-    <button type="button" class="btn-secondary" onclick="App.showAchievements()">🎖️ Achievements</button>
-  </div>
+        <p class="splash-intro">
+          Live one enjoyable year at a time. Make a few choices, see what happens, and build a story without managing dozens of systems.
+        </p>
 
-  <div class="splash-features" aria-label="Version highlights">
-    <span>🏴 Gangs &amp; Territory</span>
-    <span>🧠 Smarter Life Choices</span>
-    <span>🌳 Dynasty Legacy</span>
-    <span>📊 Stat Charts</span>
-    <span>🎭 Life Chapters</span>
-    <span>🏅 Prestige Rank</span>
-    <span>🚔 Crime Consequences</span>
-    <span>💼 Wealth Paths</span>
-  </div>
+        <div class="splash-keypoints" aria-label="Core features">
+          <div><span aria-hidden="true">🧠</span><p><strong>Connected life chapters</strong><small>Multi-year stories remember trust, conflict, personality and earlier choices.</small></p></div>
+          <div><span aria-hidden="true">🦋</span><p><strong>People with their own lives</strong><small>Relationships now track trust, closeness, respect, conflict and change.</small></p></div>
+          <div><span aria-hidden="true">🌳</span><p><strong>Optional local AI</strong><small>Ollama can enhance recaps and moments while core logic stays offline and deterministic.</small></p></div>
+        </div>
+      </div>
 
-  <div id="prestige-panel" style="margin:8px auto 0;max-width:480px;text-align:center;padding:6px 12px;background:var(--s1);border-radius:20px;border:1.5px solid var(--b1)"></div>
+      <div class="splash-action-panel">
+        <div class="splash-action-copy">
+          <span>YOUR STORY</span>
+          <h2>Begin a new life</h2>
+          <p>Create a character or continue from your latest local save.</p>
+        </div>
 
-  <div class="splash-foot">LifeSim v14 — Legacy &amp; Underworld Edition · 2026</div>
+        <div class="splash-menu" role="menu" aria-label="Main menu actions">
+          <button type="button" class="btn-primary" onclick="App.newLife()">🌟 Start New Life</button>
+          <button type="button" class="btn-secondary" id="btn-continue" onclick="App.loadGame()" disabled>📖 Continue Life</button>
+          <div class="splash-menu-row">
+            <button type="button" class="btn-secondary" onclick="App.showHOF()">🏆 Hall of Fame</button>
+            <button type="button" class="btn-secondary" onclick="App.showAchievements()">🎖️ Achievements</button>
+          </div>
+        </div>
+
+        <p class="splash-save-note">🔒 Saves stay in this browser unless you export them.</p>
+      </div>
+    </section>
+
+    <section class="splash-highlights" aria-label="Version highlights">
+      <article><span aria-hidden="true">📖</span><div><strong>Living story arcs</strong><small>Choices develop across several years instead of disappearing instantly.</small></div></article>
+      <article><span aria-hidden="true">🧭</span><div><strong>Adaptive yearly priorities</strong><small>Focus changes with age, health, work, relationships and money pressure.</small></div></article>
+      <article><span aria-hidden="true">🦙</span><div><strong>Local Ollama mode</strong><small>Use an installed model without making the game dependent on AI.</small></div></article>
+    </section>
+
+    <div id="prestige-panel"></div>
+    <div class="splash-foot">LifeSim · made by tommyy.fit</div>
+  </main>
 </div>
 
 <!-- CREATE -->
@@ -84,7 +121,7 @@
   <div class="topbar">
     <button type="button" class="back-btn" onclick="App.show('splash-screen')">← Back</button>
     <span class="topbar-title">👶 Create Your Life</span>
-    <span class="ver-badge" style="font-size:10px">v14</span>
+    <span class="ver-badge" data-label="Origin Builder" style="font-size:10px">Origin Builder</span>
   </div>
 
   <div class="create-scroll">
@@ -102,7 +139,10 @@
 
         <div class="form-group">
           <label class="form-label" for="inp-name">First Name</label>
-          <input type="text" id="inp-name" name="name" class="form-input" placeholder="Enter name…" maxlength="20" autocomplete="given-name" spellcheck="false">
+          <div style="display:flex;gap:8px;align-items:center">
+            <input type="text" id="inp-name" name="name" class="form-input" placeholder="Enter name…" maxlength="20" autocomplete="given-name" spellcheck="false" style="flex:1">
+            <button type="button" title="Random name" onclick="const n=Create.suggestedName();document.getElementById('inp-name').value=n;Create.syncGenderFromName(true);" style="background:var(--s2);border:1.5px solid var(--b1);border-radius:10px;padding:8px 10px;font-size:16px;cursor:pointer;flex-shrink:0;transition:all .15s ease" onmouseover="this.style.borderColor='rgba(124,111,255,.5)'" onmouseout="this.style.borderColor='var(--b1)'">🎲</button>
+          </div>
         </div>
 
         <div class="form-group">
@@ -116,17 +156,20 @@
         <div class="form-group">
           <label class="form-label" for="inp-country">Country of Birth</label>
           <select id="inp-country" name="country" class="form-select"></select>
+          <div class="origin-ui-country-info" id="origin-ui-country-info"><span class="flag">🌍</span><span class="details">Select a country</span></div>
         </div>
 
         <div class="form-group">
-          <label class="form-label" for="inp-diff">Difficulty</label>
-          <select id="inp-diff" name="difficulty" class="form-select">
-            <option value="easy">😊 Easy — Born wealthy</option>
-            <option value="normal" selected>🙂 Normal — Average start</option>
-            <option value="hard">😤 Hard — Born poor</option>
-            <option value="extreme">💀 Extreme — Brutal realism</option>
-            <option value="custom">⚙️ Custom — Set your own stats</option>
+          <label class="form-label">Difficulty</label>
+          <!-- Hidden select for JS compatibility -->
+          <select id="inp-diff" name="difficulty" class="form-select" style="display:none">
+            <option value="easy">Easy</option>
+            <option value="normal" selected>Normal</option>
+            <option value="hard">Hard</option>
+            <option value="extreme">Extreme</option>
+            <option value="custom">Custom</option>
           </select>
+          <div id="origin-ui-diff-cards"></div>
         </div>
 
         <div id="custom-stats" style="display:none;background:var(--s1);border-radius:12px;padding:12px;border:1.5px solid var(--b1)">
@@ -169,8 +212,7 @@
           <div id="ambition-list" role="group" aria-label="Choose life ambition"></div>
         </div>
 
-        <!-- v14: Legacy Inheritance -->
-        <div id="legacy-section" style="display:none;background:var(--s1);border-radius:12px;padding:14px;border:1.5px solid rgba(124,111,255,.4);margin-top:12px"></div>
+        <div class="create-summary-stack">
 
         <div id="create-preview-box" style="background:var(--s2);border-radius:12px;padding:14px;border:1.5px solid var(--b1);margin-top:12px">
           <div style="display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px">
@@ -180,16 +222,22 @@
           <div id="preview-text" style="font-size:12px;font-weight:600;color:var(--muted);line-height:1.7" aria-live="polite"></div>
         </div>
 
-        <div style="background:linear-gradient(135deg,rgba(124,111,255,.12),rgba(56,189,248,.08));border:1.5px solid rgba(124,111,255,.25);border-radius:12px;padding:14px;margin-top:12px">
-          <div style="font-size:10px;font-weight:900;color:var(--accent);text-transform:uppercase;letter-spacing:1.2px;margin-bottom:6px">v14 Tip</div>
+        <div id="origin-ui-stat-preview" class="origin-ui-stat-preview"></div>
+
+        <!-- Legacy Inheritance -->
+        <div id="legacy-section" class="origin-ui-legacy-box" style="display:none"></div>
+
+        <div class="origin-ui-tip-box">
+          <div style="font-size:10px;font-weight:900;color:var(--accent);text-transform:uppercase;letter-spacing:1.2px;margin-bottom:6px">Story Tip</div>
           <p style="margin:0;color:var(--muted);font-size:12px;font-weight:700;line-height:1.65">
-            A rich start makes life easier, but ambition, discipline, choices, and risk management decide your final legacy.
+            Story events fire naturally every 3–6 years. Your choices in them shape health, happiness, money and karma — no AI required.
           </p>
         </div>
       </div>
+      </div>
     </div>
 
-    <button type="button" class="btn-primary" style="margin-top:12px;max-width:600px;margin-left:auto;margin-right:auto;display:block" onclick="App.startGame()">🚀 Begin Your Story</button>
+    <button type="button" class="btn-primary origin-ui-begin-btn" style="margin-top:12px;max-width:600px;margin-left:auto;margin-right:auto;display:block" onclick="App.startGame()">🚀 Begin Your Story</button>
   </div>
 </div>
 
@@ -198,36 +246,43 @@
 
   <!-- SIDEBAR -->
   <aside class="game-sidebar" id="game-sidebar" aria-label="Character overview">
-    <div class="sidebar-char">
-      <div class="sidebar-avatar" id="g-avatar" aria-hidden="true">😊</div>
-      <div class="sidebar-name" id="g-name">Name</div>
-      <div class="sidebar-sub" id="g-info">Age 0</div>
-      <div class="sidebar-tags" id="g-tags"></div>
-    </div>
+    <div class="sidebar-panel-stack">
+      <section class="sidebar-char sidebar-card sidebar-profile-card">
+        <div class="sidebar-avatar" id="g-avatar" aria-hidden="true">😊</div>
+        <div class="sidebar-name" id="g-name">Name</div>
+        <div class="sidebar-sub" id="g-info">Age 0</div>
+        <div class="sidebar-tags" id="g-tags"></div>
+      </section>
 
-    <div class="sidebar-money-box">
-      <div class="smb-val" id="g-money">$0</div>
-      <div class="smb-lbl">Net Worth</div>
-      <div id="g-money-ctx" style="margin-bottom:2px"></div>
-      <div class="smb-inc" id="g-income"></div>
-      <div class="smb-cash" id="g-cash"></div>
-      <div id="g-goals-widget" style="margin-top:5px"></div>
-    </div>
+      <section class="sidebar-money-box sidebar-card">
+        <div class="sidebar-card-head">Net Worth</div>
+        <div class="smb-val" id="g-money">$0</div>
+        <div id="g-money-ctx" style="margin-bottom:2px"></div>
+        <div class="smb-inc" id="g-income"></div>
+        <div class="smb-cash" id="g-cash"></div>
+        <div id="g-goals-widget" style="margin-top:5px"></div>
+      </section>
 
-    <div class="sidebar-stats" aria-label="Character stats">
-      <div class="ssb"><div class="ssb-top"><span class="ssb-l">😊 Happiness</span><span class="ssb-v" id="sv-hap" style="color:var(--yellow)">0</span><span id="spark-hap"></span></div><div class="ssb-track"><div class="ssb-fill" id="sf-hap" style="background:var(--yellow)"></div></div></div>
-      <div class="ssb"><div class="ssb-top"><span class="ssb-l">❤️ Health</span><span class="ssb-v" id="sv-hlt" style="color:var(--green)">0</span><span id="spark-hlt"></span></div><div class="ssb-track"><div class="ssb-fill" id="sf-hlt" style="background:var(--green)"></div></div></div>
-      <div class="ssb"><div class="ssb-top"><span class="ssb-l">🧠 Smarts</span><span class="ssb-v" id="sv-smt" style="color:var(--cyan)">0</span><span id="spark-smt"></span></div><div class="ssb-track"><div class="ssb-fill" id="sf-smt" style="background:var(--cyan)"></div></div></div>
-      <div class="ssb"><div class="ssb-top"><span class="ssb-l">✨ Looks</span><span class="ssb-v" id="sv-lks" style="color:var(--pink)">0</span><span id="spark-lks"></span></div><div class="ssb-track"><div class="ssb-fill" id="sf-lks" style="background:var(--pink)"></div></div></div>
-      <div class="ssb"><div class="ssb-top"><span class="ssb-l">⚡ Fitness</span><span class="ssb-v" id="sv-fit" style="color:var(--orange)">0</span><span id="spark-fit"></span></div><div class="ssb-track"><div class="ssb-fill" id="sf-fit" style="background:var(--orange)"></div></div></div>
-      <div class="ssb"><div class="ssb-top"><span class="ssb-l">😤 Stress</span><span class="ssb-v" id="sv-str" style="color:var(--teal)">0</span><span id="spark-str"></span></div><div class="ssb-track"><div class="ssb-fill" id="sf-str" style="background:var(--teal)"></div></div></div>
-      <div class="ssb"><div class="ssb-top"><span class="ssb-l">🌟 Fame</span><span class="ssb-v" id="sv-fam" style="color:var(--accent)">0</span><span id="spark-fam"></span></div><div class="ssb-track"><div class="ssb-fill" id="sf-fam" style="background:var(--accent)"></div></div></div>
-      <div class="ssb"><div class="ssb-top"><span class="ssb-l">⚖️ Karma</span><span class="ssb-v" id="sv-kar" style="color:var(--teal)">0</span><span id="spark-kar"></span></div><div class="ssb-track"><div class="ssb-fill" id="sf-kar" style="background:var(--teal)"></div></div></div>
-    </div>
+      <section class="sidebar-stats-box sidebar-card">
+        <div class="sidebar-card-head">Life Stats</div>
+        <div class="sidebar-stats" aria-label="Character stats">
+          <div class="ssb"><div class="ssb-top"><span class="ssb-l">😊 Happiness</span><span class="ssb-v" id="sv-hap" style="color:var(--yellow)">0</span><span id="spark-hap"></span></div><div class="ssb-track"><div class="ssb-fill" id="sf-hap" style="background:var(--yellow)"></div></div></div>
+          <div class="ssb"><div class="ssb-top"><span class="ssb-l">❤️ Health</span><span class="ssb-v" id="sv-hlt" style="color:var(--green)">0</span><span id="spark-hlt"></span></div><div class="ssb-track"><div class="ssb-fill" id="sf-hlt" style="background:var(--green)"></div></div></div>
+          <div class="ssb"><div class="ssb-top"><span class="ssb-l">🧠 Smarts</span><span class="ssb-v" id="sv-smt" style="color:var(--cyan)">0</span><span id="spark-smt"></span></div><div class="ssb-track"><div class="ssb-fill" id="sf-smt" style="background:var(--cyan)"></div></div></div>
+          <div class="ssb"><div class="ssb-top"><span class="ssb-l">✨ Looks</span><span class="ssb-v" id="sv-lks" style="color:var(--pink)">0</span><span id="spark-lks"></span></div><div class="ssb-track"><div class="ssb-fill" id="sf-lks" style="background:var(--pink)"></div></div></div>
+          <div class="ssb"><div class="ssb-top"><span class="ssb-l">⚡ Fitness</span><span class="ssb-v" id="sv-fit" style="color:var(--orange)">0</span><span id="spark-fit"></span></div><div class="ssb-track"><div class="ssb-fill" id="sf-fit" style="background:var(--orange)"></div></div></div>
+          <div class="ssb"><div class="ssb-top"><span class="ssb-l">😤 Stress</span><span class="ssb-v" id="sv-str" style="color:var(--teal)">0</span><span id="spark-str"></span></div><div class="ssb-track"><div class="ssb-fill" id="sf-str" style="background:var(--teal)"></div></div></div>
+          <div class="ssb"><div class="ssb-top"><span class="ssb-l">🌟 Fame</span><span class="ssb-v" id="sv-fam" style="color:var(--accent)">0</span><span id="spark-fam"></span></div><div class="ssb-track"><div class="ssb-fill" id="sf-fam" style="background:var(--accent)"></div></div></div>
+          <div class="ssb"><div class="ssb-top"><span class="ssb-l">⚖️ Karma</span><span class="ssb-v" id="sv-kar" style="color:var(--teal)">0</span><span id="spark-kar"></span></div><div class="ssb-track"><div class="ssb-fill" id="sf-kar" style="background:var(--teal)"></div></div></div>
+          <div class="ssb"><div class="ssb-top"><span class="ssb-l">⭐ Rep</span><span class="ssb-v" id="sv-rep" style="color:var(--cyan)">50</span><span id="spark-rep"></span></div><div class="ssb-track"><div class="ssb-fill" id="sf-rep" style="background:var(--cyan)"></div></div></div>
+          <div class="ssb"><div class="ssb-top"><span class="ssb-l">🧠 Mind</span><span class="ssb-v" id="sv-mnd" style="color:var(--purple)">60</span><span id="spark-mnd"></span></div><div class="ssb-track"><div class="ssb-fill" id="sf-mnd" style="background:var(--purple)"></div></div></div>
+        </div>
+      </section>
 
-    <div class="sidebar-spacer"></div>
-    <button type="button" class="age-btn-side" id="age-btn-side" onclick="Engine.ageUp()">⏩ Age Up — Year +1</button>
-    <button type="button" class="settings-btn-side" onclick="UI.openSettings()">⚙️ Settings</button>
+      <div class="sidebar-spacer"></div>
+      <button type="button" class="age-btn-side" id="age-btn-side" onclick="Engine.ageUp()">⏩ Age Up — Year +1</button>
+      <button type="button" class="settings-btn-side" onclick="UI.openSettings()">⚙️ Settings</button>
+    </div>
   </aside>
 
   <!-- MAIN CONTENT -->
@@ -260,6 +315,9 @@
         <div class="sb"><div class="sb-top"><span class="sb-l">😤</span><span class="sb-v" id="sv-str-m" style="color:var(--teal)">0</span></div><div class="sb-track"><div class="sb-fill" id="sf-str-m" style="background:var(--teal)"></div></div></div>
         <div class="sb"><div class="sb-top"><span class="sb-l">🌟</span><span class="sb-v" id="sv-fam-m" style="color:var(--accent)">0</span></div><div class="sb-track"><div class="sb-fill" id="sf-fam-m" style="background:var(--accent)"></div></div></div>
         <div class="sb"><div class="sb-top"><span class="sb-l">⚖️</span><span class="sb-v" id="sv-kar-m" style="color:var(--teal)">0</span></div><div class="sb-track"><div class="sb-fill" id="sf-kar-m" style="background:var(--teal)"></div></div></div>
+        <div class="sb"><div class="sb-top"><span class="sb-l">⭐</span><span class="sb-v" id="sv-rep-m" style="color:var(--cyan)">50</span></div><div class="sb-track"><div class="sb-fill" id="sf-rep-m" style="background:var(--cyan)"></div></div></div>
+        <div class="sb"><div class="sb-top"><span class="sb-l">🧠</span><span class="sb-v" id="sv-mnd-m" style="color:var(--purple)">60</span></div><div class="sb-track"><div class="sb-fill" id="sf-mnd-m" style="background:var(--purple)"></div></div></div>
+
       </div>
     </div>
 
@@ -274,14 +332,16 @@
       <button type="button" class="nt" data-tab="crime" onclick="UI.tab('crime')"><span class="ni" aria-hidden="true">🚔</span><span class="nl">Crime</span><span class="tab-dot" id="dot-crime"></span></button>
       <button type="button" class="nt" data-tab="social" onclick="UI.tab('social')"><span class="ni" aria-hidden="true">📱</span><span class="nl">Social</span><span class="tab-dot" id="dot-social"></span></button>
       <button type="button" class="nt" data-tab="business" onclick="UI.tab('business')"><span class="ni" aria-hidden="true">🏢</span><span class="nl">Biz</span><span class="tab-dot" id="dot-business"></span></button>
+      <button type="button" class="nt" data-tab="hustle" onclick="UI.tab('hustle')"><span class="ni" aria-hidden="true">⚡</span><span class="nl">Hustle</span><span class="tab-dot" id="dot-hustle"></span></button>
       <button type="button" class="nt" data-tab="pets" onclick="UI.tab('pets')"><span class="ni" aria-hidden="true">🐾</span><span class="nl">Pets</span><span class="tab-dot" id="dot-pets"></span></button>
       <button type="button" class="nt" data-tab="skills" onclick="UI.tab('skills')"><span class="ni" aria-hidden="true">🎓</span><span class="nl">Skills</span><span class="tab-dot" id="dot-skills"></span></button>
       <button type="button" class="nt" data-tab="stocks" onclick="UI.tab('stocks')"><span class="ni" aria-hidden="true">📈</span><span class="nl">Stocks</span><span class="tab-dot" id="dot-stocks"></span></button>
       <button type="button" class="nt" data-tab="goals" onclick="UI.tab('goals')"><span class="ni" aria-hidden="true">🎯</span><span class="nl">Goals</span><span class="tab-dot" id="dot-goals"></span></button>
+
     </nav>
 
     <!-- Content -->
-    <div class="content-area" id="game-content" aria-live="polite">
+    <div class="content-area" id="game-content" tabindex="-1">
       <div id="tab-life" class="tab-panel active"></div>
       <div id="tab-mind" class="tab-panel"></div>
       <div id="tab-love" class="tab-panel"></div>
@@ -291,10 +351,12 @@
       <div id="tab-crime" class="tab-panel"></div>
       <div id="tab-social" class="tab-panel"></div>
       <div id="tab-business" class="tab-panel"></div>
+      <div id="tab-hustle" class="tab-panel"></div>
       <div id="tab-pets" class="tab-panel"></div>
       <div id="tab-skills" class="tab-panel"></div>
       <div id="tab-stocks" class="tab-panel"></div>
       <div id="tab-goals" class="tab-panel"></div>
+
     </div>
 
     <!-- Mobile footer age-up -->
@@ -312,7 +374,7 @@
   <div class="death-bg-fx" aria-hidden="true"></div>
   <div class="death-body">
     <div class="death-icon" aria-hidden="true">🪦</div>
-    <div class="ver-badge" style="margin:0 auto 10px;width:max-content">v14 Life Summary</div>
+    <div class="ver-badge" data-label="Life Summary" style="margin:0 auto 10px;width:max-content">Life Summary</div>
     <h2 class="death-title" id="dt-title">You have died.</h2>
     <p class="death-cause" id="dt-cause"></p>
     <blockquote class="death-quote" id="dt-quote"></blockquote>
@@ -324,10 +386,10 @@
 
     <div class="death-story" id="dt-story"></div>
 
-    <!-- v14: Life Timeline -->
+    <!-- Life Timeline -->
     <div id="dt-timeline" style="background:var(--s1);border:1.5px solid var(--b2);border-radius:12px;padding:14px;margin-bottom:14px;text-align:left;max-height:200px;overflow-y:auto"></div>
 
-    <!-- v14: Previous Life Comparison -->
+    <!-- Previous Life Comparison -->
     <div id="dt-prev-compare"></div>
 
     <div class="death-stats" id="dt-stats"></div>
@@ -345,7 +407,7 @@
   <div class="topbar">
     <button type="button" class="back-btn" onclick="App.show('splash-screen')">← Back</button>
     <span class="topbar-title">🏆 Hall of Fame</span>
-    <span class="ver-badge" style="font-size:10px">v14</span>
+    <span class="ver-badge" data-label="Legacy Board" style="font-size:10px">Legacy Board</span>
   </div>
   <div class="hof-body" id="hof-body"></div>
 </div>
@@ -355,7 +417,7 @@
   <div class="topbar">
     <button type="button" class="back-btn" onclick="App.show('splash-screen')">← Back</button>
     <span class="topbar-title">🎖️ Achievements</span>
-    <span class="ver-badge" style="font-size:10px">v14</span>
+    <span class="ver-badge" data-label="Milestones" style="font-size:10px">Milestones</span>
   </div>
   <div class="ach-body" id="ach-body"></div>
 </div>
@@ -363,7 +425,7 @@
 </div>
 
 <!-- Event Modal -->
-<div class="modal-bg" id="ev-modal" role="dialog" aria-modal="true" aria-labelledby="m-title" aria-describedby="m-text">
+<div class="modal-bg" id="ev-modal" role="dialog" aria-modal="true" aria-labelledby="m-title" aria-describedby="m-text" tabindex="-1">
   <div class="modal-box">
     <button type="button" class="modal-skip-btn" onclick="UI.closeModal()" title="Skip" aria-label="Skip event">✕</button>
     <span class="modal-icon" id="m-ico" aria-hidden="true">✨</span>
@@ -374,47 +436,143 @@
 </div>
 
 <!-- Settings Modal -->
-<div class="modal-bg" id="settings-modal" role="dialog" aria-modal="true" aria-labelledby="settings-title">
-  <div class="modal-box" style="max-width:380px">
-    <button type="button" class="modal-skip-btn" onclick="document.getElementById('settings-modal').classList.remove('open')" title="Close" aria-label="Close settings">✕</button>
-    <span class="modal-icon" aria-hidden="true">⚙️</span>
-    <div class="modal-title" id="settings-title">Settings</div>
-
-    <div style="display:flex;flex-direction:column;gap:10px;margin-top:8px">
-      <div class="settings-row">
-        <span class="settings-lbl">📊 Show stat changes</span>
-        <label class="toggle-switch">
-          <input type="checkbox" id="set-statdelta" checked onchange="UI.saveSetting('statDelta',this.checked)">
-          <span class="toggle-knob"></span>
-        </label>
+<div class="modal-bg settings-modal-bg" id="settings-modal" role="dialog" aria-modal="true" aria-labelledby="settings-title" tabindex="-1" onclick="if(event.target===this) UI.closeAnyModal(this)">
+  <div class="modal-box settings-modal-box">
+    <header class="settings-modal-head">
+      <div class="settings-title-wrap">
+        <span class="settings-title-icon" aria-hidden="true">⚙️</span>
+        <div>
+          <div class="modal-title" id="settings-title">Settings</div>
+          <p>Shape the interface, gameplay feedback, local AI and save behavior.</p>
+        </div>
       </div>
+      <button type="button" class="settings-close-btn" onclick="UI.closeAnyModal(document.getElementById('settings-modal'))" aria-label="Close settings">✕</button>
+    </header>
 
-      <div class="settings-row">
-        <span class="settings-lbl">💡 Smart tips</span>
-        <label class="toggle-switch">
-          <input type="checkbox" id="set-tips" checked onchange="UI.saveSetting('tips',this.checked)">
-          <span class="toggle-knob"></span>
-        </label>
+    <div class="settings-workspace">
+      <nav class="settings-nav" aria-label="Settings categories">
+        <button type="button" class="settings-nav-btn active" data-settings-tab="gameplay" onclick="UI.settingsTab('gameplay',this)"><span>🎮</span><span><b>Gameplay</b><small>Feedback and automation</small></span></button>
+        <button type="button" class="settings-nav-btn" data-settings-tab="appearance" onclick="UI.settingsTab('appearance',this)"><span>🎨</span><span><b>Appearance</b><small>Theme, density and motion</small></span></button>
+        <button type="button" class="settings-nav-btn" data-settings-tab="audio" onclick="UI.settingsTab('audio',this)"><span>🔊</span><span><b>Audio</b><small>Effects and volume</small></span></button>
+        <button type="button" class="settings-nav-btn" data-settings-tab="ai" onclick="UI.settingsTab('ai',this)"><span>🦙</span><span><b>Local AI</b><small>Optional Ollama storyteller</small></span></button>
+        <button type="button" class="settings-nav-btn" data-settings-tab="data" onclick="UI.settingsTab('data',this)"><span>💾</span><span><b>Data</b><small>Save, export and recovery</small></span></button>
+      </nav>
+
+      <div class="settings-content">
+        <section class="settings-panel active" data-settings-panel="gameplay">
+          <div class="settings-panel-head"><span>🎮</span><div><h3>Gameplay experience</h3><p>Control the amount of guidance and automatic behavior without changing core simulation rules.</p></div></div>
+          <div class="settings-group">
+            <div class="settings-option"><div><b>Show stat changes</b><small>Display floating feedback when health, happiness, money or other values change.</small></div><label class="toggle-switch"><input type="checkbox" id="set-statdelta" checked onchange="UI.saveSetting('statDelta',this.checked)"><span class="toggle-knob"></span></label></div>
+            <div class="settings-option"><div><b>Smart tips</b><small>Show context-aware suggestions when your life needs attention.</small></div><label class="toggle-switch"><input type="checkbox" id="set-tips" checked onchange="UI.saveSetting('tips',this.checked)"><span class="toggle-knob"></span></label></div>
+            <div class="settings-option"><div><b>Low-health warnings</b><small>Warn before aging up when physical or mental wellbeing is in danger.</small></div><label class="toggle-switch"><input type="checkbox" id="set-healthwarn" checked onchange="UI.saveSetting('healthWarn',this.checked)"><span class="toggle-knob"></span></label></div>
+            <div class="settings-option"><div><b>Highlight important warnings</b><small>Use stronger visual emphasis for serious risks and unresolved problems.</small></div><label class="toggle-switch"><input type="checkbox" id="set-highlight" checked onchange="UI.saveSetting('highlightWarnings',this.checked)"><span class="toggle-knob"></span></label></div>
+          </div>
+          <div class="settings-group">
+            <div class="settings-option"><div><b>Life chapters panel</b><small>Show the connected-story timeline and long-term consequences in the Life tab.</small></div><label class="toggle-switch"><input type="checkbox" id="set-chapters" onchange="UI.toggleLifeChapters()"><span class="toggle-knob"></span></label></div>
+            <div class="settings-option"><div><b>Advanced stats</b><small>Reveal reputation, mental health and additional simulation detail.</small></div><label class="toggle-switch"><input type="checkbox" id="set-advanced" onchange="UI.saveSetting('showAdvancedStats',this.checked)"><span class="toggle-knob"></span></label></div>
+            <div class="settings-option"><div><b>Auto-save</b><small>Save after meaningful actions and yearly progression. Manual Save Now remains available.</small></div><label class="toggle-switch"><input type="checkbox" id="set-autosave" checked onchange="UI.saveSetting('autoSave',this.checked)"><span class="toggle-knob"></span></label></div>
+            <div class="settings-option"><div><b>Auto age-up when ready</b><small>Advance automatically only when the current year has no blocking choice.</small></div><label class="toggle-switch"><input type="checkbox" id="set-autoage" onchange="UI.saveSetting('autoAge',this.checked)"><span class="toggle-knob"></span></label></div>
+            <div class="settings-option settings-option-select"><div><b>Life log detail</b><small>Choose how much information appears in the timeline and yearly recaps.</small></div><select id="set-log-detail" class="form-select" onchange="UI.saveSetting('logDetailLevel',this.value)"><option value="0">Essential</option><option value="1">Detailed</option><option value="2">Full</option></select></div>
+          </div>
+        </section>
+
+        <section class="settings-panel" data-settings-panel="appearance">
+          <div class="settings-panel-head"><span>🎨</span><div><h3>Appearance and layout</h3><p>Choose a calmer, denser or more accessible presentation. Changes apply immediately.</p></div></div>
+          <div class="settings-preview" aria-hidden="true"><span></span><span></span><span></span><div><i></i><i></i><i></i></div></div>
+          <div class="settings-group">
+            <div class="settings-option settings-option-select"><div><b>Theme</b><small>Change the overall contrast and surface style.</small></div><select id="set-theme-mode" class="form-select" onchange="UI.saveSetting('themeMode',this.value)"><option value="default">Living World</option><option value="calm">Calm Night</option><option value="contrast">High Contrast</option><option value="oled">OLED Black</option></select></div>
+            <div class="settings-option settings-option-select"><div><b>Accent color</b><small>Choose the primary highlight used for active tabs, buttons and focus rings.</small></div><select id="set-accent-mode" class="form-select" onchange="UI.saveSetting('accentMode',this.value)"><option value="violet">Violet</option><option value="cyan">Cyan</option><option value="emerald">Emerald</option><option value="rose">Rose</option></select></div>
+            <div class="settings-option settings-option-select"><div><b>Text size</b><small>Scale important labels and body copy without zooming the whole browser.</small></div><select id="set-text-size" class="form-select" onchange="UI.saveSetting('textSize',this.value)"><option value="small">Small</option><option value="normal">Normal</option><option value="large">Large</option></select></div>
+            <div class="settings-option settings-option-select"><div><b>Animation speed</b><small>Control interface transitions and feedback effects.</small></div><select id="set-anim-speed" class="form-select" onchange="UI.saveSetting('animationSpeed',this.value)"><option value="slow">Relaxed</option><option value="normal">Normal</option><option value="fast">Fast</option></select></div>
+          </div>
+          <div class="settings-group">
+            <div class="settings-option"><div><b>Compact mode</b><small>Reduce card padding and vertical spacing to fit more content on screen.</small></div><label class="toggle-switch"><input type="checkbox" id="set-compact" onchange="UI.saveSetting('compactMode',this.checked)"><span class="toggle-knob"></span></label></div>
+            <div class="settings-option"><div><b>Reduce motion</b><small>Disable decorative movement and simplify transitions.</small></div><label class="toggle-switch"><input type="checkbox" id="set-reducemotion" onchange="UI.saveSetting('reduceMotion',this.checked)"><span class="toggle-knob"></span></label></div>
+            <div class="settings-option"><div><b>Ambient background effects</b><small>Show subtle gradients behind the game. Turn off for a completely flat background.</small></div><label class="toggle-switch"><input type="checkbox" id="set-background-fx" checked onchange="UI.saveSetting('backgroundEffects',this.checked)"><span class="toggle-knob"></span></label></div>
+            <div class="settings-option"><div><b>Keep sidebar visible</b><small>Prefer the desktop character sidebar whenever enough width is available.</small></div><label class="toggle-switch"><input type="checkbox" id="set-sidebar" onchange="UI.saveSetting('sidebarAlwaysVisible',this.checked)"><span class="toggle-knob"></span></label></div>
+          </div>
+        </section>
+
+        <section class="settings-panel" data-settings-panel="audio">
+          <div class="settings-panel-head"><span>🔊</span><div><h3>Audio feedback</h3><p>LifeSim uses lightweight generated effects. No audio files are downloaded or stored.</p></div></div>
+          <div class="settings-audio-hero"><div class="settings-audio-icon">♫</div><div><b>Interface soundscape</b><small>Small sounds reinforce choices, achievements and life events.</small></div><button type="button" onclick="UI.testSound()">Test sound</button></div>
+          <div class="settings-group">
+            <div class="settings-option"><div><b>Sound effects</b><small>Enable button, money, relationship, achievement and warning sounds.</small></div><label class="toggle-switch"><input type="checkbox" id="set-sound" checked onchange="LifeSimV22.Sound.setMuted(!this.checked)"><span class="toggle-knob"></span></label></div>
+            <div class="settings-option settings-option-range"><div><b>Effects volume</b><small>Adjust generated sound intensity.</small></div><div class="settings-range-wrap"><input type="range" id="set-sound-volume" min="0" max="100" value="60" oninput="UI.setSoundVolume(this.value)"><output id="set-sound-volume-value">60%</output></div></div>
+          </div>
+          <div class="settings-note"><span>⌨️</span><p><b>Keyboard shortcuts</b><small><kbd>Space</kbd> Age Up · <kbd>1–9</kbd> quick tabs · <kbd>Esc</kbd> close dialog</small></p></div>
+        </section>
+
+        <section class="settings-panel" data-settings-panel="ai">
+          <div class="settings-panel-head"><span>🦙</span><div><h3>Local Ollama storyteller</h3><p>Optional local narration. Core gameplay stays deterministic and works without AI.</p></div></div>
+          <div class="ollama-settings-card settings-ollama-card">
+            <div class="ollama-settings-head">
+              <div class="ollama-settings-title"><span aria-hidden="true">🦙</span><div><b>Enable local AI</b><small>Connect only to the endpoint you choose below.</small></div></div>
+              <label class="toggle-switch"><input type="checkbox" id="set-ollama" onchange="OllamaBridge.setEnabled(this.checked)"><span class="toggle-knob"></span></label>
+            </div>
+            <span class="ollama-status" id="ollama-status" data-state="off">Local AI is off</span>
+            <div id="ollama-config-panel" class="ollama-config-panel" hidden>
+              <div class="ollama-field"><label for="set-ollama-endpoint">Ollama endpoint</label><input id="set-ollama-endpoint" type="url" value="http://localhost:11434" spellcheck="false" onchange="OllamaBridge.setEndpoint(this.value)"></div>
+              <div class="ollama-field"><label for="set-ollama-model">Installed model</label><div class="ollama-inline"><select id="set-ollama-model" onchange="OllamaBridge.setModel(this.value)"><option value="">Auto-select installed model</option></select><button type="button" data-ollama-action onclick="OllamaBridge.refreshModels()">Refresh</button></div></div>
+              <div class="ollama-two-col">
+                <div class="ollama-field"><label for="set-ollama-temp">Creativity</label><select id="set-ollama-temp" onchange="OllamaBridge.setTemperature(this.value)"><option value="0.35">Grounded</option><option value="0.65">Balanced</option><option value="0.9">Creative</option></select></div>
+                <div class="ollama-field"><label for="set-ollama-timeout">Timeout</label><select id="set-ollama-timeout" onchange="OllamaBridge.setTimeout(this.value)"><option value="10000">10 seconds</option><option value="20000">20 seconds</option><option value="40000">40 seconds</option><option value="60000">60 seconds</option></select></div>
+              </div>
+              <div class="ollama-checks">
+                <div class="settings-option"><div><b>Enhance yearly recaps</b><small>Ask the local model to rewrite the factual yearly summary naturally.</small></div><label class="toggle-switch"><input type="checkbox" id="set-ollama-year" checked onchange="OllamaBridge.setOption('yearNarratives',this.checked)"><span class="toggle-knob"></span></label></div>
+                <div class="settings-option"><div><b>Allow one AI moment per year</b><small>Create one validated choice event while keeping rewards and unlocks bounded.</small></div><label class="toggle-switch"><input type="checkbox" id="set-ollama-moments" checked onchange="OllamaBridge.setOption('aiMoments',this.checked)"><span class="toggle-knob"></span></label></div>
+              </div>
+              <div class="ollama-actions"><button type="button" data-ollama-action onclick="OllamaBridge.testConnection()">Test connection</button><button type="button" data-ollama-action onclick="OllamaBridge.requestMoment()">Try story moment</button></div>
+              <div class="settings-note settings-note-ai"><span>🔒</span><p><b>Local and bounded</b><small>Only a compact fictional-life summary is sent to your local endpoint. AI cannot directly grant careers, property, diagnoses, marriages, children or unlimited rewards.</small></p></div>
+              <p class="ollama-launch-note">Use <strong>start_lifesim.bat</strong> on Windows or <strong>start_lifesim.command</strong> on macOS for the most reliable browser connection.</p>
+            </div>
+          </div>
+          <div class="ollama-off-guide" id="ollama-off-guide">
+            <article><span>1</span><div><b>Start Ollama</b><small>Open the Ollama desktop app or run the local service.</small></div></article>
+            <article><span>2</span><div><b>Install a chat model</b><small>A small 2B–4B instruct model is usually enough for LifeSim stories.</small></div></article>
+            <article><span>3</span><div><b>Enable and test</b><small>LifeSim will discover local models and keep core gameplay offline.</small></div></article>
+          </div>
+        </section>
+
+        <section class="settings-panel" data-settings-panel="data">
+          <div class="settings-panel-head"><span>💾</span><div><h3>Save and data</h3><p>Your life is stored locally in this browser. Export a file before clearing browser data or moving devices.</p></div></div>
+          <div class="settings-storage-card"><span>🛡️</span><div><b id="settings-storage-title">Local save status</b><small id="settings-storage-summary">Checking available save data…</small></div></div>
+          <div id="liveapi-settings-slot"></div>
+          <div class="settings-data-grid">
+            <button type="button" class="settings-action-card good" onclick="UI.saveNow()"><span>💾</span><b>Save Now</b><small>Write the current life immediately.</small></button>
+            <button type="button" class="settings-action-card" onclick="UI.exportSave()"><span>📥</span><b>Export Save</b><small>Download a portable JSON backup.</small></button>
+            <button type="button" class="settings-action-card" onclick="document.getElementById('settings-import-file').click()"><span>📤</span><b>Import Save</b><small>Restore a LifeSim JSON backup.</small></button>
+            <button type="button" class="settings-action-card danger" onclick="UI.confirmReset()"><span>🗑️</span><b>Reset Life</b><small>Delete the current save and start over.</small></button>
+          </div>
+          <input type="file" id="settings-import-file" accept="application/json,.json" hidden onchange="UI.importSaveFile(this)">
+          <div class="settings-note"><span>ℹ️</span><p><b>Privacy</b><small>LifeSim does not upload your save. Ollama settings are stored separately and only used when local AI is enabled.</small></p></div>
+        </section>
       </div>
-
-      <div class="settings-row">
-        <span class="settings-lbl">⚠️ Low health warnings</span>
-        <label class="toggle-switch">
-          <input type="checkbox" id="set-healthwarn" checked onchange="UI.saveSetting('healthWarn',this.checked)">
-          <span class="toggle-knob"></span>
-        </label>
-      </div>
-
-      <div style="height:1px;background:var(--b1);margin:4px 0"></div>
-
-      <div class="settings-lbl" style="color:var(--muted);font-size:11px">
-        KEYBOARD: <kbd>Space</kbd> = Age Up &nbsp; <kbd>1–9</kbd> = Switch tabs
-      </div>
-
-      <div style="height:1px;background:var(--b1);margin:4px 0"></div>
-
-      <button type="button" class="btn-secondary" style="color:var(--red);border-color:rgba(248,113,113,.35)" onclick="UI.confirmReset()">🗑️ Reset Save &amp; Start Over</button>
     </div>
+
+    <footer class="settings-modal-foot">
+      <button type="button" class="settings-reset-btn" onclick="UI.resetSettings()">Restore defaults</button>
+      <span>Changes save automatically</span>
+      <button type="button" class="settings-done-btn" onclick="UI.closeAnyModal(document.getElementById('settings-modal'))">Done</button>
+    </footer>
+  </div>
+</div>
+
+
+<!-- Update Log Modal -->
+<div class="modal-bg" id="updates-modal" role="dialog" aria-modal="true" aria-labelledby="updates-title" aria-describedby="updates-subtitle" tabindex="-1" onclick="if(event.target===this) UI.closeAnyModal(this)">
+  <div class="modal-box update-modal-box">
+    <div class="update-modal-head">
+      <div class="update-modal-heading">
+        <span class="update-modal-icon" aria-hidden="true">📰</span>
+        <div>
+          <div class="modal-title" id="updates-title">What’s new</div>
+          <p id="updates-subtitle">Latest fixes and improvements in LifeSim.</p>
+        </div>
+      </div>
+      <button type="button" class="modal-skip-btn" onclick="UI.closeAnyModal(document.getElementById('updates-modal'))" title="Close" aria-label="Close update log">✕</button>
+    </div>
+    <div id="updates-body" class="updates-list"></div>
   </div>
 </div>
 
@@ -428,6 +586,8 @@
 <script src="data/properties.js"></script>
 <script src="data/achievements.js"></script>
 <script src="data/events.js"></script>
+<script src="data/updates.js"></script>
+<script src="data/v24-content.js"></script>
 <script src="js/save.js"></script>
 <script src="js/ui.js"></script>
 <script src="js/relations.js"></script>
@@ -443,8 +603,25 @@
 <script src="js/skills.js"></script>
 <script src="js/stocks.js"></script>
 <script src="js/ai_story.js"></script>
+<script src="js/story_events.js"></script>
 <script src="js/legacy.js"></script>
+<script src="js/family.js"></script>
+<script src="js/sports.js"></script>
+<script src="js/military.js"></script>
+<script src="js/travel.js"></script>
 <script src="js/engine.js"></script>
 <script src="js/main.js"></script>
+<script src="js/game-core.js"></script>
+<script src="js/ui-layout.js"></script>
+<script src="js/ui-sections.js"></script>
+<script src="js/app-shell.js"></script>
+<script src="js/life-systems.js"></script>
+<script src="js/lifesim-v22.js"></script>
+<script src="js/lifesim-v23.js"></script>
+<script src="js/age-logic.js"></script>
+<script src="js/ollama.js"></script>
+<script src="js/lifesim-v24.js"></script>
+<script src="js/lifesim-fun-first.js"></script>
+<!-- Gameplay connection rebuild. -->
 </body>
 </html>

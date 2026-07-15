@@ -1,12 +1,43 @@
-/* animations.css — LifeSim v13 Reforged motion system */
+/* animations.css — LifeSim safe premium motion system
+   Full replacement file
+   Goal:
+   - premium motion
+   - no random card blinking
+   - no tab-dot green blinking
+   - safer re-renders
+   - better performance
+   - vanilla HTML/CSS/JS only
+*/
 
 /* ─────────────────────────────────────────────
-   01. Core motion
+   01. Motion tokens
+───────────────────────────────────────────── */
+
+:root{
+  --motion-fast:.14s;
+  --motion-med:.24s;
+  --motion-slow:.40s;
+
+  --motion-ease:cubic-bezier(.22,.9,.24,1);
+  --motion-pop:cubic-bezier(.2,1.08,.25,1);
+  --motion-soft:cubic-bezier(.22,1,.36,1);
+
+  --motion-glow:rgba(124,111,255,.34);
+  --motion-glow-strong:rgba(124,111,255,.48);
+  --motion-danger:rgba(248,113,113,.24);
+  --motion-reward:rgba(251,191,36,.28);
+  --motion-success:rgba(74,222,128,.24);
+}
+
+/* ─────────────────────────────────────────────
+   02. Core keyframes
 ───────────────────────────────────────────── */
 
 .logo-emoji{
-  animation:float 3.4s ease-in-out infinite;
+  display:inline-block;
   transform-origin:center;
+  will-change:transform;
+  animation:float 3.8s ease-in-out infinite;
 }
 
 @keyframes float{
@@ -15,15 +46,15 @@
     filter:drop-shadow(0 10px 22px rgba(124,111,255,.22));
   }
   50%{
-    transform:translateY(-10px) rotate(3deg) scale(1.035);
-    filter:drop-shadow(0 16px 30px rgba(124,111,255,.35));
+    transform:translateY(-9px) rotate(2.5deg) scale(1.03);
+    filter:drop-shadow(0 16px 30px rgba(124,111,255,.34));
   }
 }
 
 @keyframes pageIn{
   from{
     opacity:0;
-    transform:translateX(10px) translateY(2px);
+    transform:translateX(8px) translateY(2px);
   }
   to{
     opacity:1;
@@ -31,10 +62,59 @@
   }
 }
 
+@keyframes pageOut{
+  to{
+    opacity:0;
+    transform:translateX(-8px) translateY(2px);
+  }
+}
+
+@keyframes fadeIn{
+  from{opacity:0}
+  to{opacity:1}
+}
+
+@keyframes fadeOut{
+  to{opacity:0}
+}
+
+@keyframes fadeSlideIn{
+  from{
+    opacity:0;
+    transform:translateY(7px);
+  }
+  to{
+    opacity:1;
+    transform:translateY(0);
+  }
+}
+
+@keyframes softPop{
+  from{
+    opacity:0;
+    transform:translateY(6px) scale(.985);
+  }
+  to{
+    opacity:1;
+    transform:translateY(0) scale(1);
+  }
+}
+
+@keyframes softPopUp{
+  from{
+    opacity:0;
+    transform:translateY(12px) scale(.975);
+  }
+  to{
+    opacity:1;
+    transform:translateY(0) scale(1);
+  }
+}
+
 @keyframes logIn{
   from{
     opacity:0;
-    transform:translateY(-7px) scale(.985);
+    transform:translateY(-6px) scale(.99);
   }
   to{
     opacity:1;
@@ -45,7 +125,7 @@
 @keyframes hofIn{
   from{
     opacity:0;
-    transform:translateX(-14px) scale(.985);
+    transform:translateX(-10px) scale(.99);
   }
   to{
     opacity:1;
@@ -55,19 +135,8 @@
 
 @keyframes avatarPop{
   0%{transform:scale(1)}
-  35%{transform:scale(1.15) rotate(-2deg)}
+  35%{transform:scale(1.13) rotate(-2deg)}
   100%{transform:scale(1) rotate(0)}
-}
-
-@keyframes softPop{
-  0%{
-    opacity:0;
-    transform:translateY(6px) scale(.975);
-  }
-  100%{
-    opacity:1;
-    transform:translateY(0) scale(1);
-  }
 }
 
 @keyframes dotPop{
@@ -76,7 +145,7 @@
     opacity:0;
   }
   70%{
-    transform:scale(1.25);
+    transform:scale(1.18);
     opacity:1;
   }
   100%{
@@ -85,17 +154,110 @@
 }
 
 /* ─────────────────────────────────────────────
-   02. Modals + toasts
+   03. Transitions only — no automatic card pop
 ───────────────────────────────────────────── */
 
+.btn-primary,
+.btn-secondary,
+.btn-sm,
+.card,
+.row-card,
+.rel-card,
+.choice-btn,
+.gbtn,
+.trait-btn,
+.ambition-btn,
+.smart-tip,
+.crime-filter,
+.legacy-opt-btn,
+.log-filter,
+.nt,
+.back-btn,
+.age-btn,
+.age-btn-side,
+.settings-btn-side,
+.settings-btn-mob{
+  transition:
+    transform var(--motion-fast) var(--motion-ease),
+    background var(--motion-med) var(--motion-ease),
+    border-color var(--motion-med) var(--motion-ease),
+    box-shadow var(--motion-med) var(--motion-ease),
+    color var(--motion-med) var(--motion-ease),
+    opacity var(--motion-med) var(--motion-ease),
+    filter var(--motion-med) var(--motion-ease);
+}
+
+/* Important:
+   Do NOT auto-animate every .card / .row-card on every render.
+   That caused blinking/jumping when tabs rebuilt HTML.
+*/
+
+.btn-primary:active,
+.btn-secondary:active,
+.btn-sm:active,
+.card:active,
+.row-card:active,
+.rel-card:active,
+.choice-btn:active,
+.gbtn:active,
+.trait-btn:active,
+.ambition-btn:active,
+.smart-tip:active,
+.crime-filter:active,
+.legacy-opt-btn:active,
+.log-filter:active,
+.nt:active,
+.back-btn:active,
+.age-btn:active,
+.age-btn-side:active{
+  transform:scale(.982);
+}
+
+/* ─────────────────────────────────────────────
+   04. Button pulse
+───────────────────────────────────────────── */
+
+.btn-pulse{
+  animation:btnPulse 2.8s ease-in-out infinite;
+}
+
+@keyframes btnPulse{
+  0%,100%{
+    box-shadow:
+      0 12px 30px rgba(124,111,255,.26),
+      inset 0 1px 0 rgba(255,255,255,.18);
+  }
+  50%{
+    box-shadow:
+      0 16px 48px rgba(168,85,247,.46),
+      0 0 0 5px rgba(124,111,255,.08),
+      inset 0 1px 0 rgba(255,255,255,.20);
+  }
+}
+
+/* ─────────────────────────────────────────────
+   05. Modals + overlays
+───────────────────────────────────────────── */
+
+.modal-bg.open{
+  animation:overlayIn .20s var(--motion-soft) both;
+}
+
+@keyframes overlayIn{
+  from{opacity:0}
+  to{opacity:1}
+}
+
 .modal-box{
-  animation:modalUp .34s cubic-bezier(.2,1.05,.25,1);
+  transform-origin:center bottom;
+  will-change:transform,opacity;
+  animation:modalUp .30s var(--motion-pop) both;
 }
 
 @keyframes modalUp{
   from{
     opacity:0;
-    transform:translateY(34px) scale(.965);
+    transform:translateY(28px) scale(.97);
   }
   to{
     opacity:1;
@@ -103,41 +265,82 @@
   }
 }
 
+@media (min-width:900px){
+  .modal-box{
+    transform-origin:center;
+  }
+
+  @keyframes modalUp{
+    from{
+      opacity:0;
+      transform:translateY(14px) scale(.97);
+    }
+    to{
+      opacity:1;
+      transform:translateY(0) scale(1);
+    }
+  }
+}
+
+.modal-skip-btn:hover{
+  transform:rotate(90deg) scale(1.03);
+}
+
+/* ─────────────────────────────────────────────
+   06. Toast system
+───────────────────────────────────────────── */
+
 .toast{
-  animation:toastIn .24s cubic-bezier(.22,1,.36,1);
+  will-change:transform,opacity;
+  animation:toastIn .22s var(--motion-soft) both;
 }
 
 @keyframes toastIn{
   from{
     opacity:0;
-    transform:translateY(-12px) scale(.92);
-    filter:blur(2px);
+    transform:translateY(-10px) scale(.94);
   }
   to{
     opacity:1;
     transform:translateY(0) scale(1);
-    filter:blur(0);
   }
 }
 
 .toast.out{
-  animation:toastOut .22s ease forwards;
+  animation:toastOut .20s ease forwards;
 }
 
 @keyframes toastOut{
   to{
     opacity:0;
-    transform:translateY(-8px) scale(.94);
-    filter:blur(2px);
+    transform:translateY(-7px) scale(.96);
   }
 }
 
+.toast-ach,
+.toast-money,
+.toast.money{
+  animation:
+    toastIn .22s var(--motion-soft) both,
+    rewardGlow 2.6s ease-in-out infinite;
+}
+
+.toast-bad,
+.toast.bad{
+  animation:
+    toastIn .22s var(--motion-soft) both,
+    dangerPulse 2.6s ease-in-out infinite;
+}
+
 /* ─────────────────────────────────────────────
-   03. Life events, death screen, achievements
+   07. Life events, death screen, achievements
 ───────────────────────────────────────────── */
 
 .death-icon{
-  animation:deathPulse 2.2s ease-in-out infinite;
+  display:inline-block;
+  transform-origin:center;
+  will-change:transform,opacity;
+  animation:deathPulse 2.25s ease-in-out infinite;
 }
 
 @keyframes deathPulse{
@@ -147,25 +350,27 @@
     filter:drop-shadow(0 0 0 rgba(248,113,113,0));
   }
   50%{
-    opacity:.62;
-    transform:scale(.92);
-    filter:drop-shadow(0 0 18px rgba(248,113,113,.24));
+    opacity:.64;
+    transform:scale(.93);
+    filter:drop-shadow(0 0 16px rgba(248,113,113,.24));
   }
 }
 
-.ach-shimmer{
+.ach-shimmer,
+.anim-shimmer{
   position:relative;
   overflow:hidden;
 }
 
-.ach-shimmer::after{
+.ach-shimmer::after,
+.anim-shimmer::after{
   content:'';
   position:absolute;
   inset:0;
   pointer-events:none;
   background:linear-gradient(90deg,transparent,rgba(255,255,255,.10),transparent);
   background-size:220% 100%;
-  animation:shimmer 2s infinite;
+  animation:shimmer 2s linear infinite;
 }
 
 @keyframes shimmer{
@@ -178,7 +383,7 @@
     box-shadow:0 0 0 rgba(251,191,36,0);
   }
   50%{
-    box-shadow:0 0 28px rgba(251,191,36,.28);
+    box-shadow:0 0 26px var(--motion-reward);
   }
 }
 
@@ -187,17 +392,27 @@
     box-shadow:0 0 0 rgba(248,113,113,0);
   }
   50%{
-    box-shadow:0 0 24px rgba(248,113,113,.20);
+    box-shadow:0 0 22px var(--motion-danger);
+  }
+}
+
+@keyframes successPulse{
+  0%,100%{
+    box-shadow:0 0 0 rgba(74,222,128,0);
+  }
+  50%{
+    box-shadow:0 0 22px var(--motion-success);
   }
 }
 
 /* ─────────────────────────────────────────────
-   04. Loading + AI
+   08. Loading + AI states
 ───────────────────────────────────────────── */
 
 .ai-dot-spinner{
   display:flex;
   justify-content:center;
+  align-items:center;
   gap:8px;
   padding:10px 0;
 }
@@ -206,7 +421,11 @@
   width:10px;
   height:10px;
   border-radius:50%;
-  background:linear-gradient(135deg,var(--accent),var(--accent2));
+  background:linear-gradient(
+    135deg,
+    var(--accent,#7c6fff),
+    var(--accent2,#a855f7)
+  );
   box-shadow:0 0 16px rgba(124,111,255,.35);
   animation:dotPulse 1.4s ease-in-out infinite;
 }
@@ -232,12 +451,18 @@
 
 .modal-loading-bar{
   height:3px;
-  background:linear-gradient(90deg,var(--accent),var(--accent2),var(--cyan),var(--accent));
-  background-size:240% 100%;
-  animation:loadingShift 1.35s linear infinite;
-  border-radius:999px;
   margin-bottom:12px;
+  border-radius:999px;
+  background:linear-gradient(
+    90deg,
+    var(--accent,#7c6fff),
+    var(--accent2,#a855f7),
+    var(--cyan,#22d3ee),
+    var(--accent,#7c6fff)
+  );
+  background-size:240% 100%;
   box-shadow:0 0 18px rgba(124,111,255,.34);
+  animation:loadingShift 1.35s linear infinite;
 }
 
 @keyframes loadingShift{
@@ -245,23 +470,74 @@
   100%{background-position:240% 0}
 }
 
-/* ─────────────────────────────────────────────
-   05. Small UI micro-interactions
-───────────────────────────────────────────── */
-
-.row-card,
-.card,
-.nw-box,
-.info-box,
-.rel-card,
-.partner-card{
-  animation:softPop .24s ease both;
+.loading-shine{
+  position:relative;
+  overflow:hidden;
 }
 
+.loading-shine::after{
+  content:'';
+  position:absolute;
+  inset:0;
+  pointer-events:none;
+  background:linear-gradient(110deg,transparent,rgba(255,255,255,.08),transparent);
+  transform:translateX(-120%);
+  animation:shineMove 1.6s var(--motion-ease) infinite;
+}
+
+@keyframes shineMove{
+  0%{transform:translateX(-120%)}
+  100%{transform:translateX(120%)}
+}
+
+/* ─────────────────────────────────────────────
+   09. Safe targeted UI animations
+───────────────────────────────────────────── */
+
+/* Logs and special list entries can animate safely because they are expected to appear. */
+.log-entry{
+  animation:logIn .22s ease both;
+}
+
+.hof-card,
+.ach-card{
+  animation:hofIn .24s ease both;
+}
+
+/* Panels can fade in safely when opened. */
+.tab-panel.active{
+  animation:pageIn .20s ease both;
+}
+
+.smart-tip{
+  animation:tipIn .24s ease both;
+}
+
+@keyframes tipIn{
+  from{
+    opacity:0;
+    transform:translateY(-4px);
+  }
+  to{
+    opacity:1;
+    transform:translateY(0);
+  }
+}
+
+/* Progress bars should transition, not restart from 0 every render. */
 .prog-fill,
 .rel-fill,
-.ssb-fill{
-  animation:barSet .48s cubic-bezier(.22,1,.36,1);
+.ssb-fill,
+.sb-fill{
+  transition:
+    width .45s var(--motion-soft),
+    background .22s var(--motion-ease),
+    opacity .22s var(--motion-ease);
+}
+
+/* Only use barSet when manually added, not globally. */
+.anim-bar-set{
+  animation:barSet .42s var(--motion-soft);
 }
 
 @keyframes barSet{
@@ -271,31 +547,82 @@
   }
 }
 
+/* Red/yellow dots can pop when state changes. Green dots stay stable. */
 .tab-dot.dot-red,
-.tab-dot.dot-yellow,
-.tab-dot.dot-green{
-  animation:dotPop .32s cubic-bezier(.22,1.2,.36,1);
+.tab-dot.dot-yellow{
+  animation:dotPop .28s cubic-bezier(.22,1.15,.36,1);
 }
 
+.tab-dot.dot-green,
+.tab-dot.dot-stable{
+  animation:none!important;
+}
+
+/* Special/danger cards glow, but do not replay entry pop on every render. */
 .card.special,
 .row-card.special{
-  animation:softPop .24s ease both,rewardGlow 2.8s ease-in-out infinite;
+  animation:rewardGlow 2.8s ease-in-out infinite;
 }
 
 .card.danger,
 .row-card.danger,
 .crit-banner.red{
-  animation:softPop .24s ease both,dangerPulse 2.8s ease-in-out infinite;
+  animation:dangerPulse 2.8s ease-in-out infinite;
 }
 
-.smart-tip{
-  animation:tipIn .28s ease both;
+.skill-pip.filled{
+  animation:pipIn .20s var(--motion-pop) both;
 }
 
-@keyframes tipIn{
+@keyframes pipIn{
   from{
     opacity:0;
-    transform:translateY(-5px);
+    transform:scale(.35);
+  }
+  to{
+    opacity:1;
+    transform:scale(1);
+  }
+}
+
+/* ─────────────────────────────────────────────
+   10. Life snapshot / panels
+───────────────────────────────────────────── */
+
+.life-snapshot,
+.life-stress-panel,
+.life-log-toolbar,
+.life-log-actions{
+  animation:fadeSlideIn .22s var(--motion-soft) both;
+}
+
+/* Avoid staggered metric animations during frequent UI updates. */
+.life-snapshot-metric{
+  animation:none;
+}
+
+/* ─────────────────────────────────────────────
+   11. Details / collapsible sections
+───────────────────────────────────────────── */
+
+details[open] > summary{
+  animation:summaryActive .18s var(--motion-soft) both;
+}
+
+@keyframes summaryActive{
+  from{filter:brightness(.94)}
+  to{filter:brightness(1)}
+}
+
+.history-toggle[open] .history-toggle-body,
+details[open] .tier-body{
+  animation:collapseIn .20s var(--motion-soft) both;
+}
+
+@keyframes collapseIn{
+  from{
+    opacity:0;
+    transform:translateY(-3px);
   }
   to{
     opacity:1;
@@ -304,16 +631,216 @@
 }
 
 /* ─────────────────────────────────────────────
-   06. Reduced motion
+   12. Crime / filter feedback
+───────────────────────────────────────────── */
+
+/* Do not auto-pop all crime cards on every render. */
+#tab-crime .crime-filter.active{
+  animation:activeFilter .22s var(--motion-pop) both;
+}
+
+@keyframes activeFilter{
+  0%{transform:scale(.99)}
+  60%{transform:scale(1.012)}
+  100%{transform:scale(1)}
+}
+
+.crime-badge,
+#tab-crime .crime-core-loop span{
+  animation:badgeIn .18s var(--motion-soft) both;
+}
+
+@keyframes badgeIn{
+  from{
+    opacity:0;
+    transform:translateY(2px) scale(.97);
+  }
+  to{
+    opacity:1;
+    transform:translateY(0) scale(1);
+  }
+}
+
+/* ─────────────────────────────────────────────
+   13. Status animations
+───────────────────────────────────────────── */
+
+.trend-up{
+  animation:trendUp .28s var(--motion-soft) both;
+}
+
+.trend-down{
+  animation:trendDown .28s var(--motion-soft) both;
+}
+
+@keyframes trendUp{
+  from{
+    opacity:.60;
+    transform:translateY(3px);
+  }
+  to{
+    opacity:1;
+    transform:translateY(0);
+  }
+}
+
+@keyframes trendDown{
+  from{
+    opacity:.60;
+    transform:translateY(-3px);
+  }
+  to{
+    opacity:1;
+    transform:translateY(0);
+  }
+}
+
+/* Badges should not pop every render by default. */
+.badge-g,
+.badge-y,
+.badge-r,
+.badge-c,
+.badge-p,
+.badge-a,
+.badge-o,
+.mental-badge,
+.rep-badge,
+.digital-crime-badge{
+  animation:none;
+}
+
+/* Use this class only when you intentionally create a new badge. */
+.anim-badge-in{
+  animation:badgeIn .18s var(--motion-soft) both;
+}
+
+/* ─────────────────────────────────────────────
+   14. Optional utility classes
+───────────────────────────────────────────── */
+
+.anim-fade-in{
+  animation:fadeIn .22s var(--motion-soft) both;
+}
+
+.anim-slide-in{
+  animation:fadeSlideIn .24s var(--motion-soft) both;
+}
+
+.anim-pop{
+  animation:softPop .22s ease both;
+}
+
+.anim-pop-up{
+  animation:softPopUp .28s var(--motion-pop) both;
+}
+
+.anim-reward{
+  animation:rewardGlow 2.8s ease-in-out infinite;
+}
+
+.anim-danger{
+  animation:dangerPulse 2.8s ease-in-out infinite;
+}
+
+.anim-success{
+  animation:successPulse 2.8s ease-in-out infinite;
+}
+
+/* ─────────────────────────────────────────────
+   15. Render stability modes
+───────────────────────────────────────────── */
+
+/* During JS patching, prevent visual flicker. */
+.ui-stable-rendering *,
+.ui-stable-rendering *::before,
+.ui-stable-rendering *::after,
+.ui-patching *,
+.ui-patching *::before,
+.ui-patching *::after,
+[data-patching="1"],
+[data-patching="1"] *{
+  animation:none!important;
+  transition:none!important;
+  scroll-behavior:auto!important;
+}
+
+.ui-stable-rendering .card::before,
+.ui-stable-rendering .row-card::before,
+.ui-stable-rendering .rel-card::before,
+.ui-stable-rendering .nw-box::before,
+.ui-patching .card::before,
+.ui-patching .row-card::before,
+.ui-patching .rel-card::before,
+.ui-patching .nw-box::before{
+  opacity:0!important;
+}
+
+/* Use on containers that update values frequently. */
+.no-auto-motion,
+.no-auto-motion *,
+.stable-card,
+.stable-card *{
+  animation:none!important;
+}
+
+/* Keep hover/active usable even when entry animations are disabled. */
+.stable-card{
+  transition:
+    transform var(--motion-fast) var(--motion-ease),
+    background var(--motion-med) var(--motion-ease),
+    border-color var(--motion-med) var(--motion-ease),
+    box-shadow var(--motion-med) var(--motion-ease),
+    opacity var(--motion-med) var(--motion-ease);
+}
+
+/* ─────────────────────────────────────────────
+   16. Mobile motion tuning
+───────────────────────────────────────────── */
+
+@media (max-width:520px){
+  .logo-emoji{
+    animation-duration:4s;
+  }
+
+  .modal-box{
+    animation-duration:.25s;
+  }
+
+  .toast{
+    animation-duration:.18s;
+  }
+
+  .tab-panel.active{
+    animation-duration:.16s;
+  }
+}
+
+/* ─────────────────────────────────────────────
+   17. Reduced motion
 ───────────────────────────────────────────── */
 
 @media (prefers-reduced-motion:reduce){
+  html{
+    scroll-behavior:auto!important;
+  }
+
   *,
   *::before,
   *::after{
     animation-duration:.01ms!important;
+    animation-delay:0ms!important;
     animation-iteration-count:1!important;
-    scroll-behavior:auto!important;
     transition-duration:.01ms!important;
+    scroll-behavior:auto!important;
+  }
+
+  .logo-emoji,
+  .death-icon,
+  .btn-pulse,
+  .ach-shimmer::after,
+  .anim-shimmer::after,
+  .modal-loading-bar,
+  .ai-dot-spinner span{
+    animation:none!important;
   }
 }

@@ -1,4 +1,4 @@
-/* js/health.js — LifeSim v13 Reforged health, food, recovery and medical system */
+/* js/health.js — LifeSim module */
 const Health={
   FOOD_PLANS:{
     budget:{label:'Budget groceries',icon:'🥫',cost:2100,groceries:.92,dining:.08,nutrition:45,calories:'low',health:-1,happiness:-2,looks:-1,fitness:-1,stress:2,desc:'Cheap basics, repetitive meals, easy to under-eat'},
@@ -25,15 +25,20 @@ const Health={
   ],
 
   ACTION_LIMITS:{
-    foodPlan:3,
-    visit:4,
-    treat:4,
-    sexualCheckup:2,
+    therapy:2,
+    meditate:3,
+    digitalDetox:2,
+    journaling:3,
+    burnoutRecovery:1,
+    foodPlan:2,
+    visit:2,
+    treat:3,
+    sexualCheckup:1,
     rehab:1,
-    screen:3,
-    supplement:6,
+    screen:2,
+    supplement:2,
     lifestyle:3,
-    surgery:2,
+    surgery:1,
     quit:2,
   },
 
@@ -50,12 +55,12 @@ const Health={
   _usesLeft(action,G=window.G){
     if(!G)return 0;
     this._resetActionYearIfNeeded(G);
-    const limit=this.ACTION_LIMITS[action]??99;
+    const limit=this.ACTION_LIMITS[action]??1;
     const used=G.healthActionUses?.[action]||0;
     return Math.max(0,limit-used);
   },
 
-  _canUseAction(action,msg='You already used that health action enough this year. Age up to refresh.'){
+  _canUseAction(action,msg='You need to rest before doing more of that health action . Age Up refreshes it.'){
     const G=window.G;
     if(!G)return false;
     this._resetActionYearIfNeeded(G);
@@ -88,11 +93,116 @@ const Health={
   _fitnessLabel(v){
     return v>78?'Athletic':v>58?'Fit':v>40?'Average':'Unfit';
   },
+  _ensureMentalState(G){
+    if(!G)return;
+    if(!Number.isFinite(G.mentalHealth))G.mentalHealth=60;
+    if(!Number.isFinite(G.burnoutLevel))G.burnoutLevel=0;
+    G.mentalHealth=Math.max(0,Math.min(100,G.mentalHealth));
+    if((G.stress||0)>85&&(G.mentalHealth||60)<40)G.burnoutLevel=Math.min(3,(G.burnoutLevel||0)+1);
+    else if((G.stress||0)<40)G.burnoutLevel=Math.max(0,(G.burnoutLevel||0)-1);
+  },
+
+  _mentalLabel(v){
+    return v>=80?'Thriving':v>=60?'Balanced':v>=40?'Struggling':v>=20?'Distressed':'Crisis';
+  },
+
+  _mentalColor(v){
+    return v>=70?'var(--green)':v>=45?'var(--yellow)':'var(--red)';
+  },
+
+
+
+  therapy(G=window.G){
+    if(!G||!G.alive)return;
+    if(!this._canUseAction('therapy','You have already had enough therapy sessions .'))return;
+    const cost=3200;
+    if((G.money||0)<cost){UI.toast('You cannot afford therapy right now (costs $3,200).','bad');return;}
+    G.money-=cost;
+    this._ensureMentalState(G);
+    const gain=r(8,18);
+    G.mentalHealth=cl(G.mentalHealth+gain);
+    G.stress=cl((G.stress||0)-r(8,14));
+    G.happiness=cl(G.happiness+r(3,8));
+    if((G.conditions||[]).some(c=>c.key==='depression'||c.key==='anxiety')){
+      G.conditions=(G.conditions||[]).map(c=>c.key==='depression'||c.key==='anxiety'?{...c,managed:true}:c);
+    }
+    this._markAction('therapy',G);
+    Engine.log(`🛋️ Therapy session: +${gain} mental wellness, stress reduced. ($${cost.toLocaleString()})`, 'good');
+    UI.toast('Therapy session complete. You feel clearer.','good');
+    UI.update();
+    if(typeof Save!=='undefined')Save.autosave(G);
+  },
+
+  meditate(G=window.G){
+    if(!G||!G.alive)return;
+    if(!this._canUseAction('meditate','You have meditated enough .'))return;
+    this._ensureMentalState(G);
+    const gain=r(3,8);
+    G.mentalHealth=cl(G.mentalHealth+gain);
+    G.stress=cl((G.stress||0)-r(3,6));
+    G.happiness=cl(G.happiness+r(1,4));
+    if((G.skills?.meditation||0)>=2){G.mentalHealth=cl(G.mentalHealth+4);G.stress=cl((G.stress||0)-3);}
+    this._markAction('meditate',G);
+    Engine.log(`🧘 Meditation practice: +${gain} mental wellness.`, 'good');
+    UI.toast('Mindful session complete. The mind is a little quieter.','good');
+    UI.update();
+    if(typeof Save!=='undefined')Save.autosave(G);
+  },
+
+  digitalDetox(G=window.G){
+    if(!G||!G.alive)return;
+    if(!this._canUseAction('digitalDetox','You have already done a digital detox .'))return;
+    this._ensureMentalState(G);
+    G.mentalHealth=cl(G.mentalHealth+r(5,12));
+    G.stress=cl((G.stress||0)-r(6,12));
+    G.happiness=cl(G.happiness+r(2,6));
+    this._markAction('digitalDetox',G);
+    Engine.log('📵 Digital detox: unplugged for a week. Clarity restored.', 'good');
+    UI.toast('Digital detox complete. You feel more present.','good');
+    UI.update();
+    if(typeof Save!=='undefined')Save.autosave(G);
+  },
+
+  journaling(G=window.G){
+    if(!G||!G.alive)return;
+    if(!this._canUseAction('journaling','You have journaled enough .'))return;
+    this._ensureMentalState(G);
+    const gain=r(2,7);
+    G.mentalHealth=cl(G.mentalHealth+gain);
+    G.stress=cl((G.stress||0)-r(2,5));
+    if((G.skills?.writing||0)>=1)G.mentalHealth=cl(G.mentalHealth+3);
+    this._markAction('journaling',G);
+    Engine.log(`📓 Journaling: +${gain} mental wellness. Thoughts processed.`, 'good');
+    UI.toast('Journaling session. Writing it out helped.','good');
+    UI.update();
+    if(typeof Save!=='undefined')Save.autosave(G);
+  },
+
+  burnoutRecovery(G=window.G){
+    if(!G||!G.alive)return;
+    if((G.burnoutLevel||0)<1){UI.toast('You are not currently burned out.','neutral');return;}
+    if(!this._canUseAction('burnoutRecovery','You are already recovering. Give it time.'))return;
+    const cost=5000;
+    if((G.money||0)<cost){UI.toast(`Burnout recovery requires $${cost.toLocaleString()}.`,'bad');return;}
+    G.money-=cost;
+    this._ensureMentalState(G);
+    G.burnoutLevel=0;
+    G.stress=cl((G.stress||0)-r(20,35));
+    G.mentalHealth=cl(G.mentalHealth+r(15,25));
+    G.happiness=cl(G.happiness+r(6,14));
+    this._markAction('burnoutRecovery',G);
+    Engine.log('🌅 Burnout recovery program complete. You feel like yourself again.','good');
+    UI.toast('Burnout recovery complete. You have reset.','good');
+    UI.update();
+    if(typeof Save!=='undefined')Save.autosave(G);
+  },
+
 
   render(){
     const G=window.G;if(!G)return;
     const el=document.getElementById('tab-health');if(!el)return;
     this._ensureState(G);
+    this._ensureMentalState(G);
 
     const food=G.food;
     const plan=this.FOOD_PLANS[food.plan]||this.FOOD_PLANS.cook;
@@ -125,16 +235,44 @@ const Health={
         <div class="nw-sub">Last bill ${fmt(food.lastCost||0)} · Groceries ${fmt(food.groceryCost||0)} · Eating out ${fmt(food.diningCost||0)}</div>
       </div>`;
 
-    h+=`<div class="info-box"><p>🩺 Health actions this year: visits ${this._usesLeft('visit')}, screenings ${this._usesLeft('screen')}, supplements ${this._usesLeft('supplement')}, lifestyle ${this._usesLeft('lifestyle')}. Age Up refreshes these limits.</p></div>`;
+    h+=`<div class="info-box"><p>🩺 Health actions : visits ${this._usesLeft('visit')}, screenings ${this._usesLeft('screen')}, supplements ${this._usesLeft('supplement')}, lifestyle ${this._usesLeft('lifestyle')}. Age Up refreshes these limits.</p></div>`;
 
     h+=this._renderConditions(G);
     h+=this._renderRecovery(G,recovery);
     h+=this._renderFood(G,food,plan,estimate);
     h+=this._renderMedical(G,sti);
     h+=this._renderLifestyle(G);
+    h+=this._renderMentalWellness(G);
 
     el.innerHTML=h;
   },
+
+  _renderMentalWellness(G){
+    this._ensureMentalState(G);
+    const burnout=G.burnoutLevel||0;
+    const mhActs=[
+      {icon:'🛋️',label:'Therapy Session',sub:'$3,200 · Best mental boost + stress relief',fn:'Health.therapy()'},
+      {icon:'🧘',label:'Meditation Practice',sub:'Free · Calm stress, lift wellness',fn:'Health.meditate()'},
+      {icon:'📵',label:'Digital Detox',sub:'Free · Unplug for clarity and presence',fn:'Health.digitalDetox()'},
+      {icon:'📓',label:'Journaling',sub:'Free · Process thoughts, build resilience',fn:'Health.journaling()'},
+    ];
+    if(burnout>0)mhActs.push({icon:'🌅',label:'Burnout Recovery Program',sub:'$5,000 · Reset burnout completely',fn:'Health.burnoutRecovery()'});
+    const mhColor=this._mentalColor(G.mentalHealth||60);
+    const mhLabel=this._mentalLabel(G.mentalHealth||60);
+    return `<div style="background:var(--s1);border:1.5px solid rgba(124,111,255,.28);border-radius:14px;padding:14px;margin-bottom:12px">
+      <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:8px">
+        <div style="font-size:10px;font-weight:900;color:var(--muted);text-transform:uppercase;letter-spacing:1.2px">🧠 Mental Wellness</div>
+        <div style="font-size:12px;font-weight:800;color:${mhColor}">${mhLabel} · ${G.mentalHealth||60}/100${burnout>0?' · ⚠️ Burnout Lv'+burnout:''}</div>
+      </div>
+      <div style="height:6px;background:var(--b1);border-radius:999px;overflow:hidden;margin-bottom:10px">
+        <div style="height:100%;border-radius:999px;background:${mhColor};width:${G.mentalHealth||60}%;transition:width .4s"></div>
+      </div>
+      <div class="act-grid">
+        ${mhActs.map(a=>`<button type="button" class="card mental-action-card" onclick="${a.fn}"><span class="ci">${a.icon}</span><span class="cn">${a.label}</span><span class="cd">${a.sub}</span></button>`).join('')}
+      </div>
+    </div>`;
+  },
+
 
   _renderConditions(G){
     const list=G.conditions||[];
@@ -193,7 +331,7 @@ const Health={
       const c=this._foodCost(p,G);
       const selected=food.plan===id;
       const stat=p.health>0?`+${p.health} health`:p.health<0?`${p.health} health`:'neutral health';
-      h+=`<div class="card ${selected?'special':''}" onclick="Health.setFoodPlan('${id}')">
+      h+=`<div class="card ${selected?'special':''}" onclick="Health.setFoodPlan('${id}')" aria-pressed="${selected?'true':'false'}" title="${selected?'Current food plan':''}">
         <span class="ci">${p.icon}</span>
         <span class="cn">${this._esc(p.label)}</span>
         <span class="cd">${fmt(c.total)}/yr · Nutrition ${p.nutrition}% · ${stat}</span>
@@ -213,12 +351,12 @@ const Health={
     </div>`;
 
     if((G.age||0)>=18){
-      h+=`<div class="sec">Sexual Health</div>
+      h+=`<div class="sec">Relationship Health</div>
       <div class="row-card" onclick="Health.sexualCheckup()">
         <span class="ri">🧪</span>
         <div class="rd">
-          <div class="rt">Sexual health checkup</div>
-          <div class="rs">Status: <span style="color:${sti?'var(--red)':'var(--green)'}">${sti?'STI detected':'All clear'}</span> · Partners ${G.sexualHealth?.partners||0} · Protected ${G.sexualHealth?.protectedEncounters||0} / Unprotected ${G.sexualHealth?.unprotectedEncounters||0}</div>
+          <div class="rt">Relationship health checkup</div>
+          <div class="rs">Status: <span style="color:${sti?'var(--red)':'var(--green)'}">${sti?'Needs treatment':'Clear / checked'}</span> · contacts ${G.sexualHealth?.partners||0} · safer choices ${G.sexualHealth?.protectedEncounters||0} · higher-risk choices ${G.sexualHealth?.unprotectedEncounters||0}</div>
         </div>
         <div class="rv">${fmt(sc(sti?400:120))}</div>
       </div>`;
@@ -250,6 +388,9 @@ const Health={
       <div class="card" onclick="Health.lifestyle('cold')"><span class="ci">🧊</span><span class="cn">Cold Showers</span><span class="cd">+Stress control</span></div>
     </div>`;
 
+
+
+
     if((G.age||0)>=18){
       h+=`<div class="sec">Elective Surgery</div>
       <div class="act-grid">
@@ -278,6 +419,10 @@ const Health={
   _payMedical(label,baseCost){
     const G=window.G;
     const amount=Math.max(0,Math.round(baseCost||0));
+    if((G?.age||0)<18){
+      Engine.log(`🏥 ${cap(label)} was handled by your family or guardian. You were not charged personal money.`, 'health');
+      return true;
+    }
     if(typeof Assets==='undefined'||!Assets.coveredExpense||!Assets.chargeExpense){
       if((G.money||0)<amount){UI.toast(`Need ${fmt(amount)}!`);return false;}
       G.money-=amount;
@@ -297,11 +442,14 @@ const Health={
     const G=window.G;if(!G)return;
     this._ensureState(G);
     if(!this._canUseAction('visit'))return;
-    this._markAction('visit');
     const costs={gp:100,specialist:600,hospital:2000,mental:160};
     const cost=sc(costs[t]||100);
     const ok=this._payMedical(`${t} visit`,cost);
-    if(!ok&&G.money<=0&&!G.insurance?.health)UI.toast('You could not cover the full medical bill.');
+    if(!ok){
+      if(G.money<=0&&!G.insurance?.health)UI.toast('You could not cover the full medical bill.');
+      return;
+    }
+    this._markAction('visit');
 
     if(t==='gp'){
       G.health=cl(G.health+r(8,16));
@@ -336,7 +484,6 @@ const Health={
     this._ensureState(G);
     if((G.conditions||[]).length<=i)return;
     if(!this._canUseAction('treat'))return;
-    this._markAction('treat');
     const c=G.conditions[i];
     const cost=sc(c?.key==='cancer'?1800:c?.key==='afib'?1200:800);
     const ok=this._payMedical('condition treatment',cost);
@@ -344,6 +491,7 @@ const Health={
       Engine.log(`⚠️ Treatment for ${c.name} was incomplete because the bill was not fully covered.`, 'bad');
       UI.update();this.render();return;
     }
+    this._markAction('treat');
     G.conditions.splice(i,1);
     G.health=cl(G.health+r(10,18));
     G.happiness=cl(G.happiness+r(2,6));
@@ -355,19 +503,19 @@ const Health={
     const G=window.G;if(!G)return;
     this._ensureState(G);
     if(!this._canUseAction('sexualCheckup'))return;
-    this._markAction('sexualCheckup');
     const sti=G.sexualHealth?.sti||G.sexualHealth?.std;
     const cost=sc(sti?400:120);
-    this._payMedical('sexual health checkup',cost);
+    if(!this._payMedical('relationship health checkup',cost))return;
+    this._markAction('sexualCheckup');
     G.sexualHealth.lastCheckupAge=G.age;
     if(sti){
       G.sexualHealth.sti=false;
       G.sexualHealth.std=false;
       G.health=cl(G.health+8);
-      Engine.log('🧪 Sexual health test came back positive, but treatment worked and you are clear now.', 'good');
+      Engine.log('🧪 Relationship health checkup found an issue, treatment worked, and you are clear now.', 'good');
     }else{
       G.happiness=cl(G.happiness+2);
-      Engine.log('🧪 Sexual health test came back clear.', 'good');
+      Engine.log('🧪 Relationship health test came back clear.', 'good');
     }
     UI.update();this.render();
   },
@@ -399,10 +547,10 @@ const Health={
     const G=window.G;if(!G)return;
     this._ensureState(G);
     if(!this._canUseAction('screen'))return;
-    this._markAction('screen');
     const costs={blood:150,cancer:300,heart:400,genetic:800};
     const cost=sc(costs[t]||150);
-    this._payMedical(`${t} screening`,cost);
+    if(!this._payMedical(`${t} screening`,cost))return;
+    this._markAction('screen');
 
     const riskBonus=(G.age||0)>55?.08:(G.age||0)>40?.04:0;
     const detectChance={blood:.08,cancer:.11,heart:.12,genetic:.07}[t]||.08;
@@ -532,7 +680,6 @@ const Health={
     this._ensureState(G);
     if((G.age||0)<18){UI.toast('Surgery unlocks at 18.');return;}
     if(!this._canUseAction('surgery'))return;
-    this._markAction('surgery');
     const costs={eyes:3000,heart:25000,joint:14000,cosmetic:9000};
     const cost=sc(costs[t]||9000);
     const okPay=this._payMedical(`${t} surgery`,cost);
@@ -540,6 +687,7 @@ const Health={
       Engine.log('⚠️ Surgery was delayed because the bill was not covered.', 'bad');
       UI.update();this.render();return;
     }
+    this._markAction('surgery');
 
     const ok=Math.random()>(t==='heart'?0.19:0.14);
     if(t==='eyes'){
@@ -671,6 +819,13 @@ const Health={
     const G=window.G;if(!G)return;
     this._ensureState(G);
     if((G.age||0)<18)return;
+    if((G.age||0)===18&&!G.independenceFoodGraceUsed){
+      G.independenceFoodGraceUsed=true;
+      G.food.lastCost=0;G.food.groceryCost=0;G.food.diningCost=0;G.food.foodSecurity=100;G.food.lastChoiceLabel='Transition-year family meals';
+      G.food.nutritionScore=Math.max(55,G.food.nutritionScore||55);
+      Engine.log('🍽️ Transition year: family support covered basic meals while adult income and housing were being established.', 'good');
+      return;
+    }
 
     if(G.inPrison){
       G.food.lastCost=0;G.food.groceryCost=0;G.food.diningCost=0;G.food.foodSecurity=100;G.food.lastChoiceLabel='Prison meals';

@@ -1,0 +1,53 @@
+/* LifeSim v23.1 — age-aware UX */
+.age-stage-hero,.age-life-stage{border:1px solid color-mix(in srgb,var(--accent) 34%,var(--b1));background:linear-gradient(135deg,color-mix(in srgb,var(--accent) 12%,var(--s1)),var(--s1));border-radius:18px;padding:16px;margin-bottom:14px;box-shadow:0 14px 35px rgba(0,0,0,.15)}
+.age-stage-hero{display:grid;grid-template-columns:auto 1fr auto;gap:14px;align-items:center}.age-stage-icon{width:54px;height:54px;border-radius:17px;display:grid;place-items:center;font-size:30px;background:var(--s2);border:1px solid var(--b1)}
+.age-kicker{font-size:10px;line-height:1.2;font-weight:950;text-transform:uppercase;letter-spacing:1.15px;color:var(--accent)}.age-stage-hero h2,.age-life-stage h2{font-size:21px;line-height:1.1;margin:3px 0 5px;color:var(--txt)}.age-stage-hero p,.age-life-stage p{font-size:12px;line-height:1.55;color:var(--muted);margin:0;font-weight:650}
+.age-action-counter{min-width:74px;text-align:center;padding:10px;border-radius:14px;background:var(--s2);border:1px solid var(--b1)}.age-action-counter b{display:block;font-size:22px;color:var(--yellow)}.age-action-counter span{display:block;font-size:9px;color:var(--muted);font-weight:850;text-transform:uppercase;letter-spacing:.6px}
+.age-card-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:10px;margin-bottom:14px}.age-action-card{appearance:none;text-align:left;display:flex;flex-direction:column;gap:6px;min-height:124px;padding:14px;border-radius:15px;background:var(--s1);border:1.5px solid var(--b1);color:var(--txt);cursor:pointer;transition:transform .16s ease,border-color .16s ease,background .16s ease}.age-action-card:hover{transform:translateY(-2px);border-color:var(--accent);background:color-mix(in srgb,var(--accent) 7%,var(--s1))}.age-action-card>span{font-size:27px}.age-action-card b{font-size:13px}.age-action-card small{font-size:10px;line-height:1.45;color:var(--muted);font-weight:650}
+.age-note,.age-lock-roadmap{border-radius:14px;padding:13px 14px;background:var(--s2);border:1px solid var(--b1);margin-bottom:12px}.age-note b{font-size:12px;color:var(--txt)}.age-note p{font-size:11px;line-height:1.55;color:var(--muted);margin:4px 0 0}.age-lock-roadmap{display:flex;flex-wrap:wrap;gap:8px}.age-lock-roadmap span{font-size:10px;font-weight:800;color:var(--muted);background:var(--s1);border:1px solid var(--b1);border-radius:99px;padding:6px 9px}
+.age-people-grid,.age-metric-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:10px;margin-bottom:14px}.age-person-card{display:flex;align-items:center;gap:11px;padding:13px;border-radius:15px;background:var(--s1);border:1px solid var(--b1)}.age-person-card>span{font-size:29px}.age-person-card>div{flex:1;min-width:0}.age-person-card b,.age-person-card small,.age-person-card em{display:block}.age-person-card b{font-size:13px}.age-person-card small,.age-person-card em{font-size:9px;color:var(--muted);font-style:normal;margin-top:2px}.age-mini-bar{height:6px;border-radius:99px;background:var(--b1);overflow:hidden;margin-top:7px}.age-mini-bar i{display:block;height:100%;border-radius:inherit;background:linear-gradient(90deg,var(--accent),var(--cyan))}
+.age-metric-grid>div{padding:14px;border-radius:15px;background:var(--s1);border:1px solid var(--b1)}.age-metric-grid span,.age-metric-grid small{display:block;color:var(--muted);font-size:9px;font-weight:800;text-transform:uppercase;letter-spacing:.55px}.age-metric-grid b{display:block;font-size:21px;color:var(--txt);margin:3px 0}.age-metric-grid small{text-transform:none;letter-spacing:0;font-weight:650}
+.age-talent-list{display:grid;gap:8px;margin-bottom:14px}.age-talent-list article{display:grid;grid-template-columns:auto 1fr auto;align-items:center;gap:11px;background:var(--s1);border:1px solid var(--b1);border-radius:14px;padding:11px}.age-talent-list article>span{font-size:25px}.age-talent-list b,.age-talent-list small{display:block}.age-talent-list b{font-size:12px}.age-talent-list small{font-size:9px;color:var(--muted);margin-top:3px}.age-talent-list button,.age-lock-panel button{border:1px solid var(--accent);background:color-mix(in srgb,var(--accent) 14%,var(--s2));color:var(--txt);border-radius:10px;padding:8px 10px;font-size:10px;font-weight:900;cursor:pointer}
+.age-lock-panel{text-align:center;max-width:620px;margin:28px auto;padding:28px;border-radius:20px;background:var(--s1);border:1.5px solid var(--b1);box-shadow:0 20px 50px rgba(0,0,0,.18)}.age-lock-panel>div:first-child{font-size:40px}.age-lock-panel h2,.age-lock-panel h3{margin:7px 0;color:var(--txt)}.age-lock-panel p{font-size:12px;line-height:1.6;color:var(--muted);max-width:450px;margin:0 auto 12px}.age-lock-panel>b{display:block;color:var(--yellow);font-size:12px;margin-bottom:14px}
+.age-life-stage-main{display:grid;grid-template-columns:auto 1fr auto;gap:12px;align-items:center}.age-life-stage-main>span{font-size:34px}.age-upcoming{display:flex;gap:7px;flex-wrap:wrap;margin-top:12px;padding-top:11px;border-top:1px solid var(--b1)}.age-upcoming span{font-size:9px;font-weight:800;color:var(--muted);padding:5px 8px;border-radius:99px;background:var(--s2);border:1px solid var(--b1)}.age-upcoming b{color:var(--cyan)}
+.nt[hidden],.quick-rail-btn[hidden]{display:none!important}body[data-life-stage="infant"] .v23-command-center,body[data-life-stage="early"] .v23-command-center,body[data-life-stage="school"] .v23-command-center{display:none!important}
+body[data-life-stage="infant"] .v22-panel:has(.v22-kicker),body[data-life-stage="early"] .v22-panel:has(.v22-kicker){display:none}
+@media(max-width:820px){.age-card-grid{grid-template-columns:repeat(2,minmax(0,1fr))}.age-stage-hero,.age-life-stage-main{grid-template-columns:auto 1fr}.age-action-counter{grid-column:1/-1;display:flex;justify-content:center;align-items:center;gap:7px;padding:7px}.age-action-counter b{font-size:17px}.age-action-counter span{font-size:9px}.age-people-grid,.age-metric-grid{grid-template-columns:1fr}}
+@media(max-width:480px){.age-card-grid{grid-template-columns:1fr}.age-stage-hero{padding:13px}.age-stage-icon{width:46px;height:46px;font-size:25px}.age-stage-hero h2,.age-life-stage h2{font-size:18px}}
+.nt.age-tab-locked,.age-stat-hidden{display:none!important}
+.age-youth-money{border-color:color-mix(in srgb,var(--cyan) 28%,var(--b1))!important}
+.age-broad-talents{margin:0 0 14px;border:1px solid var(--b1);border-radius:14px;background:var(--s2);overflow:hidden}
+.age-broad-talents summary{cursor:pointer;padding:12px 14px;font-size:11px;font-weight:900;color:var(--txt)}
+.age-broad-talents .age-talent-list{padding:0 12px 12px;margin:0}
+.age-talent-list button:disabled{opacity:.5;cursor:not-allowed;border-color:var(--b1)}
+#app .nav-bar .nt.age-tab-locked,#app .nav-bar .nt[hidden]{display:none!important}
+#app .quick-rail-btn[hidden]{display:none!important}
+.age-teen-partner{display:flex;align-items:center;gap:12px;padding:14px;margin:0 0 12px;border-radius:16px;background:linear-gradient(135deg,color-mix(in srgb,var(--pink) 9%,var(--s1)),var(--s1));border:1px solid color-mix(in srgb,var(--pink) 28%,var(--b1))}.age-teen-partner>span{font-size:31px}.age-teen-partner>div{flex:1;min-width:0}.age-teen-partner b,.age-teen-partner small,.age-teen-partner em{display:block}.age-teen-partner b{font-size:14px}.age-teen-partner small,.age-teen-partner em{font-size:10px;color:var(--muted);font-style:normal;margin-top:3px}
+
+
+/* Minor screens must never inherit adult summary/plan injectors from legacy UI layers. */
+#app[data-age-group="minor"] #tab-mind > .release-polish-panel,
+#app[data-age-group="minor"] #tab-love > .release-polish-panel,
+#app[data-age-group="minor"] #tab-career > .release-polish-panel,
+#app[data-age-group="minor"] #tab-health > .release-polish-panel,
+#app[data-age-group="minor"] #tab-social > .release-polish-panel,
+#app[data-age-group="minor"] #tab-hustle > .release-polish-panel,
+#app[data-age-group="minor"] #tab-pets > .release-polish-panel,
+#app[data-age-group="minor"] #tab-skills > .release-polish-panel,
+#app[data-age-group="minor"] #tab-love > [class*="release-plan-"],
+#app[data-age-group="minor"] #tab-career > [class*="release-plan-"],
+#app[data-age-group="minor"] #tab-social > [class*="release-plan-"],
+#app[data-age-group="minor"] #tab-hustle > [class*="release-plan-"]{display:none!important;}
+
+
+@media (max-width:520px){
+  #app[data-age-group="minor"] .hdr-row1{display:grid!important;grid-template-columns:44px minmax(0,1fr) 82px!important;align-items:center!important;gap:8px!important;}
+  #app[data-age-group="minor"] .char-meta{min-width:0!important;}
+  #app[data-age-group="minor"] .money-block{min-width:0!important;max-width:82px!important;width:82px!important;text-align:right!important;align-self:start!important;}
+  #app[data-age-group="minor"] .money-block .money-val{font-size:15px!important;line-height:1.05!important;}
+  #app[data-age-group="minor"] .money-block .money-lbl{font-size:8px!important;line-height:1.15!important;letter-spacing:.45px!important;margin-top:3px!important;}
+  #app[data-age-group="minor"] #g-money-ctx-m,
+  #app[data-age-group="minor"] #g-income-m,
+  #app[data-age-group="minor"] #g-cash-m{display:none!important;}
+  #app[data-age-group="minor"] #g-goals-widget-m{margin-top:5px!important;}
+}

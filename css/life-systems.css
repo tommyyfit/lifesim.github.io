@@ -1,0 +1,812 @@
+.ls-life-shell{
+  display:grid;
+  gap:12px;
+  margin-bottom:12px;
+}
+
+.ls-launcher-card{
+  display:flex;
+  align-items:center;
+  justify-content:space-between;
+  gap:12px;
+  padding:14px 16px;
+  border-radius:16px;
+  border:1.5px solid rgba(148,163,184,.14);
+  background:linear-gradient(180deg,rgba(16,20,33,.88),rgba(11,14,25,.82));
+  box-shadow:0 14px 32px rgba(0,0,0,.18), inset 0 1px 0 rgba(255,255,255,.03);
+}
+
+.ls-launcher-copy{
+  display:grid;
+  gap:4px;
+}
+
+.ls-launcher-copy strong{
+  color:var(--txt);
+  font-size:13px;
+  font-weight:900;
+  line-height:1.45;
+}
+
+.ls-launcher-copy span{
+  color:var(--muted);
+  font-size:11px;
+  font-weight:700;
+  line-height:1.5;
+}
+
+.ls-toggle-btn{
+  flex-shrink:0;
+  min-width:122px;
+  padding:10px 14px;
+  border-radius:12px;
+  border:1.5px solid rgba(96,165,250,.22);
+  background:rgba(96,165,250,.1);
+  color:var(--txt);
+  font-size:11px;
+  font-weight:900;
+  letter-spacing:.2px;
+  cursor:pointer;
+  transition:transform .16s ease,border-color .16s ease,background .16s ease;
+}
+
+.ls-toggle-btn:hover{
+  transform:translateY(-1px);
+  border-color:rgba(96,165,250,.38);
+  background:rgba(96,165,250,.14);
+}
+
+.ls-hero-card,
+.ls-year-card{
+  background:linear-gradient(180deg,rgba(22,26,42,.9),rgba(12,15,28,.88));
+  border:1.5px solid rgba(148,163,184,.16);
+  border-radius:18px;
+  box-shadow:0 16px 40px rgba(0,0,0,.22), inset 0 1px 0 rgba(255,255,255,.04);
+  backdrop-filter:blur(14px);
+  padding:16px 16px 14px;
+}
+
+.ls-kicker{
+  font-size:10px;
+  font-weight:900;
+  color:var(--muted);
+  text-transform:uppercase;
+  letter-spacing:1.2px;
+  margin-bottom:6px;
+}
+
+.ls-hero-top,
+.ls-year-head{
+  display:flex;
+  justify-content:space-between;
+  align-items:flex-start;
+  gap:12px;
+  margin-bottom:12px;
+}
+
+.ls-hero-card h3,
+.ls-year-card h3{
+  margin:0;
+  font-size:20px;
+  font-weight:950;
+  color:var(--txt);
+}
+
+.ls-hero-card p,
+.ls-year-card p{
+  margin:6px 0 0;
+  color:var(--muted);
+  font-size:12px;
+  font-weight:700;
+  line-height:1.6;
+}
+
+.ls-momentum-pill{
+  min-width:110px;
+  border-radius:16px;
+  padding:10px 12px;
+  border:1.5px solid rgba(148,163,184,.18);
+  background:rgba(255,255,255,.03);
+  display:flex;
+  flex-direction:column;
+  align-items:flex-end;
+  gap:3px;
+}
+
+.ls-momentum-pill strong{
+  font-size:13px;
+  font-weight:950;
+}
+
+.ls-momentum-pill span{
+  font-size:11px;
+  font-weight:800;
+  color:var(--muted);
+}
+
+.ls-momentum-pill.tone-good strong{color:var(--green);}
+.ls-momentum-pill.tone-warn strong{color:var(--yellow);}
+.ls-momentum-pill.tone-bad strong{color:var(--red);}
+.ls-momentum-pill.tone-neutral strong{color:var(--cyan);}
+
+.ls-chip-row{
+  display:flex;
+  flex-wrap:wrap;
+  gap:7px;
+  margin-bottom:12px;
+}
+
+.ls-chip{
+  padding:6px 10px;
+  border-radius:999px;
+  border:1px solid rgba(148,163,184,.16);
+  background:rgba(255,255,255,.035);
+  color:var(--txt);
+  font-size:10px;
+  font-weight:900;
+  letter-spacing:.2px;
+}
+
+.ls-guidance-grid{
+  display:grid;
+  grid-template-columns:repeat(2,minmax(0,1fr));
+  gap:10px;
+}
+
+.ls-guidance-card{
+  border-radius:14px;
+  border:1px solid rgba(148,163,184,.14);
+  background:rgba(255,255,255,.03);
+  padding:12px;
+}
+
+.ls-guidance-label{
+  display:block;
+  font-size:10px;
+  font-weight:900;
+  color:var(--muted);
+  text-transform:uppercase;
+  letter-spacing:1px;
+  margin-bottom:6px;
+}
+
+.ls-guidance-card strong{
+  display:block;
+  color:var(--txt);
+  font-size:12px;
+  font-weight:900;
+  line-height:1.45;
+}
+
+.ls-guidance-card p{
+  margin-top:5px;
+}
+
+.ls-year-age{
+  display:inline-flex;
+  align-items:center;
+  gap:6px;
+  padding:7px 10px;
+  border-radius:999px;
+  border:1px solid rgba(148,163,184,.16);
+  background:rgba(255,255,255,.03);
+  color:var(--muted);
+  font-size:11px;
+  font-weight:900;
+}
+
+.ls-year-list{
+  display:grid;
+  gap:8px;
+}
+
+.ls-year-item{
+  display:grid;
+  gap:4px;
+  border-radius:14px;
+  border:1px solid rgba(148,163,184,.12);
+  background:rgba(255,255,255,.028);
+  padding:11px 12px;
+}
+
+.ls-year-item b{
+  color:var(--txt);
+  font-size:11px;
+  font-weight:950;
+  text-transform:uppercase;
+  letter-spacing:.9px;
+}
+
+.ls-year-item span{
+  color:var(--muted);
+  font-size:12px;
+  font-weight:700;
+  line-height:1.55;
+}
+
+.ls-inline-note{
+  display:grid;
+  gap:4px;
+  border-radius:14px;
+  padding:11px 12px;
+  margin-top:10px;
+  border:1px solid rgba(148,163,184,.14);
+}
+
+.ls-inline-note strong{
+  font-size:11px;
+  font-weight:950;
+  text-transform:uppercase;
+  letter-spacing:.9px;
+}
+
+.ls-inline-note span{
+  color:var(--txt);
+  font-size:12px;
+  font-weight:700;
+  line-height:1.55;
+}
+
+.ls-inline-note.tone-good{
+  background:rgba(74,222,128,.08);
+  border-color:rgba(74,222,128,.22);
+}
+
+.ls-inline-note.tone-good strong{color:var(--green);}
+
+.ls-inline-note.tone-bad{
+  background:rgba(248,113,113,.08);
+  border-color:rgba(248,113,113,.22);
+}
+
+.ls-inline-note.tone-bad strong{color:var(--red);}
+
+.ls-year-details{
+  margin-top:12px;
+  border-radius:14px;
+  border:1px solid rgba(148,163,184,.12);
+  background:rgba(255,255,255,.022);
+  overflow:hidden;
+}
+
+.ls-year-details summary{
+  cursor:pointer;
+  list-style:none;
+  padding:11px 12px;
+  color:var(--txt);
+  font-size:12px;
+  font-weight:900;
+}
+
+.ls-year-details summary::-webkit-details-marker{
+  display:none;
+}
+
+.ls-feedback-list{
+  display:grid;
+  gap:8px;
+  padding:0 12px 12px;
+}
+
+.ls-feedback-item{
+  border-radius:12px;
+  border:1px solid rgba(148,163,184,.12);
+  background:rgba(255,255,255,.03);
+  padding:10px 11px;
+}
+
+.ls-feedback-item span{
+  color:var(--txt);
+  font-size:12px;
+  font-weight:700;
+  line-height:1.55;
+}
+
+.ls-feedback-item.tone-good{
+  border-color:rgba(74,222,128,.18);
+  background:rgba(74,222,128,.06);
+}
+
+.ls-feedback-item.tone-bad{
+  border-color:rgba(248,113,113,.18);
+  background:rgba(248,113,113,.06);
+}
+
+.ls-feedback-item.tone-special{
+  border-color:rgba(96,165,250,.18);
+  background:rgba(96,165,250,.06);
+}
+
+#dt-story p{
+  margin:0 0 10px;
+}
+
+@media (max-width: 780px){
+  .ls-launcher-card{
+    flex-direction:column;
+    align-items:stretch;
+  }
+
+  .ls-toggle-btn{
+    width:100%;
+  }
+
+  .ls-guidance-grid{
+    grid-template-columns:1fr;
+  }
+
+  .ls-hero-top,
+  .ls-year-head{
+    flex-direction:column;
+  }
+
+  .ls-momentum-pill{
+    width:100%;
+    align-items:flex-start;
+  }
+}
+
+/* ─────────────────────────────────────────────
+   Release.1 Critical stability/layout repair
+   Loaded last, so these rules override older release theme rules.
+───────────────────────────────────────────── */
+
+#app[data-version="release"] #tab-love,
+#app[data-version="release"] #tab-stocks{
+  overflow-anchor:none!important;
+}
+
+#app[data-version="release"] #tab-love .rel-card,
+#app[data-version="release"] #tab-love .partner-card,
+#app[data-version="release"] #tab-stocks .row-card{
+  min-width:0!important;
+  box-sizing:border-box!important;
+}
+
+#app[data-version="release"] #tab-love .rel-card *,
+#app[data-version="release"] #tab-love .partner-card *,
+#app[data-version="release"] #tab-stocks .row-card *{
+  min-width:0!important;
+  box-sizing:border-box!important;
+}
+
+#app[data-version="release"] #tab-love .act-grid{
+  display:grid!important;
+  grid-template-columns:repeat(auto-fit,minmax(132px,1fr))!important;
+  gap:8px!important;
+  margin:-2px 0 12px!important;
+}
+
+#app[data-version="release"] #tab-love .act-grid .card{
+  min-height:68px!important;
+  padding:9px 8px!important;
+  border-radius:15px!important;
+}
+
+#app[data-version="release"] #tab-love .partner-card > div[style*="grid-template-columns"]{
+  grid-template-columns:repeat(3,minmax(0,1fr))!important;
+}
+
+#app[data-version="release"] #tab-love .rel-card{
+  min-height:64px!important;
+  align-items:center!important;
+  padding:12px!important;
+}
+
+#app[data-version="release"] #tab-love .rel-name,
+#app[data-version="release"] #tab-love .rel-role,
+#app[data-version="release"] #tab-love .rt,
+#app[data-version="release"] #tab-love .rs{
+  overflow-wrap:anywhere!important;
+  word-break:normal!important;
+}
+
+#app[data-version="release"] #tab-stocks .row-card{
+  min-height:auto!important;
+  align-items:flex-start!important;
+  padding:12px!important;
+  gap:12px!important;
+}
+
+#app[data-version="release"] #tab-stocks .row-card > .rd{
+  min-width:0!important;
+}
+
+#app[data-version="release"] #tab-stocks .row-card > div:last-child{
+  max-width:230px!important;
+  flex-shrink:0!important;
+}
+
+#app[data-version="release"] #tab-stocks .row-card .btn-sm{
+  min-height:30px!important;
+  padding:5px 8px!important;
+}
+
+@media(max-width:860px){
+  #app[data-version="release"] #tab-love .act-grid{
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  }
+
+  #app[data-version="release"] #tab-stocks .row-card > div:last-child{
+    max-width:190px!important;
+  }
+}
+
+@media(max-width:520px){
+  #app[data-version="release"] #tab-love .partner-card > div[style*="grid-template-columns"]{
+    grid-template-columns:1fr!important;
+  }
+
+  #app[data-version="release"] #tab-love .act-grid{
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  }
+
+  #app[data-version="release"] #tab-stocks .row-card{
+    flex-wrap:wrap!important;
+    align-items:stretch!important;
+  }
+
+  #app[data-version="release"] #tab-stocks .row-card > .ri{
+    width:34px!important;
+    height:34px!important;
+    min-width:34px!important;
+  }
+
+  #app[data-version="release"] #tab-stocks .row-card > .rd{
+    flex:1 1 calc(100% - 48px)!important;
+  }
+
+  #app[data-version="release"] #tab-stocks .row-card > div:last-child{
+    flex:1 1 100%!important;
+    max-width:none!important;
+    width:100%!important;
+    text-align:left!important;
+  }
+
+  #app[data-version="release"] #tab-stocks .row-card > div:last-child > div[style*="justify-content:flex-end"]{
+    justify-content:flex-start!important;
+  }
+}
+
+@media(max-width:360px){
+  #app[data-version="release"] #tab-love .act-grid{
+    grid-template-columns:1fr!important;
+  }
+}
+
+/* ─────────────────────────────────────────────
+   Release.2 Love + Stocks stability / responsive hardening
+   Final override loaded late to prevent old theme rules from breaking layout
+───────────────────────────────────────────── */
+
+#app[data-version="release"] #tab-love,
+#app[data-version="release"] #tab-stocks{
+  overflow-anchor:none!important;
+  contain:layout paint!important;
+}
+
+#app[data-version="release"] #tab-love .act-grid{
+  display:grid!important;
+  grid-template-columns:repeat(auto-fit,minmax(126px,1fr))!important;
+  gap:8px!important;
+  align-items:stretch!important;
+}
+
+#app[data-version="release"] #tab-love .act-grid .card{
+  width:100%!important;
+  min-width:0!important;
+  min-height:68px!important;
+  height:auto!important;
+  padding:9px 8px!important;
+  display:flex!important;
+  flex-direction:column!important;
+  justify-content:center!important;
+  overflow:hidden!important;
+}
+
+#app[data-version="release"] #tab-love .partner-card,
+#app[data-version="release"] #tab-love .rel-card,
+#app[data-version="release"] #tab-love .info-box,
+#app[data-version="release"] #tab-love .history-toggle,
+#app[data-version="release"] #tab-stocks .row-card,
+#app[data-version="release"] #tab-stocks .nw-box,
+#app[data-version="release"] #tab-stocks .info-box{
+  max-width:100%!important;
+  min-width:0!important;
+  box-sizing:border-box!important;
+  overflow:visible!important;
+}
+
+#app[data-version="release"] #tab-love .partner-card *,
+#app[data-version="release"] #tab-love .rel-card *,
+#app[data-version="release"] #tab-love .card *,
+#app[data-version="release"] #tab-stocks .row-card *,
+#app[data-version="release"] #tab-stocks .nw-box *{
+  min-width:0!important;
+  box-sizing:border-box!important;
+}
+
+#app[data-version="release"] #tab-love .partner-card > div[style*="grid-template-columns"]{
+  display:grid!important;
+  grid-template-columns:repeat(3,minmax(0,1fr))!important;
+  gap:8px!important;
+}
+
+#app[data-version="release"] #tab-stocks .row-card{
+  display:flex!important;
+  align-items:flex-start!important;
+  gap:12px!important;
+  min-height:116px!important;
+  padding:12px!important;
+}
+
+#app[data-version="release"] #tab-stocks .row-card > .ri{
+  flex:0 0 38px!important;
+}
+
+#app[data-version="release"] #tab-stocks .row-card > .rd{
+  flex:1 1 auto!important;
+  min-width:0!important;
+}
+
+#app[data-version="release"] #tab-stocks .row-card > div:last-child{
+  flex:0 0 230px!important;
+  max-width:230px!important;
+  min-width:160px!important;
+  text-align:right!important;
+}
+
+#app[data-version="release"] #tab-stocks .row-card .rs{
+  min-height:32px!important;
+}
+
+#app[data-version="release"] #tab-stocks .row-card .btn-sm{
+  min-height:30px!important;
+  padding:5px 8px!important;
+  flex:0 0 auto!important;
+}
+
+@media(max-width:860px){
+  #app[data-version="release"] #tab-love .act-grid{
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  }
+
+  #app[data-version="release"] #tab-stocks .row-card > div:last-child{
+    flex-basis:190px!important;
+    max-width:190px!important;
+    min-width:150px!important;
+  }
+}
+
+@media(max-width:520px){
+  #app[data-version="release"] #tab-love .partner-card > div[style*="grid-template-columns"]{
+    grid-template-columns:1fr!important;
+  }
+
+  #app[data-version="release"] #tab-love .act-grid{
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  }
+
+  #app[data-version="release"] #tab-stocks .row-card{
+    flex-wrap:wrap!important;
+    align-items:stretch!important;
+    min-height:0!important;
+    gap:9px!important;
+  }
+
+  #app[data-version="release"] #tab-stocks .row-card > .ri{
+    flex:0 0 34px!important;
+    width:34px!important;
+    height:34px!important;
+  }
+
+  #app[data-version="release"] #tab-stocks .row-card > .rd{
+    flex:1 1 calc(100% - 46px)!important;
+  }
+
+  #app[data-version="release"] #tab-stocks .row-card > div:last-child{
+    flex:1 1 100%!important;
+    max-width:none!important;
+    min-width:0!important;
+    width:100%!important;
+    text-align:left!important;
+  }
+
+  #app[data-version="release"] #tab-stocks .row-card > div:last-child > div[style*="justify-content:flex-end"]{
+    justify-content:flex-start!important;
+  }
+}
+
+@media(max-width:360px){
+  #app[data-version="release"] #tab-love .act-grid{
+    grid-template-columns:1fr!important;
+  }
+}
+
+
+/* ─────────────────────────────────────────────
+   Release.3 Global action no-jump hardening
+   Prevents every tab from visually jumping after button clicks.
+───────────────────────────────────────────── */
+
+html.ui-action-stabilizing,
+html.ui-action-stabilizing *{
+  scroll-behavior:auto!important;
+}
+
+html.ui-action-stabilizing *,
+html.ui-action-stabilizing *::before,
+html.ui-action-stabilizing *::after{
+  animation:none!important;
+  transition:none!important;
+}
+
+html.ui-action-stabilizing .content-area,
+html.ui-action-stabilizing .tab-panel{
+  overflow-anchor:none!important;
+}
+
+#app[data-version="release"] .tab-panel{
+  overflow-anchor:none!important;
+}
+
+#app[data-version="release"] #tab-love,
+#app[data-version="release"] #tab-stocks{
+  contain:none!important;
+  overflow-anchor:none!important;
+}
+
+/* Love action cards: stable responsive grid, no broken tablet/mobile squeezing */
+#app[data-version="release"] #tab-love .act-grid{
+  display:grid!important;
+  grid-template-columns:repeat(auto-fit,minmax(124px,1fr))!important;
+  gap:8px!important;
+  align-items:stretch!important;
+}
+
+#app[data-version="release"] #tab-love .card[data-stable-key^="love:action"],
+#app[data-version="release"] #tab-love .act-grid .card{
+  width:100%!important;
+  min-width:0!important;
+  min-height:68px!important;
+  height:auto!important;
+  padding:9px 8px!important;
+  overflow:hidden!important;
+}
+
+#app[data-version="release"] #tab-love .partner-card,
+#app[data-version="release"] #tab-love .rel-card,
+#app[data-version="release"] #tab-love .row-card,
+#app[data-version="release"] #tab-love .info-box,
+#app[data-version="release"] #tab-love .history-toggle{
+  width:100%!important;
+  max-width:100%!important;
+  min-width:0!important;
+  box-sizing:border-box!important;
+}
+
+#app[data-version="release"] #tab-love .partner-card *,
+#app[data-version="release"] #tab-love .rel-card *,
+#app[data-version="release"] #tab-love .row-card *,
+#app[data-version="release"] #tab-love .card *{
+  min-width:0!important;
+  box-sizing:border-box!important;
+}
+
+/* Stocks: grid rows are more stable than flex rows while numbers/buttons update */
+#app[data-version="release"] #tab-stocks .row-card[data-stock-id]{
+  display:grid!important;
+  grid-template-columns:42px minmax(0,1fr) minmax(168px,230px)!important;
+  align-items:center!important;
+  gap:12px!important;
+  min-height:112px!important;
+  width:100%!important;
+  max-width:100%!important;
+  box-sizing:border-box!important;
+  overflow:hidden!important;
+}
+
+#app[data-version="release"] #tab-stocks .row-card[data-stock-id] > .ri{
+  grid-column:1!important;
+  width:38px!important;
+  height:38px!important;
+  min-width:38px!important;
+  align-self:start!important;
+}
+
+#app[data-version="release"] #tab-stocks .row-card[data-stock-id] > .rd{
+  grid-column:2!important;
+  min-width:0!important;
+  width:100%!important;
+}
+
+#app[data-version="release"] #tab-stocks .row-card[data-stock-id] > div:last-child{
+  grid-column:3!important;
+  min-width:0!important;
+  max-width:none!important;
+  width:100%!important;
+  text-align:right!important;
+  justify-self:stretch!important;
+}
+
+#app[data-version="release"] #tab-stocks .row-card[data-stock-id] .rs{
+  min-height:32px!important;
+}
+
+#app[data-version="release"] #tab-stocks .row-card[data-stock-id] .btn-sm{
+  min-height:30px!important;
+  padding:5px 8px!important;
+  flex:0 0 auto!important;
+}
+
+@media(max-width:860px){
+  #app[data-version="release"] #tab-stocks .row-card[data-stock-id]{
+    grid-template-columns:38px minmax(0,1fr) minmax(146px,190px)!important;
+  }
+}
+
+@media(max-width:620px){
+  #app[data-version="release"] #tab-stocks .row-card[data-stock-id]{
+    grid-template-columns:34px minmax(0,1fr)!important;
+    align-items:start!important;
+    min-height:0!important;
+    gap:9px!important;
+    overflow:visible!important;
+  }
+
+  #app[data-version="release"] #tab-stocks .row-card[data-stock-id] > .ri{
+    grid-column:1!important;
+    width:34px!important;
+    height:34px!important;
+    min-width:34px!important;
+  }
+
+  #app[data-version="release"] #tab-stocks .row-card[data-stock-id] > .rd{
+    grid-column:2!important;
+  }
+
+  #app[data-version="release"] #tab-stocks .row-card[data-stock-id] > div:last-child{
+    grid-column:1 / -1!important;
+    text-align:left!important;
+  }
+
+  #app[data-version="release"] #tab-stocks .row-card[data-stock-id] > div:last-child > div[style*="justify-content:flex-end"]{
+    justify-content:flex-start!important;
+  }
+}
+
+@media(max-width:420px){
+  #app[data-version="release"] #tab-love .act-grid{
+    grid-template-columns:repeat(2,minmax(0,1fr))!important;
+  }
+}
+
+@media(max-width:340px){
+  #app[data-version="release"] #tab-love .act-grid,
+  #app[data-version="release"] #tab-stocks .act-grid{
+    grid-template-columns:1fr!important;
+  }
+}
+
+
+/* Hotfix: global action stabilizer disabled. Keep this class visually inert if older JS adds it. */
+html.ui-action-stabilizing,
+html.ui-action-stabilizing *{
+  scroll-behavior:auto;
+}
+html.ui-action-stabilizing * ,
+html.ui-action-stabilizing *::before,
+html.ui-action-stabilizing *::after{
+  transition-duration:inherit;
+  animation-duration:inherit;
+}
+
+
+/* release stability hotfix: prevent friend action-grid rebuilds from animating/jumping */
+.love-actions-patching,
+.love-actions-patching *,
+.ui-stable-rendering .act-grid,
+.ui-stable-rendering .act-grid *{
+  animation:none!important;
+  transition:none!important;
+}

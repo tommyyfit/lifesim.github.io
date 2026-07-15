@@ -1,4 +1,4 @@
-/* data/achievements.js — LifeSim v13 Reforged achievements */
+/* data/achievements.js — LifeSim data */
 
 const ACH_SAFE={
   nw:G=>typeof netWorth==='function'?netWorth(G):0,
@@ -148,7 +148,6 @@ const ACHIEVEMENTS=[
   {id:'globe_ach',icon:'🌍',name:'Globetrotter',desc:'Visit 10 different countries',check:G=>(G.countriesVisited||[]).length>=10},
   {id:'world_traveller',icon:'🌐',name:'World Citizen',desc:'Visit 20 countries',check:G=>(G.countriesVisited||[]).length>=20},
   {id:'philanthropist',icon:'🤲',name:'Philanthropist',desc:'Donate $500K in lifetime',check:G=>(G.lifetimeDonated||0)>=500000},
-  {id:'gambler_ach',icon:'🎰',name:'High Roller',desc:'Gamble $50K lifetime',check:G=>(G.lifetimeGambled||0)>=50000},
   {id:'pet_lover',icon:'🐾',name:'Pet Lover',desc:'Own 3 or more pets simultaneously',check:G=>ACH_SAFE.alivePets(G)>=3||!!G.achievements?.pet_family},
   {id:'perfect_s',icon:'💯',name:'Perfect Life',desc:'90+ in all 6 main stats',check:G=>G.happiness>=90&&G.health>=90&&G.smarts>=90&&G.looks>=90&&G.fitness>=90&&G.fame>=90},
   {id:'midlife',icon:'🏎️',name:'Midlife Crisis',desc:'Survive your midlife crisis',check:G=>!!G.achievements?.midlife_survived},
@@ -175,4 +174,27 @@ const ACHIEVEMENTS=[
   {id:'maverick_ach',icon:'🎲',name:'Maverick Life',desc:'Play with the Maverick trait',check:G=>G.trait==='maverick'},
   {id:'naturalist_ach',icon:'🌿',name:'One with Nature',desc:'Play with the Naturalist trait',check:G=>G.trait==='naturalist'},
   {id:'scholar_ach',icon:'📚',name:'Scholar Path',desc:'Play with the Scholar trait',check:G=>G.trait==='scholar'},
+  {id:'cyber_criminal',icon:'💾',name:'Ghost in the Machine',desc:'Commit 5 digital crimes',rarity:'rare',check:G=>(G.crimes||[]).filter(c=>['ransomware','crypto_theft','darknet_market','deepfake_scam','hacking'].includes(c.id)).length>=5},
+  {id:'cipher_boss',icon:'🔐',name:'Cipher Boss',desc:'Join the Cipher Collective gang',rarity:'epic',check:G=>G.gang?.id==='cipher_collective'},
+  {id:'ai_master',icon:'🤖',name:'AI Pioneer',desc:'Reach Level 4 in Artificial Intelligence skill',rarity:'rare',check:G=>(G.skills?.ai_ml||0)>=4},
+  {id:'crypto_wizard',icon:'🪙',name:'Crypto Wizard',desc:'Reach Level 3 in Crypto & DeFi skill',rarity:'uncommon',check:G=>(G.skills?.crypto||0)>=3},
+  {id:'mental_peak',icon:'🧘',name:'Peak Mental Wellness',desc:'Reach 90+ mental wellness',rarity:'uncommon',check:G=>(G.mentalHealth||0)>=90},
+  {id:'burnout_survivor',icon:'🌅',name:'Burnout Survivor',desc:'Recover from burnout',rarity:'uncommon',check:G=>(G.burnoutRecoveries||0)>=1},
+  {id:'highly_reputed',icon:'⭐',name:'Pillar of Society',desc:'Reach 90+ reputation',rarity:'rare',check:G=>(G.reputation||0)>=90},
+  {id:'mindful_monk',icon:'🧘',name:'Mindful Monk',desc:'Complete the Mindful Monk ambition',rarity:'epic',check:G=>G.ambitionAchieved&&G.ambition==='mindful'},
+  {id:'cyber_pioneer',icon:'💻',name:'Cyber Pioneer',desc:'Complete the Cyber Pioneer ambition',rarity:'epic',check:G=>G.ambitionAchieved&&G.ambition==='cyber_pioneer'},
+  {id:'ai_hustle',icon:'🤖',name:'Automator',desc:'Earn $50,000 from AI tools hustle',rarity:'uncommon',check:G=>(G.hustle?.gigEarnings?.ai_agency||0)>=50000},
+  {id:'digital_artist',icon:'🎨',name:'Digital Creator',desc:'Earn $20,000 from digital art',rarity:'uncommon',check:G=>(G.hustle?.gigEarnings?.digital_art||0)>=20000},
+
+  // v21: New achievements
+  {id:'mood_euphoric',icon:'🌟',name:'Euphoric Life',desc:'Reach Euphoric mood for 3 consecutive years',rarity:'rare',check:G=>G.mood?.label==='Euphoric'&&(G.mood?.streak||0)>=3},
+  {id:'mood_comeback',icon:'💪',name:'Great Comeback',desc:'Go from Miserable mood to Happy within 3 years',rarity:'uncommon',check:G=>!!G.achievements?.mood_comeback},
+  {id:'cooking_master',icon:'🍳',name:'Home Chef',desc:'Use the Cooking Class action 5 times',rarity:'uncommon',check:G=>(G.cookingClassCount||0)>=5},
+  {id:'sunrise_soul',icon:'🌅',name:'Sunrise Soul',desc:'Watch 3 sunrises',rarity:'uncommon',check:G=>(G.sunriseCount||0)>=3},
+  {id:'cold_shower_streak',icon:'🚿',name:'Ice Warrior',desc:'Take 5 cold showers',rarity:'uncommon',check:G=>(G.coldShowerCount||0)>=5},
+  {id:'screen_detox',icon:'📵',name:'Digital Detox',desc:'Complete a social media break action',rarity:'common',check:G=>!!G.achievements?.screen_detox},
+  {id:'walker_zen',icon:'🚶',name:'Mindful Walker',desc:'Complete 5 mindful walks',rarity:'common',check:G=>(G.mindfulWalkCount||0)>=5},
+  {id:'volunteer_hero',icon:'🤲',name:'Community Hero',desc:'Volunteer 10 times',rarity:'rare',check:G=>(G.volunteerCount||0)>=10},
+  {id:'news_reader',icon:'📰',name:'Well Informed',desc:'Read news 10 times',rarity:'common',check:G=>(G.newsReadCount||0)>=10},
+  {id:'pet_lover',icon:'🐾',name:'Animal Friend',desc:'Visit the animal shelter 3 times',rarity:'common',check:G=>(G.petVisitCount||0)>=3},
 ];

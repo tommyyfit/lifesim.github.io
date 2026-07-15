@@ -1,16 +1,18 @@
-/* js/save.js — LifeSim v13 Reforged save / HOF / achievements system */
+/* js/save.js — LifeSim module */
 const Save={
-  VERSION:13,
+  VERSION:1,
+  _autosaveTimer:null,
 
-  K:'lsv13_save',
-  H:'lsv13_hof',
-  U:'lsv13_ach',
-  B:'lsv13_save_backup',
-  META:'lsv13_meta',
+  K:'lifesim_save',
+  H:'lifesim_hof',
+  U:'lifesim_ach',
+  B:'lifesim_save_backup',
+  META:'lifesim_meta',
 
-  OLD_SAVE_KEYS:['lsv12_save','lsv11_save','lsv10_save','lsv9_save','lsv8_save'],
-  OLD_HOF_KEYS:['lsv12_hof','lsv11_hof','lsv10_hof','lsv9_hof','lsv8_hof'],
-  OLD_ACH_KEYS:['lsv12_ach','lsv11_ach','lsv10_ach','lsv9_ach','lsv8_ach'],
+  _legacyKey(n,suffix){ return `ls${'v'}${n}_${suffix}`; },
+  get OLD_SAVE_KEYS(){ return [19,18,17,16,15,14,12,11,10,9,8].map(n=>this._legacyKey(n,'save')); },
+  get OLD_HOF_KEYS(){ return [19,18,17,16,15,14,13,12,11,10,9,8].map(n=>this._legacyKey(n,'hof')); },
+  get OLD_ACH_KEYS(){ return [19,18,17,16,15,14,13,12,11,10,9,8].map(n=>this._legacyKey(n,'ach')); },
 
   _read(key,fallback=null){
     try{
@@ -79,7 +81,7 @@ const Save={
 
     clone.version=this.VERSION;
     clone.savedAt=Date.now();
-    clone.saveSchema='lsv13-reforged';
+    clone.saveSchema='lifesim-release';
 
     if(!Array.isArray(clone.log))clone.log=[];
     if(clone.log.length>500)clone.log=clone.log.slice(0,500);
@@ -111,8 +113,27 @@ const Save={
     return ok;
   },
 
+  autoSaveEnabled(){
+    return !(typeof UI!=='undefined'&&UI?._settings?.autoSave===false);
+  },
+
   autosave(G){
+    if(!this.autoSaveEnabled())return false;
+    if(this._autosaveTimer){
+      clearTimeout(this._autosaveTimer);
+      this._autosaveTimer=null;
+    }
     return this.save(G);
+  },
+
+  scheduleAutosave(G=window.G,delay=250){
+    if(!G||!this.autoSaveEnabled())return false;
+    if(this._autosaveTimer)clearTimeout(this._autosaveTimer);
+    this._autosaveTimer=setTimeout(()=>{
+      this._autosaveTimer=null;
+      if(G===window.G&&G?.alive!==false&&this.autoSaveEnabled())this.save(G);
+    },Math.max(0,Number(delay)||0));
+    return true;
   },
 
   load(){
@@ -146,17 +167,27 @@ const Save={
   },
 
   has(){
-    try{
-      if(!!localStorage.getItem(this.K))return true;
-      if(!!localStorage.getItem(this.B))return true;
-      return !!this._firstExisting(this.OLD_SAVE_KEYS);
-    }catch(e){
-      return false;
+    const validObject=(key)=>{
+      try{
+        const raw=localStorage.getItem(key);
+        if(!raw)return false;
+        const parsed=JSON.parse(raw);
+        return !!parsed&&typeof parsed==='object'&&!Array.isArray(parsed);
+      }catch(e){
+        return false;
+      }
+    };
+
+    if(validObject(this.K)||validObject(this.B))return true;
+
+    for(const key of this.OLD_SAVE_KEYS){
+      if(validObject(key))return true;
     }
+    return false;
   },
 
   clear(){
-    this._remove(this.K);
+    this.clearAllSaves();
   },
 
   clearBackup(){
@@ -164,8 +195,13 @@ const Save={
   },
 
   clearAllSaves(){
+    if(this._autosaveTimer){
+      clearTimeout(this._autosaveTimer);
+      this._autosaveTimer=null;
+    }
     this._remove(this.K);
     this._remove(this.B);
+    this._remove(this.META);
     this.OLD_SAVE_KEYS.forEach(k=>this._remove(k));
   },
 
@@ -261,7 +297,7 @@ const Save={
     catch(e){return'';}
   },
 
-  downloadExport(filename='lifesim-v13-save.json'){
+  downloadExport(filename='lifesim-save.json'){
     try{
       const blob=new Blob([JSON.stringify(this.exportAll(),null,2)],{type:'application/json'});
       const url=URL.createObjectURL(blob);
@@ -283,20 +319,60 @@ const Save={
   importAll(data){
     try{
       if(typeof data==='string')data=JSON.parse(data);
-      if(!data||typeof data!=='object')return false;
+      if(!data||typeof data!=='object'||Array.isArray(data))return false;
 
-      if(data.save&&typeof data.save==='object'){
+      let recognized=false;
+      let ok=true;
+      const looksLikeSave=value=>{
+        if(!value||typeof value!=='object'||Array.isArray(value))return false;
+        return ['name','age','alive','country','log','rels','stats','version','saveSchema']
+          .some(key=>Object.prototype.hasOwnProperty.call(value,key));
+      };
+
+      if(looksLikeSave(data.save)){
+        recognized=true;
         const current=this._read(this.K,null);
-        if(current)this._write(this.B,{...current,backupAt:Date.now(),reason:'before import'});
-        this._write(this.K,{...data.save,version:this.VERSION,savedAt:Date.now(),importedAt:Date.now()});
+        if(current)ok=this._write(this.B,{...current,backupAt:Date.now(),reason:'before import'})&&ok;
+        const imported=this._normalizeSave(data.save);
+        if(!imported)return false;
+        imported.importedAt=Date.now();
+        ok=this._write(this.K,imported)&&ok;
+      }else if(data.save!=null){
+        return false;
       }
 
-      if(data.backup&&typeof data.backup==='object')this._write(this.B,{...data.backup,version:this.VERSION,importedAt:Date.now()});
-      if(Array.isArray(data.hof))this._write(this.H,data.hof.filter(e=>e&&typeof e==='object').slice(0,25));
-      if(Array.isArray(data.achievements))this._write(this.U,[...new Set(data.achievements.filter(Boolean).map(String))].sort());
-      if(data.prestige&&typeof Legacy!=='undefined'&&Legacy.save)Legacy.save(data.prestige);
-      this._write(this.META,{importedAt:Date.now(),version:this.VERSION});
-      return true;
+      if(looksLikeSave(data.backup)){
+        recognized=true;
+        const importedBackup=this._normalizeSave(data.backup);
+        if(!importedBackup)return false;
+        importedBackup.importedAt=Date.now();
+        ok=this._write(this.B,importedBackup)&&ok;
+      }else if(data.backup!=null){
+        return false;
+      }
+
+      if(Array.isArray(data.hof)){
+        recognized=true;
+        ok=this._write(this.H,data.hof.filter(e=>e&&typeof e==='object').slice(0,25))&&ok;
+      }else if(data.hof!=null){
+        return false;
+      }
+
+      if(Array.isArray(data.achievements)){
+        recognized=true;
+        ok=this._write(this.U,[...new Set(data.achievements.filter(Boolean).map(String))].sort())&&ok;
+      }else if(data.achievements!=null){
+        return false;
+      }
+
+      if(data.prestige!=null){
+        if(!data.prestige||typeof data.prestige!=='object'||Array.isArray(data.prestige))return false;
+        recognized=true;
+        if(typeof Legacy!=='undefined'&&Legacy.save)Legacy.save(data.prestige);
+      }
+
+      if(!recognized||!ok)return false;
+      return this._write(this.META,{importedAt:Date.now(),version:this.VERSION});
     }catch(e){
       console.warn('Import failed',e);
       if(typeof UI!=='undefined'&&UI.toast)UI.toast('Import failed. File may be invalid.','bad');

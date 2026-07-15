@@ -1,4 +1,4 @@
-/* js/social.js — LifeSim v13.1
+/* js/social.js — LifeSim module 
    Improved creator/social system
    - safer rendering helpers
    - stronger dashboard feedback
@@ -141,6 +141,7 @@ const Social = {
   render() {
     const G = window.G;
     if (!G) return;
+    if ((G.age || 0) < 18 && window.AgeLogic?.renderYouthSocial) return AgeLogic.renderYouthSocial();
     this.ensure();
 
     const el = document.getElementById('tab-social');
@@ -497,7 +498,7 @@ const Social = {
   },
 
   historyPanelHTML() {
-    return `${this.lastPostHTML(window.G?.social?.lastPost || { text: 'No creator moves yet.', type: 'neutral' })}${this.historyHTML()}`;
+    return `${this.lastPostHTML(window.G?.social?.lastPost || { text: 'No creator moves yet.', type: 'neutral' })}<div class="info-box"><p><strong>Social note:</strong> Best results come from alternating high-effort posts with burnout recovery and analytics, not only posting every year.</p></div>${this.historyHTML()}`;
   },
 
   contextHTML({ health, trend, advice }) {
@@ -680,6 +681,7 @@ const Social = {
     this.ensure();
     const S = G.social;
     const f = G.followers || 0;
+    const pickAdvice = rows => rows[Math.abs((G.age || 0) + Math.floor(f / 2500) + ((G.social?.postHistory || []).length * 3) + Math.round(S.burnout || 0)) % rows.length];
 
     if (S.burnout >= 78) {
       return { icon: '🌿', title: 'Recover first', color: 'var(--orange)', text: 'Take a break before pushing another high-stress upload.' };
@@ -687,22 +689,34 @@ const Social = {
     if (S.brandSafety < 35 || S.reputation < 35) {
       return { icon: '🛡️', title: 'Repair image', color: 'var(--red)', text: 'Use PR, charity, or cleanup before chasing trends again.' };
     }
+
+    const advice = [];
     if (f >= 100000 && !S.verified && S.reputation >= 65) {
-      return { icon: '✅', title: 'Get verified', color: 'var(--accent)', text: 'Verification can boost trust and long-term monetization.' };
+      advice.push({ icon: '✅', title: 'Get verified', color: 'var(--accent)', text: 'Verification can boost trust and long-term monetization.' });
     }
     if (f >= 50000 && !S.membership && this.engagementRate() >= 6) {
-      return { icon: '🔒', title: 'Launch membership', color: 'var(--yellow)', text: 'Your audience is big enough for recurring income.' };
+      advice.push({ icon: '🔒', title: 'Launch membership', color: 'var(--yellow)', text: 'Your audience is big enough for recurring income.' });
     }
     if (S.audienceQuality < 40) {
-      return { icon: '📊', title: 'Study the audience', color: 'var(--cyan)', text: 'Analytics will improve quality and make future growth cleaner.' };
+      advice.push({ icon: '📊', title: 'Study the audience', color: 'var(--cyan)', text: 'Analytics will improve quality and make future growth cleaner.' });
     }
     if (S.contentSkill < 45) {
-      return { icon: '🎥', title: 'Build skill', color: 'var(--accent)', text: 'Quality uploads or series will improve your creator foundation.' };
+      advice.push({ icon: '🎥', title: 'Build skill', color: 'var(--accent)', text: 'Quality uploads or series will improve your creator foundation.' });
+    }
+    if (S.consistency < 42) {
+      advice.push({ icon: '🗓️', title: 'Post more steadily', color: 'var(--green)', text: 'Consistency is the easiest way to stop flatlining between spikes.' });
     }
     if (this.trendMultiplier('quality') > 1.08) {
-      return { icon: '💎', title: 'Ride the trend safely', color: 'var(--green)', text: 'The current platform trend rewards polished content.' };
+      advice.push({ icon: '💎', title: 'Ride the trend safely', color: 'var(--green)', text: 'The current platform trend rewards polished content.' });
     }
-    return { icon: '🚀', title: 'Scale smart', color: 'var(--green)', text: 'Your best move is consistent quality without burning out.' };
+    if (!advice.length) {
+      advice.push(
+        { icon: '🚀', title: 'Scale smart', color: 'var(--green)', text: 'Your best move is consistent quality without burning out.' },
+        { icon: '🤝', title: 'Keep the audience warm', color: 'var(--cyan)', text: 'Small reliable posts and community replies protect your growth base.' },
+        { icon: '🧭', title: 'Stay intentional', color: 'var(--yellow)', text: 'Do not chase every spike. Protect your niche and reputation first.' }
+      );
+    }
+    return pickAdvice(advice);
   },
 
   creatorHealth() {
@@ -747,7 +761,7 @@ const Social = {
       shorts: {
         icon: '⚡',
         label: 'Short-Form Wave',
-        desc: 'Short video gets a discovery boost this year.',
+        desc: 'Short video gets a discovery boost .',
         boost: { short: 1.18 }
       },
       community: {
@@ -844,6 +858,7 @@ const Social = {
   canPost(type) {
     const G = window.G;
     if (!G) return { ok: false, reason: 'No active life' };
+    if ((G.age || 0) < 18) return { ok: false, reason: 'Adult creator actions unlock at 18' };
     this.ensure();
     const def = this.postTypes[type];
     if (!def) return { ok: false, reason: 'Unavailable' };
@@ -863,6 +878,7 @@ const Social = {
   post(type) {
     const G = window.G;
     if (!G) return;
+    if ((G.age || 0) < 18) { this.toast('Adult creator actions unlock at 18. Use the age-appropriate Create screen.'); return; }
     this.ensure();
     const S = G.social;
     const can = this.canPost(type);
@@ -1109,6 +1125,7 @@ const Social = {
   monetize(type) {
     const G = window.G;
     if (!G) return;
+    if ((G.age || 0) < 18) { this.toast('Sponsorships, products and paid memberships unlock at 18.'); return; }
     this.ensure();
     const S = G.social;
     let rev = 0;
@@ -1188,6 +1205,7 @@ const Social = {
   ops(type) {
     const G = window.G;
     if (!G) return;
+    if ((G.age || 0) < 18) { this.toast('Adult creator operations unlock at 18. Use teen creator practice instead.'); return; }
     this.ensure();
     const S = G.social;
 
@@ -1270,12 +1288,20 @@ const Social = {
     const S = G.social;
     const f = G.followers || 0;
 
+    if ((G.age || 0) < 18) {
+      const decay = f > 0 ? Math.floor(f * .002) : 0;
+      G.followers = Math.max(0, f - decay);
+      S.burnout = cl((S.burnout || 0) - this.rand(2, 5));
+      S.consistency = cl((S.consistency || 45) - this.rand(0, 2));
+      return;
+    }
+
     if (f > 0) {
       const inc = this.projectedIncome();
       if (inc > 0) {
         G.money = (G.money || 0) + inc;
         G.socialEarnings = (G.socialEarnings || 0) + inc;
-        this.log(`📱 Social platforms paid ${fmt(inc)} this year.`, 'money');
+        this.log(`📱 Social platforms paid ${fmt(inc)} .`, 'money');
       }
 
       const decay = Math.floor(f * (.003 + Math.max(0, (S.burnout - 60)) / 10000 + Math.max(0, (40 - S.consistency)) / 16000));
@@ -1401,7 +1427,15 @@ const Social = {
   },
 
   emptyStateHTML() {
-    return `<div class="info-box" style="margin:0"><p style="margin:0"><strong>Creator tip:</strong> Start with Quick Posts to build consistency, then use Quality Uploads or Series when burnout is low.</p></div>`;
+    const G = window.G || {};
+    const tips = [
+      'Start with Quick Posts to build consistency, then use Quality Uploads or Series when burnout is low.',
+      'If engagement is weak, Analytics or a Content Series usually gives cleaner long-term growth than chasing every trend.',
+      'When burnout climbs, take a Break before posting again or you will trade growth for stress.',
+      'A strong niche plus steady uploads usually beats random viral swings over time.'
+    ];
+    const pick = tips[Math.abs((G.age || 0) + ((G.social?.postHistory || []).length * 5) + Math.floor((G.followers || 0) / 1000)) % tips.length];
+    return `<div class="info-box" style="margin:0"><p style="margin:0"><strong>Creator tip:</strong> ${this.esc(pick)}</p></div>`;
   },
 
   historyHTML() {

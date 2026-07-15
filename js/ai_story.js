@@ -1,25 +1,20 @@
-/* js/ai_story.js — LifeSim v13: Local Narrative Director */
+/* js/ai_story.js — LifeSim module */
 const AIStory={
-  gap:3,
+  gap:0,
   memorySize:36,
   recentIdWindow:18,
   recentTopicWindow:8,
-  defaultRepeatCooldown:18,
-  VERSION:13,
+  defaultRepeatCooldown:0,
+  VERSION:1,
 
   canUse(){
     const G=window.G;
-    if(!G||G.age<10)return false;
+    if(!G)return false;
     const lastAge=Number.isFinite(G.storyCooldownAge)?G.storyCooldownAge:-999;
     return G.age-lastAge>=this.gap;
   },
 
-  cooldownLeft(){
-    const G=window.G;
-    if(!G)return this.gap;
-    const lastAge=Number.isFinite(G.storyCooldownAge)?G.storyCooldownAge:-999;
-    return Math.max(0,this.gap-(G.age-lastAge));
-  },
+  cooldownLeft(){ return 0; },
 
   generate(){
     const G=window.G;

@@ -1,6 +1,6 @@
 'use strict';
 
-/* js/helpers.js — LifeSim v13 safer global helper utilities */
+/* js/helpers.js — LifeSim safer global helper utilities */
 
 function num(v,fallback=0){
   const n=Number(v);
@@ -48,12 +48,32 @@ function countryCurrency(G=typeof window!=='undefined'?window.G:null){
   return (G&&G.country&&G.country.currency)||'$';
 }
 
+function countryCostMult(G=typeof window!=='undefined'?window.G:null){
+  return Math.max(0.2,num(G?.country?.costMult,G?.country?.mult,1));
+}
+
+function countrySalaryMult(G=typeof window!=='undefined'?window.G:null){
+  return Math.max(0.2,num(G?.country?.salaryMult,G?.country?.costMult,G?.country?.mult,1));
+}
+
+function countryWealthMult(G=typeof window!=='undefined'?window.G:null){
+  return Math.max(0.15,num(G?.country?.wealthMult,G?.country?.salaryMult,G?.country?.costMult,G?.country?.mult,1));
+}
+
 function countryMult(G=typeof window!=='undefined'?window.G:null){
-  return Math.max(0.2,num(G?.country?.mult,1));
+  return countryCostMult(G);
 }
 
 function sc(base,G=typeof window!=='undefined'?window.G:null){
-  return Math.round(num(base)*countryMult(G));
+  return Math.round(num(base)*countryCostMult(G));
+}
+
+function salaryScale(base,G=typeof window!=='undefined'?window.G:null){
+  return Math.round(num(base)*countrySalaryMult(G));
+}
+
+function wealthScale(base,G=typeof window!=='undefined'?window.G:null){
+  return Math.round(num(base)*countryWealthMult(G));
 }
 
 function diffCostMult(G=typeof window!=='undefined'?window.G:null){
@@ -140,6 +160,12 @@ function applyStats(G,eff){
     else if(k==='fame')G.fame=cl(num(G.fame,0)+v);
     else if(k==='stress')G.stress=cl(num(G.stress,0)+v,0,100);
     else if(k==='karma')G.karma=cl(num(G.karma,0)+v,-100,100);
+    else if(k==='mentalHealth')G.mentalHealth=cl(num(G.mentalHealth,60)+v);
+    else if(k==='reputation')G.reputation=cl(num(G.reputation,50)+v);
+    else if(k==='schoolPerformance')G.schoolPerformance=cl(num(G.schoolPerformance,50)+v);
+    else if(k==='parentBond'){
+      [G.rels?.father,G.rels?.mother].filter(Boolean).forEach(parent=>parent.love=cl(num(parent.love,50)+v));
+    }
     else if(['happiness','health','smarts','looks'].includes(k))G[k]=cl(num(G[k],50)+v);
   });
 }
@@ -222,7 +248,7 @@ function logCategory(entry){
   if(type==='special'||/born|married|wedding|engaged|pregnan|founded|ambition|goal complete|graduated|arrest|escaped|milestone|promoted|unicorn|ipo/.test(t))
     return'highlight';
 
-  if(type==='money'||/salary|earn|pension|invest|stock|profit|revenue|rent|loan|credit|bill|alimony|claim|food paid|food budget|prize|won \$|lost \$|net worth|bank|casino|business|sold|bought|mortgage|debt/.test(t)||/💰|💵|💸|📈|🪦|🎰|💳|🏦/.test(text))
+  if(type==='money'||/salary|earn|pension|invest|stock|profit|revenue|rent|loan|credit|bill|alimony|claim|food paid|food budget|prize|won \$|lost \$|net worth|bank|business|sold|bought|mortgage|debt/.test(t)||/💰|💵|💸|📈|🪦|💳|🏦/.test(text))
     return'money';
 
   if(/health|hospital|doctor|meditat|gym|workout|yoga|hike|run|swim|sick|cancer|stroke|diagnos|therapy|stress|burnout|rehab|sti|std|food|diet|diabetes|obesity|nutrition|surgery|screening|addiction|smoking|alcohol/.test(t)||/❤️|🏥|🧘|🏋️|🏊|🏃|💊|🚬|🍺|🥗|🧠/.test(text))
@@ -257,7 +283,7 @@ function sparklineSVG(history,key,color,w,h){
 
 if(typeof window!=='undefined'){
   Object.assign(window,{
-    num,r,pick,cl,cap,escHTML,safeCall,countryCurrency,countryMult,sc,diffCostMult,annualCost,
+    num,r,pick,cl,cap,escHTML,safeCall,countryCurrency,countryCostMult,countrySalaryMult,countryWealthMult,countryMult,sc,salaryScale,wealthScale,diffCostMult,annualCost,
     creditClamp,fmt,fmtFull,fmtFollowers,fmtPct,sumValues,stockPortfolioValue,debtTotal,netWorth,
     applyStats,dependentChildrenCount,cohabitingPartner,householdSize,moneyBenchmark,logCategory,
     sparklineSVG,clamp01,weightedPick,uid

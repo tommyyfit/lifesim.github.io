@@ -1,4 +1,4 @@
-/* js/main.js — LifeSim v13 Reforged app bootstrap, creation and save migration */
+/* js/main.js — LifeSim module */
 'use strict';
 
 window.G=null;
@@ -14,21 +14,17 @@ const DIFFICULTY_PROFILES={
 const App={
   _ageShortcutHeld:false,
   _starting:false,
-  VERSION:13,
+  VERSION:1,
 
   init(){
+    if(typeof UI!=='undefined'&&UI.enableStableRenders)UI.enableStableRenders();
     this.ensureDynamicTabs();
     Create.fillCountries();
     Create.setGender('male');
     Create.renderTraits();
     Create.renderAmbitions();
-
-    const diff=document.getElementById('inp-diff');
-    if(diff)diff.addEventListener('change',e=>{
-      const cs=document.getElementById('custom-stats');
-      if(cs)cs.style.display=e.target.value==='custom'?'block':'none';
-      Create.updatePreview();
-    });
+    Create.renderDiffCards();
+    Create._updateStatPreview();
 
     document.getElementById('inp-country')?.addEventListener('change',()=>Create.handleCountryChange());
     document.getElementById('inp-name')?.addEventListener('input',()=>Create.syncGenderFromName());
@@ -40,15 +36,121 @@ const App={
 
     if(typeof Legacy!=='undefined')Legacy.renderSplashPrestige();
     this._bindShortcuts();
+    this._bindUiAccessibility();
 
     if(typeof UI!=='undefined'&&UI.loadSettings)UI.loadSettings();
+    this._bindSaveLifecycle();
+
+    this.maybeStartPreview();
+  },
+
+  _bindSaveLifecycle(){
+    if(this._saveLifecycleBound)return;
+    this._saveLifecycleBound=true;
+    const flush=()=>{
+      try{
+        if(window.G?.alive&&typeof Save!=='undefined'&&Save.autosave)Save.autosave(window.G);
+      }catch(e){}
+    };
+    document.addEventListener('visibilitychange',()=>{if(document.hidden)flush();});
+    window.addEventListener('pagehide',flush);
+  },
+
+  maybeStartPreview(){
+    try{
+      const params=new URLSearchParams(location.search);
+      if(params.get('preview')!=='ui')return;
+      this.startPreviewMode();
+    }catch(e){
+      console.warn('preview init failed',e);
+    }
+  },
+
+  startPreviewMode(){
+    const diffProfile=DIFFICULTY_PROFILES.normal;
+    const sourceCountry=(COUNTRIES||[]).find(c=>String(c?.name||'').toLowerCase().includes('czech'))||(COUNTRIES||[])[0];
+    const country=typeof resolveCountryData==='function'
+      ?resolveCountryData(sourceCountry)
+      :sourceCountry;
+
+    const G=this._baseGame({
+      name:'David',
+      surname:'Kučera',
+      gender:'male',
+      country,
+      diff:'normal',
+      trait:'resilient',
+      ambition:'wealth',
+      diffProfile,
+    });
+
+    Object.assign(G,{
+      happiness:78,
+      health:54,
+      smarts:20,
+      looks:49,
+      fitness:37,
+      stress:0,
+      karma:0,
+      money:0,
+      fame:0,
+      reputation:50,
+      mentalHealth:60,
+      familySupport:18000,
+      skillPoints:2,
+    });
+
+    G.rels.father={name:'Jan',surname:'Kučera',gender:'male',role:'father',age:32,love:84,alive:true};
+    G.rels.mother={name:'Tereza',surname:'Kučera',gender:'female',role:'mother',age:30,love:88,alive:true};
+    G.rels.siblings=[{name:'Michal',surname:'Kučera',gender:'male',role:'sibling',age:7,love:73,alive:true}];
+    G.statHistory=[
+      {hap:68,hlt:49,smt:14,lks:40,fit:29,str:8,fam:0,kar:0,rep:48,mnd:56},
+      {hap:72,hlt:50,smt:16,lks:42,fit:31,str:7,fam:0,kar:0,rep:49,mnd:57},
+      {hap:75,hlt:52,smt:17,lks:45,fit:33,str:5,fam:0,kar:0,rep:49,mnd:58},
+      {hap:78,hlt:54,smt:20,lks:49,fit:37,str:0,fam:0,kar:0,rep:50,mnd:60},
+    ];
+
+    G.log=[
+      {age:0,text:'Growth focus generated: Healthy Start, Safe & Happy, Secure Family Bond...',type:'special'},
+      {age:0,text:'Future dream recorded. It will become relevant as this child grows.',type:'special'},
+      {age:0,text:'Trait: Resilient — +Health, survives pressure better.',type:'bad'},
+      {age:0,text:'Local economy: cost of living 52%, salary market 58%, starting wealth 55%.',type:'neutral'},
+      {age:0,text:'Your family has Kč18K set aside for your adulthood. It is reserved for adulthood, not personal spending money.',type:'money'},
+      {age:0,text:'Born into an average family in Czech Republic.',type:'neutral'},
+      {age:0,text:'Sibling: Michal, age 7.',type:'neutral'},
+      {age:0,text:'Father: Jan  •  Mother: Tereza.',type:'neutral'},
+      {age:0,text:'David Kučera was born in Czech Republic.',type:'special'},
+      {age:0,text:'Legacy Inheritance: "money" bonus applied from ancestor.',type:'special'},
+    ].map((entry,index)=>({...entry,ts:Date.now()-index*1000,cat:typeof logCategory==='function'?logCategory(entry):'other'}));
+
+    try{
+      if(typeof Goals!=='undefined')Goals.ensurePersonalGoals(G,true);
+      if(typeof Health!=='undefined')Health._ensureState?.(G);
+      if(typeof Hustle!=='undefined')Hustle.ensureState?.(G);
+      if(typeof Pets!=='undefined')Pets.ensureState?.(G);
+    }catch(e){
+      console.warn('preview state setup warning',e);
+    }
+
+    window.G=G;
+    this.show('game-screen');
+    if(typeof UI!=='undefined'){
+      UI._settings.showChapters=false;
+      UI.tab('life');
+      UI.update();
+    }
   },
 
   _bindShortcuts(){
     const TABS=['life','mind','love','career','assets','health','crime','social','business','hustle','pets','skills','stocks','goals'];
     document.addEventListener('keydown',e=>{
+      if(typeof UI!=='undefined'&&UI.handleGlobalKeydown?.(e))return;
+
       const active=document.getElementById('game-screen')?.classList.contains('active');
-      const typing=e.target?.matches?.('input,textarea,select,button');
+      const typing=e.target?.matches?.('input,textarea,select,button,[contenteditable="true"],[contenteditable=""]')||e.target?.isContentEditable;
+      const modalOpen=!!document.querySelector('.modal-bg.open,.modal.open,[role="dialog"].open');
+
+      if(modalOpen)return;
 
       if((e.code==='Space'||e.code==='Enter')&&this._ageShortcutHeld)return;
       if((e.code==='Space'||e.code==='Enter')&&active&&!typing){
@@ -71,11 +173,34 @@ const App={
     window.addEventListener('blur',()=>{this._ageShortcutHeld=false;});
   },
 
+  _bindUiAccessibility(){
+    const enhance=()=>{if(typeof UI!=='undefined'&&UI.enhanceInteractive)UI.enhanceInteractive(document);};
+    enhance();
+
+    document.addEventListener('click',e=>{
+      const locked=e.target?.closest?.('.locked');
+      if(!locked)return;
+      const inline=(locked.getAttribute('onclick')||'').trim();
+      if(inline)return;
+      if(typeof UI!=='undefined'&&UI.toast)UI.toast(UI.lockedReason(locked),'neutral');
+    });
+
+    const content=document.getElementById('game-content')||document.body;
+    const observer=new MutationObserver(mutations=>{
+      for(const m of mutations){
+        m.addedNodes.forEach(node=>{
+          if(node.nodeType===1&&typeof UI!=='undefined'&&UI.enhanceInteractive)UI.enhanceInteractive(node);
+        });
+      }
+    });
+    observer.observe(content,{childList:true,subtree:true});
+  },
+
   ensureDynamicTabs(){
     const nav=document.querySelector('.nav-bar');
     const content=document.querySelector('.content-area');
     const kbHint=[...document.querySelectorAll('.settings-lbl')].find(el=>el.textContent.includes('KEYBOARD:'));
-    if(kbHint)kbHint.innerHTML='KEYBOARD: <kbd>Space</kbd>/<kbd>Enter</kbd> = Age Up &nbsp; <kbd>1-9</kbd> = Switch tabs';
+    if(kbHint)kbHint.innerHTML='KEYBOARD: <kbd>Space</kbd>/<kbd>Enter</kbd> = Age Up &nbsp; <kbd>1-9</kbd> = First 9 tabs';
 
     if(nav&&!nav.querySelector('[data-tab="hustle"]')){
       const btn=document.createElement('button');
@@ -100,8 +225,14 @@ const App={
   },
 
   show(id){
+    if(typeof UI!=='undefined'&&UI.closeAnyModal)UI.closeAnyModal();
     document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active'));
     document.getElementById(id)?.classList.add('active');
+    if(id==='splash-screen'){
+      const btn=document.getElementById('btn-continue');
+      if(btn&&typeof Save!=='undefined'&&Save.has)btn.disabled=!Save.has();
+    }
+    if(id==='create-screen')Create.updatePreview();
   },
 
   newLife(){
@@ -109,14 +240,14 @@ const App={
     Create.reset();
 
     if(typeof Legacy!=='undefined'){
+      Legacy._selectedOpt='none';
+      Legacy._selectedBonus=0;
       const p=Legacy.getPrestige();
       if(p.legacyUnlocked&&p.lastGrade)Legacy.renderLegacySection(p.lastGrade);
       else{
         const el=document.getElementById('legacy-section');
         if(el)el.style.display='none';
       }
-      Legacy._selectedOpt='none';
-      Legacy._selectedBonus=0;
     }
   },
 
@@ -154,7 +285,9 @@ const App={
     saved.careerBoss=saved.careerBoss||null;
 
     saved.gender=saved.gender||'male';
-    saved.country=saved.country||COUNTRIES[0];
+    saved.country=typeof resolveCountryData==='function'
+      ?resolveCountryData(saved.country||COUNTRIES[0])
+      :(saved.country||COUNTRIES[0]);
     saved.name=saved.name||(typeof randomNameForCountry==='function'?randomNameForCountry(saved.country?.name,saved.gender):pick(saved.gender==='female'?FNAMES:MNAMES));
     saved.surname=saved.surname||(typeof randomSurnameForCountry==='function'?randomSurnameForCountry(saved.country?.name):pick(SURNAMES));
     saved.age=this._n(saved.age,0);
@@ -181,6 +314,7 @@ const App={
     saved.rels.siblings=Array.isArray(saved.rels.siblings)?saved.rels.siblings:[];
     saved.rels.children=Array.isArray(saved.rels.children)?saved.rels.children:[];
     saved.rels.exes=Array.isArray(saved.rels.exes)?saved.rels.exes:[];
+    saved.rels.lovers=Array.isArray(saved.rels.lovers)?saved.rels.lovers:[];
     if(!('partner' in saved.rels))saved.rels.partner=null;
 
     saved.assets=saved.assets&&typeof saved.assets==='object'?saved.assets:{properties:[],vehicles:[]};
@@ -287,6 +421,24 @@ const App={
     saved.alimony.recipient=saved.alimony.recipient||'';
 
     saved.pregnancy=saved.pregnancy||null;
+    saved.pregnancies=Array.isArray(saved.pregnancies)?saved.pregnancies:[];
+    if(saved.pregnancy&&typeof saved.pregnancy==='object'){
+      const exists=saved.pregnancies.some(p=>p&&(p.id===saved.pregnancy.id||(p.partnerId===saved.pregnancy.partnerId&&p.partnerName===saved.pregnancy.partnerName&&p.dueAge===saved.pregnancy.dueAge)));
+      if(!exists)saved.pregnancies.push({...saved.pregnancy});
+    }
+    saved.pregnancies=saved.pregnancies.filter(p=>p&&typeof p==='object').map(p=>({
+      id:p.id||('preg_'+Math.random().toString(36).slice(2)),
+      partnerId:p.partnerId||null,
+      partnerName:p.partnerName||'someone',
+      partnerGender:p.partnerGender||null,
+      dueAge:this._n(p.dueAge,(saved.age||0)+1),
+      keep:p.keep!==false,
+      assisted:!!p.assisted,
+      twins:!!p.twins,
+      source:p.source||'natural',
+      startedAge:this._n(p.startedAge,saved.age||0),
+    }));
+    saved.pregnancy=saved.pregnancies[0]||null;
     saved.lastLivingCosts=this._n(saved.lastLivingCosts,0);
     saved.lastUnexpectedExpense=this._n(saved.lastUnexpectedExpense,0);
     saved.housingPlan=saved.housingPlan||'standard';
@@ -378,7 +530,7 @@ const App={
       retired:false,retirementPension:0,
       education:'none',inSchool:false,inUniversity:false,univYear:0,univType:null,
       career:null,yearsAtJob:0,careerCompany:'',jobPerf:50,promotionCount:0,
-      rels:{father:null,mother:null,siblings:[],partner:null,children:[],friends:[],exes:[]},
+      rels:{father:null,mother:null,siblings:[],partner:null,children:[],friends:[],exes:[],lovers:[]},
       assets:{properties:[],vehicles:[]},
       sexualHealth:{std:false,sti:false,partners:0,partnerIds:[],protectedEncounters:0,unprotectedEncounters:0,lastCheckupAge:null},
       business:null,followers:0,socialEarnings:0,social:{},
@@ -389,7 +541,7 @@ const App={
       food:{plan:'cook',healthyYears:0,junkYears:0,skippedYears:0,lastCost:0,groceryCost:0,diningCost:0,nutritionScore:55,foodSecurity:100,weightTrend:'stable',lastChoiceLabel:'Cook at home'},
       creditScore:diffProfile.credit,loans:[],debtCollections:0,missedPayments:0,
       recovery:{active:false,cleanStreak:0,rehabCount:0,relapseChance:0.18},
-      alimony:{amount:0,yearsLeft:0,recipient:''},pregnancy:null,
+      alimony:{amount:0,yearsLeft:0,recipient:''},pregnancy:null,pregnancies:[],
       lastLivingCosts:0,lastUnexpectedExpense:0,housingPlan:'standard',familyDebtPending:0,
       familySupport:0,familySupportReleased:false,
       pets:[],petHistory:[],petActionYear:0,petActionUses:{},
@@ -413,8 +565,10 @@ const App={
       Create.syncGenderFromName(true);
 
       const cIdx=parseInt(document.getElementById('inp-country')?.value,10)||0;
-      const diff=document.getElementById('inp-diff')?.value||'normal';
-      const country=COUNTRIES[cIdx]||COUNTRIES[0];
+      const diff=Create.selectedDiff||document.getElementById('inp-diff')?.value||'normal';
+      const country=typeof resolveCountryData==='function'
+        ?resolveCountryData(COUNTRIES[cIdx]||COUNTRIES[0])
+        :(COUNTRIES[cIdx]||COUNTRIES[0]);
       const name=(document.getElementById('inp-name')?.value.trim())||(typeof randomNameForCountry==='function'?randomNameForCountry(country.name,Create.gender):pick(Create.gender==='female'?FNAMES:MNAMES));
       const surname=typeof randomSurnameForCountry==='function'?randomSurnameForCountry(country.name):pick(SURNAMES);
       const trait=Create.selectedTrait||'resilient';
@@ -441,19 +595,19 @@ const App={
       const s=sets[diff]||sets.normal;
       [G.happiness,G.health,G.smarts,G.looks,G.fitness,G.money]=s;
 
-      G.familySupport=sc(diffProfile.cash||0);
+      G.familySupport=wealthScale(diffProfile.cash||0,G);
       G.money=0;
       G.stress=cl((G.stress||0)+(diffProfile.stress||0));
 
       if(diffProfile.debt){
-        G.familyDebtPending=sc(diffProfile.debt);
+        G.familyDebtPending=wealthScale(diffProfile.debt,G);
         G.missedPayments=diff==='extreme'?2:1;
       }
 
       const traitDef=PERSONALITY_TRAITS.find(t=>t.id===trait);
       if(traitDef?.startBonus){
         Object.entries(traitDef.startBonus).forEach(([k,v])=>{
-          if(k==='money')G.familySupport+=sc(v);
+          if(k==='money')G.familySupport+=wealthScale(v,G);
           else if(k==='fitness')G.fitness=cl((G.fitness||50)+v);
           else if(k==='skillPoints')G.skillPoints=(G.skillPoints||0)+v;
           else if(G[k]!==undefined)G[k]=cl(G[k]+v);
@@ -465,9 +619,9 @@ const App={
         if(ambition==='healthy'){G.health=cl(G.health+8);G.fitness=cl((G.fitness||50)+8);}
         if(ambition==='career_top')G.smarts=cl(G.smarts+10);
         if(ambition==='traveller')G.happiness=cl(G.happiness+8);
-        if(ambition==='criminal')G.familySupport+=sc(500);
+        if(ambition==='criminal')G.familySupport+=wealthScale(500,G);
         if(ambition==='sage')G.skillPoints=(G.skillPoints||0)+2;
-        if(ambition==='investor')G.familySupport+=sc(2000);
+        if(ambition==='investor')G.familySupport+=wealthScale(2000,G);
         if(ambition==='renaissance')G.skillPoints=(G.skillPoints||0)+1;
         if(ambition==='academic'){G.smarts=cl(G.smarts+6);G.skillPoints=(G.skillPoints||0)+1;}
         if(ambition==='philanthropist')G.karma=cl((G.karma||0)+10,-100,100);
@@ -490,6 +644,7 @@ const App={
 
       if(Math.random()>0.42){
         const sib=Engine.npc('sibling',Math.random()>.5?'female':'male');
+        for(let tries=0;tries<5&&sib.name===G.name;tries++)sib.name=Engine.npc('sibling',sib.gender).name;
         sib.age=r(0,9);
         sib.surname=G.surname;
         G.rels.siblings.push(sib);
@@ -502,10 +657,13 @@ const App={
       const dl={easy:'a wealthy family',normal:'an average family',hard:'a struggling family',extreme:'extremely difficult circumstances',custom:'a custom start'};
       Engine.log(`🌍 Born into ${dl[diff]||'a family'} in ${G.country.name}.`,'neutral');
 
-      if(G.familySupport>0)Engine.log(`🏦 Your family has ${fmt(G.familySupport)} set aside for your adulthood. It is not your personal baby money yet.`, 'money');
+      if(G.familySupport>0)Engine.log(`🏦 Your family has ${fmt(G.familySupport)} set aside for your adulthood. It is reserved for adulthood, not personal spending money.`, 'money');
       if(diffProfile.debt)Engine.log(`💳 Your family is under financial pressure. If things do not improve, ${fmt(G.familyDebtPending)} may follow you into adulthood.`, 'bad');
+      if(G.country){
+        Engine.log(`🌐 Local economy: cost of living ${Math.round((G.country.costMult||1)*100)}%, salary market ${Math.round((G.country.salaryMult||1)*100)}%, starting wealth ${Math.round((G.country.wealthMult||1)*100)}%.`,'neutral');
+      }
       if(traitDef)Engine.log(`${traitDef.icon} Trait: ${traitDef.name} — ${traitDef.desc}.`,'special');
-      if(ambDef)Engine.log(`🎯 Life Ambition: "${ambDef.name}" — ${ambDef.desc}.`,'special');
+      if(ambDef)Engine.log(`🌱 A future ambition will take shape as ${G.name} grows.`,'special');
 
       try{
         const personalGoals=Goals.ensurePersonalGoals(G,true);
@@ -519,7 +677,7 @@ const App={
       this.show('game-screen');
       UI.tab('life');
       UI.update();
-      Save.save(G);
+      Save.autosave(G);
     }catch(e){
       console.warn('startGame failed',e);
       UI.toast('New life could not be created. Check console for the exact error.','bad');
@@ -582,20 +740,317 @@ const App={
 
     this.show('ach-screen');
   },
+
+  showUpdates(event){
+    event?.preventDefault?.();
+    event?.stopPropagation?.();
+
+    const modal=document.getElementById('updates-modal');
+    const body=document.getElementById('updates-body');
+    if(!modal||!body){
+      console.warn('Update log UI is unavailable.');
+      return false;
+    }
+
+    // Keep global dialogs outside #app so legacy overflow/stacking rules can never clip them.
+    if(modal.parentElement!==document.body)document.body.appendChild(modal);
+
+    const rawUpdates=Array.isArray(window.LIFESIM_UPDATES)?window.LIFESIM_UPDATES:[];
+    const versionRank=value=>{
+      const match=String(value||'').match(/v?(\d+)(?:\.(\d+))?/i);
+      return match?(Number(match[1])*100+Number(match[2]||0)):0;
+    };
+    const updates=[...rawUpdates].sort((a,b)=>{
+      const dateDelta=(Date.parse(b?.date||'')||0)-(Date.parse(a?.date||'')||0);
+      return dateDelta||versionRank(b?.version)-versionRank(a?.version);
+    });
+    body.innerHTML=updates.length?updates.map((u,index)=>`
+      <article class="update-entry${index===0?' current-update':''}">
+        <div class="update-entry-head">
+          <div>
+            <div class="update-entry-title">${escHTML(u.title||'LifeSim update')}</div>
+            <div class="prestige-sub">${escHTML(u.date||'Date unavailable')}${u.tag?` · ${escHTML(u.tag)}`:''}</div>
+          </div>
+          <div class="update-entry-meta">${escHTML(u.version||'Update')}</div>
+        </div>
+        <ul>${(Array.isArray(u.highlights)?u.highlights:[]).map(x=>`<li>${escHTML(x)}</li>`).join('')}</ul>
+      </article>`).join(''):'<div class="empty"><p>No update data found.</p></div>';
+
+    document.body.classList.add('modal-open');
+    if(typeof UI!=='undefined'&&UI.openModal)UI.openModal(modal);
+    else{
+      modal.classList.add('open');
+      requestAnimationFrame(()=>modal.querySelector('button')?.focus?.({preventScroll:true}));
+    }
+    return false;
+  },
 };
 
 const Create={
   gender:'male',
   selectedTrait:'resilient',
   selectedAmbition:'wealth',
+  selectedDiff:'normal',
   _lastSuggestedName:'',
 
-  fillCountries(){
+  currentVersionLabel(){
+    const build=document.getElementById('app')?.dataset.build;
+    if(build)return `v${build}`;
+    return `v${window.App?.VERSION||1}`;
+  },
+
+  hydrateBuilderLayout(){
+    const screen=document.getElementById('create-screen');
+    if(!screen||screen.dataset.builderHydrated==='1')return;
+    screen.dataset.builderHydrated='1';
+    screen.classList.add('create-builder-screen');
+    const setChildren=(parent,...kids)=>{
+      if(!parent)return;
+      while(parent.firstChild)parent.removeChild(parent.firstChild);
+      kids.filter(Boolean).forEach(k=>parent.appendChild(k));
+    };
+
+    const topbar=screen.querySelector('.topbar, .create-builder-topbar');
+    if(topbar){
+      topbar.className='create-builder-topbar';
+      topbar.innerHTML=`
+        <button type="button" class="create-builder-back" onclick="App.show('splash-screen')">&larr; Back</button>
+        <div class="create-builder-title-wrap">
+          <span class="create-builder-title-mark" aria-hidden="true">&#10022;</span>
+          <span class="create-builder-title">Create Your Life</span>
+        </div>
+        <span class="create-version">${this.currentVersionLabel()}</span>`;
+    }
+
+    const scroll=screen.querySelector('.create-scroll, .create-builder-scroll');
+    if(scroll)scroll.className='create-builder-scroll';
+
+    const hero=scroll?.firstElementChild;
+    if(hero){
+      hero.className='create-builder-hero';
+      hero.innerHTML=`
+        <div class="create-builder-kicker">Origin Builder</div>
+        <h2>Build the person. Then survive the story.</h2>
+        <p>Choose your identity, background, ambition and start conditions. Every choice shapes your money, pressure, support and long-term options.</p>`;
+    }
+
+    const grid=screen.querySelector('.create-inner, .create-builder-grid');
+    const left=screen.querySelector('.create-left, .identity-panel');
+    const right=screen.querySelector('.create-right, .path-panel');
+    if(scroll&&grid)scroll.appendChild(grid);
+    if(grid)grid.className='create-builder-grid';
+    if(left)left.className='create-panel identity-panel';
+    if(right)right.className='create-panel path-panel';
+
+    const avatar=document.getElementById('create-avatar');
+    const nameGroup=document.getElementById('inp-name')?.closest('.form-group');
+    const genderGroup=document.getElementById('gbtn-m')?.closest('.form-group');
+    const countryGroup=document.getElementById('inp-country')?.closest('.form-group');
+    const diffGroup=document.getElementById('origin-ui-diff-cards')?.closest('.form-group');
+    const customStats=document.getElementById('custom-stats');
+    const traitGroup=document.getElementById('trait-grid')?.closest('.form-group');
+    const ambitionGroup=document.getElementById('ambition-list')?.closest('.form-group');
+    const summaryStack=screen.querySelector('.create-summary-stack');
+    const statPreview=document.getElementById('origin-ui-stat-preview');
+    const previewBox=document.getElementById('create-preview-box');
+    const previewText=document.getElementById('preview-text');
+    const legacy=document.getElementById('legacy-section');
+    const tipBox=screen.querySelector('.origin-ui-tip-box');
+    const beginBtn=screen.querySelector('.origin-ui-begin-btn');
+
+    const panelHead=title=>{
+      const wrap=document.createElement('div');
+      wrap.className='create-panel-head';
+      wrap.innerHTML=`<div class="create-panel-kicker">${title}</div>`;
+      return wrap;
+    };
+    const sectionCopy=text=>{
+      const p=document.createElement('p');
+      p.className='builder-section-copy';
+      p.textContent=text;
+      return p;
+    };
+    const sectionTitle=text=>{
+      const div=document.createElement('div');
+      div.className='builder-section-title';
+      div.textContent=text;
+      return div;
+    };
+
+    if(nameGroup){
+      nameGroup.classList.add('builder-form-group');
+      nameGroup.querySelector('.form-label')?.classList.add('builder-label');
+      const inline=nameGroup.querySelector('div');
+      const input=document.getElementById('inp-name');
+      const button=inline?.querySelector('button');
+      if(inline)inline.className='builder-inline';
+      if(input)input.classList.add('builder-input');
+      if(button){
+        button.className='builder-icon-btn';
+        button.innerHTML='&#9856;';
+        button.removeAttribute('style');
+        button.removeAttribute('onmouseover');
+        button.removeAttribute('onmouseout');
+      }
+    }
+
+    if(genderGroup){
+      genderGroup.classList.add('builder-form-group');
+      genderGroup.querySelector('.form-label')?.classList.add('builder-label');
+      genderGroup.querySelector('.gender-grid')?.classList.add('builder-gender-grid');
+    }
+
+    if(countryGroup){
+      countryGroup.classList.add('builder-form-group');
+      countryGroup.querySelector('.form-label')?.classList.add('builder-label');
+      countryGroup.querySelector('.form-select')?.classList.add('builder-select');
+      countryGroup.querySelector('#origin-ui-country-info')?.classList.add('builder-country-info');
+    }
+
+    if(diffGroup){
+      diffGroup.classList.add('builder-form-group','builder-section-gap');
+      const label=diffGroup.querySelector('.form-label');
+      if(label){
+        label.classList.add('builder-label');
+        label.textContent='Quick Setup';
+      }
+      if(!diffGroup.querySelector('.builder-section-copy')){
+        label?.insertAdjacentHTML('afterend','<p class="builder-section-copy">Choose how forgiving or brutal your starting conditions should be.</p>');
+      }
+      document.getElementById('origin-ui-diff-cards')?.classList.add('builder-quick-setup');
+    }
+
+    if(customStats){
+      const display=customStats.style.display||'none';
+      customStats.removeAttribute('style');
+      customStats.style.display=display;
+      customStats.className='builder-custom-stats';
+      const title=customStats.querySelector('div');
+      if(title){
+        title.className='builder-mini-title';
+        title.textContent='Custom Start Tuning';
+      }
+    }
+
+    if(avatar&&left){
+      const avatarRow=document.createElement('div');
+      avatarRow.className='identity-avatar-row';
+      const avatarCopy=document.createElement('div');
+      avatarCopy.className='identity-avatar-copy';
+      avatarCopy.innerHTML='<div class="identity-avatar-title">Shape the core person</div><p class="identity-avatar-sub">Pick a name, gender and country of birth. These choices anchor the rest of the life story.</p>';
+      avatarRow.append(avatar,avatarCopy);
+      setChildren(
+        left,
+        panelHead('Identity'),
+        avatarRow,
+        nameGroup,
+        genderGroup,
+        countryGroup,
+        diffGroup,
+        customStats
+      );
+    }
+
+    if(grid&&right){
+      let personalityPanel=grid.querySelector('.personality-panel');
+      if(!personalityPanel){
+        personalityPanel=document.createElement('section');
+        personalityPanel.className='create-panel personality-panel';
+        grid.insertBefore(personalityPanel,right);
+      }
+
+      if(traitGroup){
+        traitGroup.classList.add('builder-form-group');
+        const label=traitGroup.querySelector('.form-label');
+        if(label){
+          label.classList.add('builder-label');
+          label.textContent='Core Trait';
+        }
+        traitGroup.querySelector('.trait-grid')?.classList.add('builder-trait-grid');
+      }
+      if(statPreview)statPreview.classList.add('builder-stat-preview');
+
+      setChildren(
+        personalityPanel,
+        panelHead('Personality & Background'),
+        sectionTitle('Core Trait'),
+        sectionCopy('Your trait drives the opening stat spread and nudges how your life unfolds.'),
+        traitGroup,
+        sectionTitle('Starting Stats Preview'),
+        sectionCopy('A live read on the person you are building before the first year begins.'),
+        statPreview
+      );
+    }
+
+    if(ambitionGroup){
+      ambitionGroup.classList.add('builder-form-group');
+      const label=ambitionGroup.querySelector('.form-label');
+      if(label){
+        label.classList.add('builder-label');
+        label.textContent='Life Ambition';
+      }
+      if(!ambitionGroup.querySelector('.builder-section-copy')){
+        label?.insertAdjacentHTML('afterend','<p class="builder-section-copy">Choose the long-term direction that will shape your priorities and story arc.</p>');
+      }
+      ambitionGroup.querySelector('#ambition-list')?.classList.add('builder-ambition-list');
+    }
+
+    if(previewBox&&previewText){
+      previewBox.removeAttribute('style');
+      previewText.removeAttribute('style');
+      previewBox.className='builder-preview-box';
+      const previewHead=document.createElement('div');
+      previewHead.className='builder-preview-head';
+      previewHead.innerHTML='<div class="builder-mini-title">Life Summary</div><div class="ver-badge" style="font-size:9px">Dynamic Origin</div>';
+      previewText.className='builder-preview-text';
+      setChildren(previewBox,previewHead,previewText);
+    }
+
+    if(legacy)legacy.classList.add('builder-legacy-box');
+
+    if(tipBox){
+      tipBox.classList.add('builder-tip-box');
+      tipBox.innerHTML='<div class="builder-mini-title">Story Tip</div><p>Story events fire naturally every few years. Your setup affects how much support, stress and momentum you carry into adulthood.</p>';
+    }
+
+    if(beginBtn){
+      beginBtn.classList.add('builder-begin-btn');
+      beginBtn.innerHTML='Begin Your Story &rarr;';
+      beginBtn.removeAttribute('style');
+    }
+
+    if(summaryStack){
+      summaryStack.classList.add('create-summary-stack');
+      if(beginBtn)summaryStack.appendChild(beginBtn);
+    }
+
+    if(right){
+      setChildren(
+        right,
+        panelHead('Life Path & Origin'),
+        ambitionGroup,
+        summaryStack
+      );
+    }
+  },
+
+  fillCountries(opts={}){
     const sel=document.getElementById('inp-country');
     if(!sel)return;
+    const previousValue=opts.preserveSelection?sel.value:'';
+    const previousCountry=opts.preserveSelection?this.currentCountry()?.name:'';
     sel.innerHTML=COUNTRIES.map((c,i)=>`<option value="${i}">${c.flag} ${c.name}</option>`).join('');
-    const cz=COUNTRIES.findIndex(c=>c.name==='Czech Republic');
-    if(cz>=0)sel.value=cz;
+    let targetIndex=-1;
+    if(opts.preserveSelection&&previousValue!==''&&COUNTRIES[Number(previousValue)])targetIndex=Number(previousValue);
+    if(targetIndex<0&&opts.preserveSelection&&previousCountry){
+      targetIndex=COUNTRIES.findIndex(c=>c.name===previousCountry||c.officialName===previousCountry||(c.aliases||[]).includes(previousCountry));
+    }
+    if(targetIndex<0){
+      targetIndex=COUNTRIES.findIndex(c=>c.name==='Czech Republic'||c.name==='Czechia');
+    }
+    sel.value=String(targetIndex>=0?targetIndex:0);
+    this._updateCountryInfo();
+    this.updatePreview();
   },
 
   currentCountry(){
@@ -614,14 +1069,12 @@ const Create={
     this.gender=g;
     document.getElementById('gbtn-m')?.classList.toggle('selected',g==='male');
     document.getElementById('gbtn-f')?.classList.toggle('selected',g==='female');
-
     if(!opts.keepName){
       const next=this.suggestedName(g);
       const input=document.getElementById('inp-name');
       if(input)input.value=next;
       this._lastSuggestedName=next;
     }
-
     const av=document.getElementById('create-avatar');
     if(av)av.textContent=g==='female'?'👧':'👦';
     this.updatePreview();
@@ -637,7 +1090,25 @@ const Create={
         this._lastSuggestedName=next;
       }
     }
+    this._updateCountryInfo();
     this.updatePreview();
+  },
+
+  _updateCountryInfo(){
+    const c=this.currentCountry();
+    const el=document.getElementById('origin-ui-country-info');
+    if(!el||!c)return;
+    const stats=[
+      c.populationText?`Population <strong>${c.populationText}</strong>`:'',
+      c.gdpPerCapita?`GDP/cap <strong>${countryUsdLabel(c.gdpPerCapita)}</strong>`:'',
+      c.lifeExp?`Life exp <strong>${c.lifeExp}y</strong>`:'',
+      c.currency?`Currency <strong>${c.currency}</strong>`:'',
+      c.languageText?`Languages <strong>${escHTML(c.languageText)}</strong>`:'',
+      c.costMult?`Living cost <strong>${Math.round(c.costMult*100)}%</strong>`:'',
+      c.salaryMult?`Salary market <strong>${Math.round(c.salaryMult*100)}%</strong>`:'',
+      c.wealthMult?`Starting wealth <strong>${Math.round(c.wealthMult*100)}%</strong>`:''
+    ].filter(Boolean);
+    el.innerHTML=`<span class="flag">${c.flag||'🌍'}</span><span class="details"><strong>${escHTML(c.name)}</strong><span class="meta">${stats.join(' · ')}</span></span>`;
   },
 
   syncGenderFromName(force=false){
@@ -652,12 +1123,28 @@ const Create={
     const norm=n=>(n||'').toLowerCase().normalize('NFD').replace(/[\u0300-\u036f]/g,'');
     const maleBase=typeof countryFirstNames==='function'?countryFirstNames('male'):MNAMES;
     const femaleBase=typeof countryFirstNames==='function'?countryFirstNames('female'):FNAMES;
-    const male=new Set([...maleBase,'John','Michael','Robert','Joseph','Ivan','Dmitry','Sergey','Alexei','Nikolai','Vladimir','Andrei','Mikhail'].map(norm));
-    const female=new Set([...femaleBase,'Emily','Elizabeth','Abigail','Ella','Avery','Samantha','Anastasia','Daria','Ekaterina','Irina','Olga','Yulia','Svetlana'].map(norm));
+    const male=new Set([...maleBase,'John','Michael','Robert','Joseph'].map(norm));
+    const female=new Set([...femaleBase,'Emily','Elizabeth','Abigail','Ella'].map(norm));
     const inMale=male.has(clean),inFemale=female.has(clean);
     if(inMale&&!inFemale)return'male';
     if(inFemale&&!inMale)return'female';
     return null;
+  },
+
+  // ── Trait bonus pills ─────────────────────────────
+  _bonusPills(bonus){
+    if(!bonus||typeof bonus!=='object')return'';
+    const labels={
+      smarts:'🧠 Smarts',health:'❤️ Health',happiness:'😊 Happy',
+      looks:'✨ Looks',fitness:'⚡ Fit',karma:'⚖️ Karma',
+      stress:'😤 Stress',fame:'🌟 Fame',money:'💰 Money',skillPoints:'🎓 Skill Pts'
+    };
+    return '<div class="origin-ui-bonus-pills">'+Object.entries(bonus).map(([k,v])=>{
+      const lbl=labels[k]||k;
+      const cls=k==='stress'?(v>0?'neg':'pos'):(v>0?'pos':'neg');
+      const sign=v>0?'+':'';
+      return`<span class="origin-ui-pill ${cls}">${sign}${v} ${lbl}</span>`;
+    }).join('')+'</div>';
   },
 
   renderTraits(){
@@ -665,7 +1152,11 @@ const Create={
     g.innerHTML=PERSONALITY_TRAITS.map(t=>`
       <button type="button" class="trait-btn ${t.id===this.selectedTrait?'selected':''}" onclick="Create.selectTrait('${t.id}')" id="trait-${t.id}">
         <span class="ti">${t.icon}</span>
-        <div class="td"><span class="tn">${t.name}</span><span class="ts">${t.desc}</span></div>
+        <div class="td">
+          <span class="tn">${t.name}</span>
+          <span class="ts">${t.desc}</span>
+          ${this._bonusPills(t.startBonus)}
+        </div>
       </button>`).join('');
   },
 
@@ -674,8 +1165,46 @@ const Create={
     g.innerHTML=LIFE_AMBITIONS.map(a=>`
       <button type="button" class="ambition-btn ${a.id===this.selectedAmbition?'selected':''}" onclick="Create.selectAmbition('${a.id}')" id="amb-${a.id}">
         <span class="ai">${a.icon}</span>
-        <div><div class="an">${a.name}</div><div class="as">${a.desc}</div></div>
+        <div>
+          <div class="an">${a.name}</div>
+          <div class="as">${a.desc}</div>
+        </div>
       </button>`).join('');
+  },
+
+  // ── Difficulty cards (replaces dropdown) ─────────
+  renderDiffCards(){
+    const wrap=document.getElementById('origin-ui-diff-cards');if(!wrap)return;
+    const diffs=[
+      {id:'easy',    icon:'😊',name:'Easy',   note:'Wealthy family start'},
+      {id:'normal',  icon:'🙂',name:'Normal', note:'Average balanced start'},
+      {id:'hard',    icon:'😤',name:'Hard',   note:'Struggling family'},
+      {id:'extreme', icon:'💀',name:'Extreme',note:'Brutal — no safety net'},
+      {id:'custom',  icon:'⚙️',name:'Custom', note:'Set your own stats'},
+    ];
+    wrap.innerHTML=diffs.map(d=>`
+      <button type="button" class="origin-ui-diff-card ${d.id===this.selectedDiff?'selected':''}" data-diff="${d.id}" onclick="Create.selectDiff('${d.id}')" aria-pressed="${d.id===this.selectedDiff?'true':'false'}">
+        <div class="origin-ui-diff-icon">${d.icon}</div>
+        <div class="origin-ui-diff-name">${d.name}</div>
+        <div class="origin-ui-diff-note">${d.note}</div>
+      </button>`).join('');
+  },
+
+  selectDiff(id){
+    this.selectedDiff=id;
+    document.querySelectorAll('.origin-ui-diff-card').forEach(b=>{
+      const selected=b.dataset.diff===id;
+      b.classList.toggle('selected',selected);
+      b.setAttribute('aria-pressed',selected?'true':'false');
+    });
+    // Show/hide custom stats
+    const cs=document.getElementById('custom-stats');
+    if(cs)cs.style.display=id==='custom'?'block':'none';
+    // Also update hidden select for compatibility
+    const sel=document.getElementById('inp-diff');
+    if(sel)sel.value=id;
+    this.updatePreview();
+    this._updateStatPreview();
   },
 
   selectTrait(id){
@@ -683,6 +1212,7 @@ const Create={
     document.querySelectorAll('.trait-btn').forEach(b=>b.classList.remove('selected'));
     document.getElementById('trait-'+id)?.classList.add('selected');
     this.updatePreview();
+    this._updateStatPreview();
   },
 
   selectAmbition(id){
@@ -696,38 +1226,81 @@ const Create={
     const el=document.getElementById('cs-'+id+'-v');
     if(el)el.textContent=val;
     this.updatePreview();
+    this._updateStatPreview();
+  },
+
+  // ── Stat preview bars ─────────────────────────────
+  _updateStatPreview(){
+    const wrap=document.getElementById('origin-ui-stat-preview');if(!wrap)return;
+    const trait=PERSONALITY_TRAITS.find(t=>t.id===this.selectedTrait);
+    const bonus=trait?.startBonus||{};
+    const diff=this.selectedDiff||'normal';
+    const dp=DIFFICULTY_PROFILES[diff]||DIFFICULTY_PROFILES.normal;
+
+    const baseHap=50+(diff==='easy'?15:diff==='hard'?-10:diff==='extreme'?-20:0);
+    const baseHlt=60;
+    const baseSmt=50+(bonus.smarts||0);
+    const baseLks=50+(bonus.looks||0);
+    const baseFit=50+(bonus.fitness||0);
+
+    const stats=[
+      {label:'😊 Happiness', val:Math.min(99,baseHap+(bonus.happiness||0)),   color:'#fbbf24'},
+      {label:'❤️ Health',    val:Math.min(99,baseHlt+(bonus.health||0)),       color:'#34d399'},
+      {label:'🧠 Smarts',    val:Math.min(99,baseSmt),                          color:'#22d3ee'},
+      {label:'✨ Looks',     val:Math.min(99,baseLks),                          color:'#f472b6'},
+      {label:'⚡ Fitness',   val:Math.min(99,baseFit),                          color:'#fb923c'},
+    ];
+
+    wrap.innerHTML=`<div class="origin-ui-stat-preview-title">Starting Stats Preview</div>`+
+      stats.map(s=>`
+        <div class="origin-ui-sp-row">
+          <span class="origin-ui-sp-label">${s.label}</span>
+          <div class="origin-ui-sp-track"><div class="origin-ui-sp-fill" style="width:${Math.max(2,s.val)}%;background:${s.color}"></div></div>
+          <span class="origin-ui-sp-val" style="color:${s.color}">${Math.round(s.val)}</span>
+        </div>`).join('');
   },
 
   updatePreview(){
     const el=document.getElementById('preview-text');if(!el)return;
     const td=PERSONALITY_TRAITS.find(t=>t.id===this.selectedTrait);
     const amb=LIFE_AMBITIONS.find(a=>a.id===this.selectedAmbition);
-    const diff=document.getElementById('inp-diff')?.value||'normal';
+    const diff=this.selectedDiff||'normal';
     const dp=DIFFICULTY_PROFILES[diff]||DIFFICULTY_PROFILES.normal;
     const country=this.currentCountry();
-
+    const support=country?wealthScale(dp.cash||0,{country}):dp.cash||0;
     el.innerHTML=[
-      country?`🌍 <strong>${country.flag} ${country.name}</strong> · ${country.currency} · Life expectancy ${country.lifeExp}y`:'',
+      country?`🌍 <strong>${country.flag} ${country.name}</strong> · Pop ${country.populationText||'Unknown'} · Life exp ${country.lifeExp}y`:'',
+      country?`💹 GDP/cap <strong>${countryUsdLabel(country.gdpPerCapita)}</strong> · ${escHTML(country.languageText||'Unknown')} · ${escHTML(country.currencyText||country.currency||'$')}`:'',
+      country?`🏙️ Living cost <strong>${Math.round((country.costMult||1)*100)}%</strong> · Salary market <strong>${Math.round((country.salaryMult||1)*100)}%</strong> · Starting wealth <strong>${Math.round((country.wealthMult||1)*100)}%</strong>`:'',
       td?`${td.icon} Trait: <strong>${td.name}</strong> — ${td.desc}`:'',
       amb?`🎯 Ambition: <strong>${amb.name}</strong> — ${amb.desc}`:'',
-      `📊 Difficulty: <strong>${dp.label}</strong> · ${dp.note}`,
-      `⌨️ Keyboard: <strong>Space</strong> = Age up`,
-    ].filter(Boolean).map(l=>`<div style="margin-bottom:5px">${l}</div>`).join('');
+      `📊 Start: <strong>${dp.label}</strong> · ${dp.note}`,
+      `🏦 Adult support preview: <strong>${fmtFull(support,{country})}</strong> at age 18`,
+    ].filter(Boolean).map(l=>`<div>${l}</div>`).join('');
   },
 
   reset(){
     this.selectedTrait='resilient';
     this.selectedAmbition='wealth';
+    this.selectedDiff='normal';
     this._lastSuggestedName='';
-    const diff=document.getElementById('inp-diff');
-    if(diff)diff.value='normal';
+    ['hap','hlt','smt','lks'].forEach(id=>{
+      const slider=document.getElementById(`cs-${id}`);
+      const output=document.getElementById(`cs-${id}-v`);
+      if(slider)slider.value='50';
+      if(output)output.textContent='50';
+    });
+    const sel=document.getElementById('inp-diff');
+    if(sel)sel.value='normal';
     const cs=document.getElementById('custom-stats');
     if(cs)cs.style.display='none';
     this.fillCountries();
     this.setGender('male');
     this.renderTraits();
     this.renderAmbitions();
+    this.renderDiffCards();
     this.updatePreview();
+    this._updateStatPreview();
   },
 };
 

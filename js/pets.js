@@ -1,4 +1,4 @@
-/* js/pets.js — LifeSim v13 Reforged pets system */
+/* js/pets.js — LifeSim module */
 
 const PET_TYPES=[
   {id:'dog',icon:'🐶',name:'Dog',cost:900,upkeep:120,happBonus:12,maxAge:15,desc:'Loyal companion. Loves walks.',needsWalk:true},
@@ -15,14 +15,14 @@ const PET_NAMES_M=['Buddy','Max','Charlie','Milo','Rocky','Oscar','Bear','Teddy'
 const PET_NAMES_F=['Bella','Luna','Daisy','Molly','Coco','Ruby','Rosie','Lily','Penny','Lola','Nala','Stella','Willow','Honey','Peanut'];
 
 const Pets={
-  VERSION:13,
+  VERSION:1,
 
   ACTION_LIMITS:{
     adopt:2,
     walk:4,
     play:4,
-    feed:5,
-    groom:3,
+    feed:4,
+    groom:2,
     vet:2,
     rehome:1,
   },
@@ -51,12 +51,12 @@ const Pets={
   _usesLeft(action,G=window.G){
     if(!G)return 0;
     this._resetActionYearIfNeeded(G);
-    const limit=this.ACTION_LIMITS[action]??99;
+    const limit=this.ACTION_LIMITS[action]??1;
     const used=G.petActionUses?.[action]||0;
     return Math.max(0,limit-used);
   },
 
-  _canUseAction(action,msg='You already used that pet action enough this year. Age up to refresh.'){
+  _canUseAction(action,msg='You already used that pet action enough this year.'){
     const G=window.G;if(!G)return false;
     this._resetActionYearIfNeeded(G);
     if(this._usesLeft(action,G)<=0){
@@ -181,7 +181,7 @@ const Pets={
       </div>
     </div>`;
 
-    h+=`<div class="info-box"><p>🐾 Pet care now has yearly action limits to prevent spam-click loops. Care, vet visits and adoption refresh after Age Up.</p></div>`;
+    h+=`<div class="info-box"><p>🐾 Pet care actions are limited each year so choices matter. All limits refresh after Age Up.</p></div>`;
 
     if(G.pets&&G.pets.length){
       h+=`<div class="sec">🐾 Your Companions</div>`;
@@ -242,7 +242,7 @@ const Pets={
         const largeLocked=pt.large&&!(G.assets?.properties||[]).some(p=>p.rent===0);
         const yearlyLocked=this._usesLeft('adopt')<=0;
         const locked=!can||largeLocked||yearlyLocked;
-        const lockText=largeLocked?'Needs owned home':yearlyLocked?'Adoption limit reached this year':`Need ${fmt(cost)}`;
+        const lockText=largeLocked?'Needs owned home':false?'Adoption limit reached ':`Need ${fmt(cost)}`;
         h+=`<div class="row-card ${locked?'locked':''}" onclick="${locked?`UI.toast('${this._attr(lockText)}')`:`Pets.adopt('${pt.id}')`}">
           <span class="ri">${pt.icon}</span>
           <div class="rd">
@@ -263,12 +263,12 @@ const Pets={
   _careCard(icon,name,desc,action,actionKey,extraLocked=false,lockText='',special=false,danger=false){
     const noUses=this._usesLeft(actionKey)<=0;
     const locked=extraLocked||noUses;
-    const msg=lockText||`${name} limit reached this year. Age up to refresh.`;
+    const msg=lockText||`${name} limit reached this year.`;
     const left=this._usesLeft(actionKey);
     return `<div class="card ${special?'special ':''}${danger?'danger ':''}${locked?'locked':''}" onclick="${locked?`UI.toast('${this._attr(msg)}')`:action}">
       <span class="ci">${locked?'🔒':icon}</span>
       <span class="cn">${this._esc(name)}</span>
-      <span class="cd">${locked?this._esc(msg):`${this._esc(desc)} · ${left} left`}</span>
+      <span class="cd">${locked?this._esc(msg):`${this._esc(desc)}`}</span>
     </div>`;
   },
 
@@ -283,7 +283,7 @@ const Pets={
   _renderHistory(G){
     const rows=(G.petHistory||[]).slice(0,6);
     if(!rows.length)return '';
-    let h='<div class="sec">🐾 Pet Care History</div>';
+    let h='<details class="history-toggle"><summary>🐾 Pet Care History</summary><div class="history-toggle-body">';
     rows.forEach(row=>{
       const ico=row.type==='adopt'?'🐾':row.type==='vet'?'🏥':row.type==='loss'?'💔':row.type==='rehome'?'🏡':'🎾';
       h+=`<div class="row-card">
@@ -294,7 +294,7 @@ const Pets={
         </div>
       </div>`;
     });
-    return h;
+    return h+'</div></details>';
   },
 
   adopt(typeId){
@@ -302,7 +302,7 @@ const Pets={
     this.ensureState(G);
     const pt=this._type(typeId);if(!pt)return;
 
-    if(!this._canUseAction('adopt','You already adopted enough pets this year. Age up to refresh.'))return;
+    if(!this._canUseAction('adopt','You already adopted enough pets this year.'))return;
 
     const alive=this._alive(G);
     const limit=this._petLimit(G);
@@ -455,7 +455,7 @@ const Pets={
     const G=window.G;if(!G)return;
     this.ensureState(G);
     const p=(G.pets||[])[i];if(!p)return;
-    if(!this._canUseAction('rehome','You can only rehome one pet per year. Age up to refresh.'))return;
+    if(!this._canUseAction('rehome','You can only rehome one pet per year.'))return;
     if(!confirm(`Rehome ${p.name}?\n\nThis removes them from your life permanently.`))return;
     this._markAction('rehome',G);
     const nm=p.name;
@@ -469,6 +469,7 @@ const Pets={
 
   _chargeUpkeep(p){
     const G=window.G;
+    if((G?.age||0)<18)return true; // a child is not personally billed for a family pet
     const cost=sc(p.upkeep||0);
     if(cost<=0)return true;
 

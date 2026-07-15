@@ -1,4 +1,4 @@
-/* js/skills.js — LifeSim v13 Reforged skill mastery system */
+/* js/skills.js — LifeSim module */
 
 const SKILL_DEFS=[
   {
@@ -193,15 +193,51 @@ const SKILL_DEFS=[
     costBase:130,
     stress:2,
   },
+  {
+    id:'ai_ml',
+    icon:'🤖',
+    name:'Artificial Intelligence',
+    desc:'Machine learning, prompt engineering, AI automation and data systems',
+    stat:'smarts',
+    category:'Tech',
+    jobs:['Data Scientist','Software Engineer','CTO'],
+    maxLv:5,
+    costBase:280,
+    stress:5,
+  },
+  {
+    id:'crypto',
+    icon:'🪙',
+    name:'Crypto & DeFi',
+    desc:'Blockchain, wallets, trading, DeFi protocols and Web3 ecosystems',
+    stat:'smarts',
+    category:'Finance',
+    jobs:['Crypto Analyst','Financial Advisor','Entrepreneur'],
+    maxLv:5,
+    costBase:180,
+    stress:4,
+  },
+  {
+    id:'meditation',
+    icon:'🧘',
+    name:'Mindfulness',
+    desc:'Stress regulation, emotional intelligence and mental clarity',
+    stat:'mentalHealth',
+    category:'Wellness',
+    jobs:['Life Coach','Counselor'],
+    maxLv:5,
+    costBase:50,
+    stress:-3,
+  },
 ];
 
 const Skills={
-  VERSION:13,
+  VERSION:1,
 
   ACTION_LIMITS:{
     learn:4,
-    practice:1,
-    focus:2,
+    practice:5,
+    focus:1,
   },
 
   HISTORY_LIMIT:18,
@@ -232,12 +268,12 @@ const Skills={
   _usesLeft(action,G=window.G){
     if(!G)return 0;
     this._resetActionYearIfNeeded(G);
-    const limit=this.ACTION_LIMITS[action]??99;
+    const limit=this.ACTION_LIMITS[action]??1;
     const used=G.skillActionUses?.[action]||0;
     return Math.max(0,limit-used);
   },
 
-  _canUseAction(action,msg='That skill action is already used enough this year. Age up to refresh.'){
+  _canUseAction(action,msg='That skill action is already used enough . .'){
     const G=window.G;
     if(!G)return false;
 
@@ -411,6 +447,155 @@ const Skills={
       .slice(0,limit);
   },
 
+  _skillRowHTML(sk,G=window.G){
+    if(!G||!sk)return'';
+
+    const sp=G.skillPoints||0;
+    const practiced=G.lastSkillPracticeAge===G.age;
+    const lv=G.skills?.[sk.id]||0;
+    const xp=G.skillXP?.[sk.id]||0;
+    const need=this._xpNeed(lv);
+    const cost=this._cost(sk,lv);
+    const xpPct=lv>=sk.maxLv?100:Math.min(100,Math.round(xp/need*100));
+    const levelPct=Math.round(lv/sk.maxLv*100);
+    const canAfford=(G.money||0)>=cost;
+    const maxed=lv>=sk.maxLv;
+    const safeId=this._esc(sk.id);
+
+    return `
+      <div class="row-card" data-stable-key="skill:${safeId}" data-skill-id="${safeId}" style="align-items:flex-start">
+        <span class="ri" style="font-size:22px">${sk.icon}</span>
+
+        <div class="rd" style="flex:1">
+          <div class="rt" style="margin-bottom:3px">
+            ${this._esc(sk.name)}
+            <span data-skill-level-label="${safeId}" style="color:${maxed?'var(--yellow)':'var(--accent)'};font-size:11px">Lv ${lv}/${sk.maxLv}</span>
+          </div>
+
+          <div class="rs">${this._esc(sk.desc)} · ${this._esc(sk.category)} · ${this._gainLabel(sk)}</div>
+
+          <div style="margin-top:6px">
+            <div style="display:flex;justify-content:space-between;font-size:10px;font-weight:800;color:var(--muted);margin-bottom:3px">
+              <span>Level progress</span>
+              <span data-skill-level-pct="${safeId}">${levelPct}%</span>
+            </div>
+            <div class="prog-bar">
+              <div class="prog-fill" data-skill-level-fill="${safeId}" style="width:${levelPct}%;background:${maxed?'var(--yellow)':'var(--accent)'}"></div>
+            </div>
+          </div>
+
+          ${!maxed?`
+            <div style="margin-top:5px" data-skill-xp-wrap="${safeId}">
+              <div style="display:flex;justify-content:space-between;font-size:10px;font-weight:800;color:var(--muted);margin-bottom:3px">
+                <span>XP to next level</span>
+                <span data-skill-xp-label="${safeId}">${xp}/${need}</span>
+              </div>
+              <div class="prog-bar">
+                <div class="prog-fill" data-skill-xp-fill="${safeId}" style="width:${xpPct}%;background:var(--cyan)"></div>
+              </div>
+            </div>
+          `:''}
+
+          ${lv>=3?`
+            <div data-skill-unlocks="${safeId}" style="font-size:10px;color:var(--green);font-weight:700;margin-top:4px">
+              🔓 Unlocks: ${sk.jobs.map(j=>this._esc(j)).join(', ')}
+            </div>
+          `:''}
+        </div>
+
+        <div data-skill-actions="${safeId}" style="display:flex;flex-direction:column;gap:5px;align-items:flex-end">
+          ${maxed?`
+            <span style="font-size:12px;font-weight:800;color:var(--yellow);padding:6px 10px">MAXED ⭐</span>
+          `:`
+            <button class="btn-primary btn-sm" style="font-size:11px;padding:7px 10px;width:auto;opacity:${sp>0||canAfford?1:.55}" onclick="Skills.learn('${sk.id}')">
+              ${sp>0?'🎯 Use Point':`Train ${fmt(cost)}`}
+            </button>
+            <button class="btn-secondary btn-sm" style="font-size:10px;padding:6px 9px;width:auto;opacity:${practiced?'.55':'1'}" onclick="${practiced?'':`Skills.practice('${sk.id}')`}" ${practiced?'disabled':''}>
+              ${practiced?'Practiced':'Practice'}
+            </button>
+          `}
+        </div>
+      </div>
+    `;
+  },
+
+  _skillSelector(id){
+    const raw=String(id??'');
+    if(window.CSS&&typeof CSS.escape==='function')return CSS.escape(raw);
+    return raw.replace(/[^a-zA-Z0-9_-]/g,'\\$&');
+  },
+
+  _afterSkillAction(id){
+    if(typeof UI!=='undefined'&&UI.update)UI.update();
+
+    const panel=document.getElementById('tab-skills');
+    if(!panel||!panel.classList.contains('active'))return;
+
+    this._patchSkillTab(id);
+  },
+
+  _patchSkillTab(id){
+    const G=window.G;
+    const panel=document.getElementById('tab-skills');
+    if(!G||!panel)return;
+
+    this.ensureState(G);
+
+    const scroller=panel.closest('.content-area')||panel;
+    const safe=this._skillSelector(id);
+    const beforeAnchor=id?panel.querySelector(`[data-skill-id="${safe}"]`):null;
+    const beforeTop=beforeAnchor?beforeAnchor.getBoundingClientRect().top:null;
+    const beforeScroll=scroller?scroller.scrollTop:0;
+
+    panel.classList.add('ui-stable-rendering');
+    document.documentElement.classList.add('ui-stable-rendering');
+
+    try{
+      const info=panel.querySelector('[data-skill-actions-info]');
+      if(info){
+        info.textContent=`📚 Skill actions this year: training ${this._usesLeft('learn')}, serious practice ${this._usesLeft('practice')}. Age Up refreshes these limits.`;
+      }
+
+      SKILL_DEFS.forEach(sk=>{
+        const sel=this._skillSelector(sk.id);
+        const row=panel.querySelector(`[data-skill-id="${sel}"]`);
+        if(row){
+          row.outerHTML=this._skillRowHTML(sk,G);
+        }
+      });
+    }catch(e){
+      console.warn('Skill quick patch failed; falling back to stable render.',e);
+      if(typeof UI!=='undefined'&&UI.stableRender){
+        UI.stableRender('tab-skills',()=>this.render());
+        return;
+      }
+      this.render();
+      return;
+    }
+
+    const restore=()=>{
+      if(!scroller)return;
+      const afterAnchor=id?panel.querySelector(`[data-skill-id="${safe}"]`):null;
+      if(afterAnchor&&beforeTop!==null){
+        const afterTop=afterAnchor.getBoundingClientRect().top;
+        const delta=afterTop-beforeTop;
+        if(Math.abs(delta)>.5)scroller.scrollTop+=delta;
+      }else{
+        scroller.scrollTop=beforeScroll;
+      }
+    };
+
+    restore();
+    requestAnimationFrame(()=>{
+      restore();
+      requestAnimationFrame(()=>{
+        restore();
+        panel.classList.remove('ui-stable-rendering');
+        document.documentElement.classList.remove('ui-stable-rendering');
+      });
+    });
+  },
+
   render(){
     const G=window.G;
     if(!G)return;
@@ -419,24 +604,27 @@ const Skills={
 
     const el=document.getElementById('tab-skills');
     if(!el)return;
+    if((G.age||0)<18){
+      el.innerHTML='<div class="empty"><span class="ei">🎓</span><p>Adult skill mastery unlocks at age 18. Use the age-appropriate Talents screen for now.</p></div>';
+      return;
+    }
 
     const sp=G.skillPoints||0;
     const mastery=this.masteryScore(G);
     const top=this._topSkills(G);
     const jobs=this.unlockedJobs(G);
     const practiced=G.lastSkillPracticeAge===G.age;
-    const focusDef=SKILL_DEFS.find(sk=>sk.id===G.skillFocus);
 
     let h=`
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-bottom:12px">
         ${this._metricBox('🎓 Skill Points',sp,'var(--accent)',sp>0?'Spend points for instant level-ups':'Earn points from yearly learning')}
         ${this._metricBox('🧠 Mastery Score',`${mastery.score}%`,mastery.color,mastery.label)}
-        ${this._metricBox('🔥 Focus Skill',focusDef?`${focusDef.icon} ${focusDef.name}`:'None',focusDef?'var(--yellow)':'var(--muted)',focusDef?'Extra XP from practice and yearly learning':'Choose a focus below')}
         ${this._metricBox('🏆 Total Levels',this.totalLevels(G),'var(--green)',`${top.length?top.map(s=>`${s.icon} Lv${s.lv}`).join(' · '):'No trained skills yet'}`)}
+        ${this._metricBox('💼 Career Unlocks',jobs.length,'var(--cyan)',jobs.length?'Unlocked paths below':'Train Lv3+ skills to unlock jobs')}
       </div>
 
       <div class="info-box" style="margin:0 0 12px 0">
-        <p style="margin:0">📚 Skill actions left this year: training ${this._usesLeft('learn')}, serious practice ${this._usesLeft('practice')}, focus changes ${this._usesLeft('focus')}. Age Up refreshes these limits.</p>
+        <p style="margin:0" data-skill-actions-info>📚 Skill actions this year: training ${this._usesLeft('learn')}, serious practice ${this._usesLeft('practice')}. Age Up refreshes these limits.</p>
       </div>
     `;
 
@@ -450,78 +638,10 @@ const Skills={
     }
 
     h+=this._renderCategoryOverview(G);
-    h+=`<div class="sec">📚 Your Skills</div><div style="display:grid;gap:8px">`;
+    h+=`<div class="sec">📚 Your Skills</div><div data-skill-list style="display:grid;gap:8px">`;
 
     SKILL_DEFS.forEach(sk=>{
-      const lv=G.skills[sk.id]||0;
-      const xp=G.skillXP[sk.id]||0;
-      const need=this._xpNeed(lv);
-      const cost=this._cost(sk,lv);
-      const xpPct=lv>=sk.maxLv?100:Math.min(100,Math.round(xp/need*100));
-      const levelPct=Math.round(lv/sk.maxLv*100);
-      const canAfford=(G.money||0)>=cost;
-      const maxed=lv>=sk.maxLv;
-      const focused=G.skillFocus===sk.id;
-
-      h+=`
-        <div class="row-card" style="align-items:flex-start;border-color:${focused?'rgba(251,191,36,.45)':'var(--b1)'}">
-          <span class="ri" style="font-size:22px">${sk.icon}</span>
-
-          <div class="rd" style="flex:1">
-            <div class="rt" style="margin-bottom:3px">
-              ${this._esc(sk.name)}
-              <span style="color:${maxed?'var(--yellow)':'var(--accent)'};font-size:11px">Lv ${lv}/${sk.maxLv}</span>
-              ${focused?' <span style="color:var(--yellow);font-size:10px">FOCUS</span>':''}
-            </div>
-
-            <div class="rs">${this._esc(sk.desc)} · ${this._esc(sk.category)} · ${this._gainLabel(sk)}</div>
-
-            <div style="margin-top:6px">
-              <div style="display:flex;justify-content:space-between;font-size:10px;font-weight:800;color:var(--muted);margin-bottom:3px">
-                <span>Level progress</span>
-                <span>${levelPct}%</span>
-              </div>
-              <div class="prog-bar">
-                <div class="prog-fill" style="width:${levelPct}%;background:${maxed?'var(--yellow)':'var(--accent)'}"></div>
-              </div>
-            </div>
-
-            ${!maxed?`
-              <div style="margin-top:5px">
-                <div style="display:flex;justify-content:space-between;font-size:10px;font-weight:800;color:var(--muted);margin-bottom:3px">
-                  <span>XP to next level</span>
-                  <span>${xp}/${need}</span>
-                </div>
-                <div class="prog-bar">
-                  <div class="prog-fill" style="width:${xpPct}%;background:var(--cyan)"></div>
-                </div>
-              </div>
-            `:''}
-
-            ${lv>=3?`
-              <div style="font-size:10px;color:var(--green);font-weight:700;margin-top:4px">
-                🔓 Unlocks: ${sk.jobs.map(j=>this._esc(j)).join(', ')}
-              </div>
-            `:''}
-          </div>
-
-          <div style="display:flex;flex-direction:column;gap:5px;align-items:flex-end">
-            ${maxed?`
-              <span style="font-size:12px;font-weight:800;color:var(--yellow);padding:6px 10px">MAXED ⭐</span>
-            `:`
-              <button class="btn-primary btn-sm" style="font-size:11px;padding:7px 10px;width:auto;opacity:${sp>0||canAfford?1:.55}" onclick="Skills.learn('${sk.id}')">
-                ${sp>0?'🎯 Use Point':`Train ${fmt(cost)}`}
-              </button>
-              <button class="btn-secondary btn-sm" style="font-size:10px;padding:6px 9px;width:auto;opacity:${practiced?'.55':'1'}" onclick="${practiced?'':`Skills.practice('${sk.id}')`}" ${practiced?'disabled':''}>
-                ${practiced?'Practiced':'Practice'}
-              </button>
-            `}
-            <button class="btn-secondary btn-sm" style="font-size:10px;padding:6px 9px;width:auto" onclick="Skills.setFocus('${sk.id}')">
-              ${focused?'Focused':'Set Focus'}
-            </button>
-          </div>
-        </div>
-      `;
+      h+=this._skillRowHTML(sk,G);
     });
 
     h+='</div>';
@@ -598,13 +718,14 @@ const Skills={
   setFocus(id){
     const G=window.G;
     if(!G)return;
+    if((G.age||0)<18){UI.toast('Adult skill mastery unlocks at age 18.','neutral');return;}
 
     this.ensureState(G);
 
     const sk=SKILL_DEFS.find(s=>s.id===id);
     if(!sk)return;
 
-    if(!this._canUseAction('focus','Skill focus changes are used up this year. Age up to refresh.'))return;
+    if(!this._canUseAction('focus','Skill focus changes are used up . .'))return;
 
     this._markAction('focus');
 
@@ -621,13 +742,13 @@ const Skills={
       'neutral'
     );
 
-    UI.update();
-    this.render();
+    this._afterSkillAction(id);
   },
 
   learn(id){
     const G=window.G;
     if(!G)return;
+    if((G.age||0)<18){UI.toast('Adult skill mastery unlocks at age 18.','neutral');return;}
 
     this.ensureState(G);
 
@@ -641,7 +762,7 @@ const Skills={
       return;
     }
 
-    if(!this._canUseAction('learn','Skill training actions are used up this year. Age up to refresh.'))return;
+    if(!this._canUseAction('learn','Skill training actions are used up . .'))return;
 
     if((G.skillPoints||0)>0){
       this._markAction('learn');
@@ -664,18 +785,18 @@ const Skills={
       UI.toast(`📚 Training ${sk.name}.`,'good');
     }
 
-    UI.update();
-    this.render();
+    this._afterSkillAction(id);
   },
 
   practice(id){
     const G=window.G;
     if(!G)return;
+    if((G.age||0)<18){UI.toast('Adult skill mastery unlocks at age 18.','neutral');return;}
 
     this.ensureState(G);
 
     if(G.lastSkillPracticeAge===G.age){
-      UI.toast('You already practiced seriously this year.');
+      UI.toast('You already practiced seriously .');
       return;
     }
 
@@ -689,7 +810,7 @@ const Skills={
       return;
     }
 
-    if(!this._canUseAction('practice','You already practiced seriously this year. Age up to refresh.'))return;
+    if(!this._canUseAction('practice','You already practiced seriously . .'))return;
 
     this._markAction('practice');
     G.lastSkillPracticeAge=G.age;
@@ -702,8 +823,7 @@ const Skills={
     this._addXP(id,45+Math.floor((G.smarts||50)/8)+(G.skillFocus===id?15:0),'practice');
     this._recordHistory(`Practiced ${sk.name}`,sk.name,'practice');
 
-    UI.update();
-    this.render();
+    this._afterSkillAction(id);
   },
 
   _addXP(id,amount,source='practice'){
@@ -865,6 +985,9 @@ const Skills={
     if(!G)return;
 
     this.ensureState(G);
+    // Childhood talents and teen starter tracks are handled explicitly by
+    // AgeLogic. Adult passives and random skill points must not run early.
+    if((G.age||0)<18)return;
 
     SKILL_DEFS.forEach(sk=>{
       const lv=G.skills[sk.id]||0;

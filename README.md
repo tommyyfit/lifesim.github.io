@@ -1,53 +1,43 @@
-# LifeSim v12 — Ascension Edition
+# LifeSim v24.2.1 — Fun First
 
-LifeSim v12 is a static browser life-simulation game. No build step required — open `index.html` directly.
+LifeSim v24.2.1 is a stability and usability rebuild of the overloaded v24.2 concept. It keeps the age-aware simulation, saves, relationships, careers, finances and optional local Ollama support, but presents them through a much smaller and more enjoyable interface.
 
----
+## Start the game
 
-## What's New in v12
+### Windows
 
-### 🌳 Legacy / Dynasty System
-Your lives are now connected. After completing a life with Grade **B or higher**, you unlock **Legacy Inheritance** when starting your next life. Choose a bonus passed down from your ancestor: extra cash, stat boosts, skill points, or bonus happiness. Each surname forms a growing **Dynasty**.
+Extract the ZIP and double-click **`start_lifesim.bat`**.
 
-### 🏅 Prestige Rank
-A persistent rank tracking all your lives. Watch your rank climb from **Newcomer → Initiate → Veteran → Elite → Legend → Immortal**. Your prestige, best grade, and dynasty name appear on the splash screen every session.
+### macOS
 
-### 🎭 Life Chapters
-Your life unlocks narrative chapters at key milestones (age 5, 13, 18, 25, 40, 60, 80), each with a personalised summary. Chapters appear in the **Life tab** as a scrollable history panel. Unlock all 7 to earn the **Full Story** achievement.
+Double-click **`start_lifesim.command`**. On the first launch, macOS may require right-click → **Open**.
 
-### 🎲 3 New Personality Traits
-- **🎲 Maverick** — High risk, high reward. Gambling stakes and outcomes are amplified dramatically.
-- **🌿 Naturalist** — Outdoor activities heal 60-70% more. Nature is your medicine.
-- **🗿 Stoic** — Stress barely touches you. Passive stress reduction, lower death risk.
+### Linux
 
-### 🏅 2 New Life Ambitions
-- **🏅 The Legend** — Live to 90 with 80+ happiness and $1M+ net worth.
-- **🧘 The Minimalist** — Reach 85+ happiness without any luxury assets.
+Run:
 
-### 🌍 4 New World Events
-AI Revolution, Internet Blackout, Space Tourism ($250K to orbit!), Climate Emergency.
-
-### 📰 15+ New Life Events
-Mentorship Offers, DNA Tests, Wellness Retreats, Patent Ideas, Tabloid Scandals, 80th Birthday Parties, Writing Memoirs, Guide Dog Companions, Life Reflections, Science Fair Wins, and more.
-
-### 🎖️ 17 New Achievements
-Born Into Legacy, Dynasty, Veteran Soul, Full Story, Maverick Life, One with Nature, Living Legend, Polymath Supreme (all 10 skills Lv 3+), Space Tourist, Zero Worries, and more.
-
----
-
-## Project Structure
-
-```
-lifesim-v12/
-  index.html
-  css/  base.css · components.css · screens.css · animations.css
-  data/ achievements.js · careers.js · countries.js · events.js · names.js · properties.js
-  js/   ai_story.js · assets.js · business.js · career.js · crime.js · engine.js
-        goals.js · health.js · helpers.js · hustle.js · legacy.js(NEW) · main.js · pets.js
-        relations.js · save.js · skills.js · social.js · stocks.js · ui.js
+```bash
+./start_lifesim.sh
 ```
 
-## Notes
-- All features except AI Story work fully offline.
-- AI Story requires internet (calls Anthropic API).
-- Prestige and dynasty data persist in `localStorage` across all lives.
+The launcher opens LifeSim on a local `127.0.0.1` address. Keep the launcher window open while playing.
+
+## What changed
+
+- One clean Life screen instead of several competing dashboards.
+- Four clear, age-appropriate actions each year.
+- Only the most relevant navigation sections are shown.
+- Advanced systems are optional and live under **More**.
+- Events show up to three readable choices without risk dashboards or stat-chip clutter.
+- One event at a time prevents chained modal spam and stuck Age Up states.
+- Four understandable wellbeing values replace the overloaded stat wall.
+- Cleaner desktop and mobile layouts with no decorative overlays covering controls.
+- Settings are reduced to **Game, Look, Sound, Local AI and Save**.
+- Ollama remains optional and the built-in game works without it.
+- Healthy characters cannot die from an arbitrary random roll before age 35.
+
+## Saves and privacy
+
+Saves and settings stay in browser storage unless you export them. Ollama is disabled by default. When enabled, LifeSim only contacts the endpoint entered in Settings; the default is `http://localhost:11434`.
+
+See `V24_2_1_FUN_FIRST.md`, `OLLAMA_SETUP.md`, and `QA_REPORT.md` for more information.
