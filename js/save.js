@@ -74,27 +74,47 @@ const Save={
     catch(e){return null;}
   },
 
-  _normalizeSave(G){
+  _normalizeSave(G,{touchTimestamp=true}={}){
     if(!G||typeof G!=='object')return null;
     const clone=this._safeClone(G);
     if(!clone)return null;
 
+    const finite=(value,fallback=0)=>Number.isFinite(Number(value))?Number(value):fallback;
+    const bounded=(value,min,max,fallback)=>Math.max(min,Math.min(max,finite(value,fallback)));
+    const list=value=>Array.isArray(value)?value:[];
+
+    if(typeof clone.name!=='string'||!clone.name.trim())return null;
+    clone.name=clone.name.trim().slice(0,40);
+    clone.surname=typeof clone.surname==='string'?clone.surname.trim().slice(0,60):'';
+    clone.age=Math.round(bounded(clone.age,0,250,0));
+    clone.year=Math.max(clone.age,Math.round(bounded(clone.year,0,10000,clone.age)));
+    clone.alive=clone.alive!==false;
+    ['happiness','health','smarts','looks','fitness','fame','stress','mentalHealth','reputation'].forEach(key=>{
+      const fallback=key==='stress'||key==='fame'?0:key==='reputation'||key==='mentalHealth'?60:50;
+      clone[key]=bounded(clone[key],0,100,fallback);
+    });
+    clone.karma=bounded(clone.karma,-100,100,0);
+    ['money','debt','familySupport','lifetimeEarnings','lifetimeDonated'].forEach(key=>{clone[key]=finite(clone[key],0);});
+
     clone.version=this.VERSION;
-    clone.savedAt=Date.now();
+    clone.savedAt=touchTimestamp?Date.now():Math.max(0,finite(clone.savedAt,Date.now()));
     clone.saveSchema='lifesim-release';
 
-    if(!Array.isArray(clone.log))clone.log=[];
+    clone.log=list(clone.log).filter(entry=>entry&&typeof entry==='object'&&typeof entry.text==='string');
     if(clone.log.length>500)clone.log=clone.log.slice(0,500);
-    if(!Array.isArray(clone.statHistory))clone.statHistory=[];
+    clone.statHistory=list(clone.statHistory).filter(entry=>entry&&typeof entry==='object');
     if(clone.statHistory.length>80)clone.statHistory=clone.statHistory.slice(-80);
     if(!clone.achievements||typeof clone.achievements!=='object')clone.achievements={};
     if(!clone.rels||typeof clone.rels!=='object')clone.rels={father:null,mother:null,siblings:[],partner:null,children:[],friends:[],exes:[]};
     if(!clone.assets||typeof clone.assets!=='object')clone.assets={properties:[],vehicles:[]};
+    ['siblings','children','friends','exes'].forEach(key=>{clone.rels[key]=list(clone.rels[key]).filter(person=>person&&typeof person==='object');});
+    clone.assets.properties=list(clone.assets.properties).filter(asset=>asset&&typeof asset==='object');
+    clone.assets.vehicles=list(clone.assets.vehicles).filter(asset=>asset&&typeof asset==='object');
     if(!clone.hustle||typeof clone.hustle!=='object')clone.hustle={};
     if(!clone.food||typeof clone.food!=='object')clone.food={};
-    if(!Array.isArray(clone.pets))clone.pets=[];
-    if(!Array.isArray(clone.conditions))clone.conditions=[];
-    if(!Array.isArray(clone.crimes))clone.crimes=[];
+    clone.pets=list(clone.pets).filter(item=>item&&typeof item==='object');
+    clone.conditions=list(clone.conditions).filter(item=>item&&typeof item==='object');
+    clone.crimes=list(clone.crimes).filter(item=>item&&typeof item==='object');
 
     return clone;
   },
@@ -140,14 +160,18 @@ const Save={
     const migrated=this._migrateOne(this.K,this.OLD_SAVE_KEYS,null);
     if(migrated&&typeof migrated==='object'){
       migrated.version=migrated.version||8;
-      return migrated;
+      const normalized=this._normalizeSave(migrated,{touchTimestamp:false});
+      if(normalized)return normalized;
     }
 
     const backup=this._read(this.B,null);
     if(backup&&typeof backup==='object'){
       backup.version=backup.version||8;
-      if(typeof UI!=='undefined'&&UI.toast)UI.toast('Loaded backup save because main save was missing/corrupt.','neutral');
-      return backup;
+      const normalized=this._normalizeSave(backup,{touchTimestamp:false});
+      if(normalized){
+        if(typeof UI!=='undefined'&&UI.toast)UI.toast('Loaded backup save because main save was missing/corrupt.','neutral');
+        return normalized;
+      }
     }
 
     return null;
@@ -157,7 +181,7 @@ const Save={
     const backup=this._read(this.B,null);
     if(!backup||typeof backup!=='object')return null;
     backup.version=backup.version||8;
-    return backup;
+    return this._normalizeSave(backup,{touchTimestamp:false});
   },
 
   restoreBackup(){
@@ -172,7 +196,7 @@ const Save={
         const raw=localStorage.getItem(key);
         if(!raw)return false;
         const parsed=JSON.parse(raw);
-        return !!parsed&&typeof parsed==='object'&&!Array.isArray(parsed);
+        return !!this._normalizeSave(parsed,{touchTimestamp:false});
       }catch(e){
         return false;
       }

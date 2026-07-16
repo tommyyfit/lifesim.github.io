@@ -196,5 +196,5 @@ const ACHIEVEMENTS=[
   {id:'walker_zen',icon:'🚶',name:'Mindful Walker',desc:'Complete 5 mindful walks',rarity:'common',check:G=>(G.mindfulWalkCount||0)>=5},
   {id:'volunteer_hero',icon:'🤲',name:'Community Hero',desc:'Volunteer 10 times',rarity:'rare',check:G=>(G.volunteerCount||0)>=10},
   {id:'news_reader',icon:'📰',name:'Well Informed',desc:'Read news 10 times',rarity:'common',check:G=>(G.newsReadCount||0)>=10},
-  {id:'pet_lover',icon:'🐾',name:'Animal Friend',desc:'Visit the animal shelter 3 times',rarity:'common',check:G=>(G.petVisitCount||0)>=3},
+  {id:'animal_friend',icon:'🐾',name:'Animal Friend',desc:'Visit the animal shelter 3 times',rarity:'common',check:G=>(G.petVisitCount||0)>=3},
 ];

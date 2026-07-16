@@ -1,8 +1,25 @@
 # LifeSim v24.2.1 — QA Report
 
-Tested on 11 July 2026 using Chromium and static validation.
+Last verified on 16 July 2026.
 
-## Browser checks passed
+## Current automated checks
+
+- The canonical page loads `lifesim-fun-first.css` and `lifesim-fun-first.js` after the compatibility layers.
+- All 60 page resources plus `build-manifest.json` resolve from the local server with HTTP 200.
+- All 192 HTML IDs are unique.
+- All 85 inline control handlers compile.
+- The build manifest exactly matches all 16 stylesheets and 44 scripts in canonical load order.
+- All 44 loaded JavaScript and data files pass `node --check`.
+- All 16 stylesheets pass structural brace validation.
+- All 49 careers, 127 achievements and 121 core events pass schema, uniqueness and safe-empty-state validation.
+- Corrupted-save fixtures pass normalization, clamping, collection repair and invalid-identity rejection checks.
+- Startup records resource/runtime failures, validates required modules and mounts, and provides an accessible reload path without deleting saves.
+- Python and Node launchers pass syntax validation.
+- `index.html` returns HTTP 200 from the local server.
+
+Run these checks with `node qa.js`.
+
+## Prior browser checks
 
 - New-life setup opens and completes.
 - Infant navigation contains only Life, Activities, Family and Health.
@@ -20,14 +37,7 @@ Tested on 11 July 2026 using Chromium and static validation.
 - Mobile width: 390 px with no horizontal overflow.
 - Mobile Settings remained inside the viewport.
 
-## Static checks
-
-- All 44 JavaScript files pass `node --check`.
-- Python and Node launchers pass syntax validation.
-- Local stylesheet and script references resolve.
-- Duplicate HTML IDs are checked before packaging.
-- The Python launcher returned HTTP 200 for `index.html` on the local server.
-- The final ZIP is tested for archive integrity.
+The browser checks above were completed on 11 July 2026. They should be repeated after substantial layout or gameplay changes. The automated checker intentionally does not claim visual fidelity or full lifecycle coverage.
 
 ## Important testing note
 

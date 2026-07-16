@@ -11,6 +11,7 @@
     _lastRenderKey:'',
     _applyingNav:false,
     _navObserver:null,
+    _finalizeMaxWait:5000,
 
     esc(value){
       return String(value??'').replace(/[&<>"']/g,c=>({
@@ -147,6 +148,7 @@
         document.querySelectorAll('.nav-bar .nt[data-tab]').forEach(btn=>{
           const name=btn.dataset.tab;
           const show=coreSet.has(name);
+          btn.toggleAttribute('aria-current',show&&name===active);
           if(btn.hidden===show)btn.hidden=!show;
           const wantedDisplay=show?'flex':'none';
           if(btn.style.getPropertyValue('display')!==wantedDisplay||btn.style.getPropertyPriority('display')!=='important')btn.style.setProperty('display',wantedDisplay,'important');
@@ -175,8 +177,10 @@
           const wantedDisplay=showMore?'flex':'none';
           if(more.style.getPropertyValue('display')!==wantedDisplay||more.style.getPropertyPriority('display')!=='important')more.style.setProperty('display',wantedDisplay,'important');
           more.classList.toggle('active',optional.includes(active));
+          more.toggleAttribute('aria-current',optional.includes(active));
           if(nav&&more.parentElement===nav&&nav.lastElementChild!==more)nav.appendChild(more);
         }
+        core.forEach(name=>document.getElementById('tab-'+name)?.querySelector('.fun-optional-head')?.remove());
         document.body.dataset.funStage=this.stage(G).id;
         this.simplifyStats();
       }finally{
@@ -418,7 +422,7 @@
       const grid=document.getElementById('fun-more-grid');
       if(!grid)return;
       const items=this.optionalTabs(window.G);
-      grid.innerHTML=items.length?items.map(name=>`<button type="button" onclick="FunFirst.openOptional('${name}')"><span>${this.tabIcon(name)}</span><div><b>${this.esc(this.tabLabel(name,window.G))}</b><small>${this.moreDescription(name)}</small></div><i>›</i></button>`).join(''):'<div class="fun-empty">More systems unlock naturally as you grow.</div>';
+      grid.innerHTML=items.length?items.map(name=>`<button type="button" onclick="FunFirst.openOptional('${name}')"><span>${this.tabIcon(name)}</span><div><b>${this.esc(this.tabLabel(name,window.G))}</b><small>${this.esc(this.moreDescription(name))}</small></div><i>›</i></button>`).join(''):'<div class="fun-empty">More systems unlock naturally as you grow.</div>';
     },
 
     moreDescription(name){
@@ -467,9 +471,15 @@
 
     applyShell(){
       const app=document.getElementById('app');if(app){app.dataset.version=this.VERSION;app.dataset.build=this.BUILD;}
-      document.title='LifeSim v24.2.1: Fun First';
+      document.title='LifeSim — Fun First';
+      const meta=document.querySelector('meta[name="description"]');
+      if(meta)meta.content='LifeSim Fun First — a clear, age-aware life simulation where choices shape relationships, career, wellbeing, wealth, and legacy.';
       if(window.App)App.VERSION='24.2.1';if(window.UI)UI.VERSION='24.2.1';if(window.Engine)Engine.VERSION='24.2.1';if(window.Save)Save.VERSION='24.2.1';
       document.documentElement.dataset.lifesimVersion='24.2.1';
+      document.body?.classList?.remove('classic-fun');
+      document.body?.classList?.add('fun-first');
+      const edition=document.querySelector('.fun-first-edition,.classic-edition');
+      if(edition){edition.classList.remove('classic-edition');edition.classList.add('fun-first-edition');edition.textContent='Fun First Edition';}
       document.querySelector('.splash-build span:last-child')?.replaceChildren(document.createTextNode('LifeSim v24.2.1 · Fun First'));
       const sideAge=document.getElementById('age-btn-side');if(sideAge){sideAge.innerHTML='⏩ Age Up <small>Year +1</small>';sideAge.onclick=()=>this.ageUp();}
       const mobileAge=document.getElementById('age-btn');if(mobileAge){mobileAge.innerHTML='⏩ Age Up <span>Year +1</span>';mobileAge.onclick=()=>this.ageUp();}
@@ -500,11 +510,17 @@
           clearTimeout(this._finalizeTimer);
           const token=(this._finalizeToken||0)+1;
           this._finalizeToken=token;
+          const startedAt=Date.now();
           const finish=()=>{
             if(this._finalizeToken!==token)return;
             const G=window.G;
             if(!G)return;
             if(G.age===before.age||window.Engine?._aging){
+              if(Date.now()-startedAt>=self._finalizeMaxWait){
+                this._finalizeTimer=null;
+                console.warn('Year summary timed out; gameplay remains available.');
+                return;
+              }
               this._finalizeTimer=setTimeout(finish,150);
               return;
             }
@@ -543,6 +559,7 @@
           if(text)text.textContent=evt?.text||'What will you do?';
           choices.innerHTML='';
           const list=Array.isArray(evt?.choices)&&evt.choices.length?evt.choices:[{t:'Continue',e:{}}];
+          let settled=false;
           list.slice(0,3).forEach((choice,index)=>{
             const button=document.createElement('button');
             button.type='button';
@@ -551,6 +568,9 @@
             const sub=choice.sub&&choice.sub!=='Choose this path'?choice.sub:self.eventHint(choice.e||{});
             button.innerHTML=`<span class="fun-choice-index">${index+1}</span><span class="fun-choice-copy"><b>${self.esc(label)}</b>${sub?`<small>${self.esc(sub)}</small>`:''}</span><span class="fun-choice-arrow">›</span>`;
             button.onclick=()=>{
+              if(settled)return;
+              settled=true;
+              choices.querySelectorAll('button').forEach(item=>{item.disabled=true;});
               try{
                 if(typeof choice.fn==='function')choice.fn();
                 else if(typeof applyStats==='function')applyStats(window.G,choice.e||{});
@@ -573,7 +593,7 @@
         const oldUpdate=UI.update;
         UI.update=function(...args){const out=oldUpdate.apply(this,args);setTimeout(()=>self.renderIfLife(),0);return out;};
         const oldTab=UI.tab;
-        UI.tab=function(name,...args){const out=oldTab.call(this,name,...args);setTimeout(()=>{if(name==='life')self.renderLife();else{self.injectOptionalHeader(name);self.applyNavigation();}},0);return out;};
+        UI.tab=function(name,...args){const out=oldTab.call(this,name,...args);setTimeout(()=>{if(name==='life')self.renderLife();else{if(self.optionalTabs(window.G).includes(name))self.injectOptionalHeader(name);self.applyNavigation();}},0);return out;};
         const oldOpenSettings=UI.openSettings;
         UI.openSettings=function(...args){self.simplifySettings();const out=oldOpenSettings.apply(this,args);setTimeout(()=>self.simplifySettings(),0);return out;};
       }

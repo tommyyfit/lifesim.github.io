@@ -296,14 +296,16 @@ const LifeSimV24={
   },
 
   scheduleFinalize(before){
-    clearInterval(this._finalizeTimer);let attempts=0;
-    this._finalizeTimer=setInterval(()=>{
-      attempts++;
+    clearTimeout(this._finalizeTimer);
+    const token=(this._finalizeToken||0)+1;this._finalizeToken=token;
+    const finish=()=>{
+      if(this._finalizeToken!==token)return;
       const G=window.G;
-      if(!G||G.age===before.age){if(attempts>600)clearInterval(this._finalizeTimer);return;}
-      if(Engine?._aging&&attempts<600)return;
-      clearInterval(this._finalizeTimer);this.finalizeYear(G,before);
-    },100);
+      if(!G)return;
+      if(G.age===before.age||Engine?._aging){this._finalizeTimer=setTimeout(finish,150);return;}
+      this._finalizeTimer=null;this.finalizeYear(G,before);
+    };
+    this._finalizeTimer=setTimeout(finish,100);
   },
 
   finalizeYear(G,before){

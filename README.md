@@ -40,4 +40,14 @@ The launcher opens LifeSim on a local `127.0.0.1` address. Keep the launcher win
 
 Saves and settings stay in browser storage unless you export them. Ollama is disabled by default. When enabled, LifeSim only contacts the endpoint entered in Settings; the default is `http://localhost:11434`.
 
-See `V24_2_1_FUN_FIRST.md`, `OLLAMA_SETUP.md`, and `QA_REPORT.md` for more information.
+See `V24_2_1_FUN_FIRST.md`, `ARCHITECTURE.md`, `OLLAMA_SETUP.md`, and `QA_REPORT.md` for more information.
+
+## Quality checks
+
+Run the dependency-free project checks before packaging or publishing:
+
+```bash
+node qa.js
+```
+
+The checker validates every local page reference, duplicate HTML IDs, inline control syntax, JavaScript syntax, stylesheet structure, content schemas, corrupted-save recovery, build identity, and the exact canonical Fun First load order declared in `build-manifest.json`.

@@ -6,15 +6,44 @@
   --fun-line:rgba(148,163,184,.16);
   --fun-text:#f6f7fb;
   --fun-muted:#98a6bd;
-  --fun-accent:#7c5cff;
-  --fun-cyan:#20c7d9;
+  --fun-accent:var(--accent,#7c5cff);
+  --fun-cyan:var(--accent2,#20c7d9);
+  --fun-good:#34d399;
+  --fun-bad:#fb7185;
+  --fun-focus:#5eead4;
+  --fun-radius-sm:12px;
+  --fun-radius-md:16px;
+  --fun-radius-lg:20px;
+  --fun-shadow:0 22px 70px rgba(0,0,0,.34);
 }
+
+html.theme-calm{--fun-bg:#071016;--fun-panel:#0c1922;--fun-panel-2:#10212b;--fun-line:rgba(125,211,252,.18);--fun-muted:#a9bbc8}
+html.theme-contrast{--fun-bg:#020204;--fun-panel:#101018;--fun-panel-2:#181826;--fun-line:rgba(255,255,255,.3);--fun-text:#fff;--fun-muted:#d7d7f0;--fun-focus:#fbbf24}
+html.theme-oled{--fun-bg:#000;--fun-panel:#050505;--fun-panel-2:#0a0a0a;--fun-line:rgba(255,255,255,.16)}
 
 html,body{background:var(--fun-bg)!important;}
 body::before{content:"";position:fixed;inset:0;pointer-events:none;z-index:-3;background:radial-gradient(circle at 70% -10%,rgba(32,199,217,.10),transparent 34%),radial-gradient(circle at 8% 100%,rgba(124,92,255,.10),transparent 36%),linear-gradient(180deg,#090d17 0%,#060910 100%)!important;}
 body::after{display:none!important;}
+html.no-background-effects body::before{display:none!important;}
 #game-screen{background:transparent!important;}
 #game-screen::before,#game-screen::after,.game-main::before,.game-main::after{display:none!important;}
+
+/* Canonical Fun First branding across the entry, creation and summary screens. */
+.fun-first-edition{border-color:color-mix(in srgb,var(--fun-accent) 52%,transparent)!important;background:color-mix(in srgb,var(--fun-accent) 13%,transparent)!important;color:var(--fun-text)!important;box-shadow:none!important}
+.fun-first-badges{display:flex;flex-wrap:wrap;justify-content:center;gap:7px;margin-top:13px}
+.fun-first-badges span,.splash-features span{border:1px solid var(--fun-line)!important;border-radius:999px!important;background:color-mix(in srgb,var(--fun-panel-2) 88%,transparent)!important;color:var(--fun-muted)!important;box-shadow:none!important}
+.splash-menu .btn-primary,.origin-ui-begin-btn{background:linear-gradient(135deg,var(--fun-accent),var(--fun-cyan))!important;box-shadow:0 12px 30px color-mix(in srgb,var(--fun-accent) 24%,transparent)!important}
+.splash-menu .btn-secondary,.back-btn{background:var(--fun-panel)!important;border-color:var(--fun-line)!important;color:var(--fun-text)!important;box-shadow:none!important}
+#create-screen .create-inner,#create-screen .create-summary-stack>*,.death-body{border-color:var(--fun-line)!important;box-shadow:var(--fun-shadow)!important}
+
+button:disabled,.fun-choice-btn:disabled{cursor:not-allowed!important;opacity:.55!important;filter:saturate(.55)!important;transform:none!important}
+.age-btn-side.is-aging,.age-btn.is-aging{pointer-events:none;position:relative}
+.age-btn-side.is-aging::after,.age-btn.is-aging::after{content:"";display:inline-block;width:12px;height:12px;margin-left:8px;border:2px solid rgba(255,255,255,.38);border-top-color:#fff;border-radius:50%;animation:funSpin .7s linear infinite}
+@keyframes funSpin{to{transform:rotate(360deg)}}
+
+#lifesim-startup-error{position:fixed;inset:0;z-index:100000;display:grid;place-items:center;padding:24px;background:rgba(2,4,10,.96);color:var(--fun-text);font-family:Inter,system-ui,sans-serif}
+#lifesim-startup-error>div{width:min(520px,100%);padding:28px;border:1px solid rgba(251,113,133,.4);border-radius:var(--fun-radius-lg);background:var(--fun-panel);box-shadow:var(--fun-shadow);text-align:center}
+#lifesim-startup-error span{font-size:38px}#lifesim-startup-error h1{margin:10px 0 6px;font-size:24px}#lifesim-startup-error p{color:var(--fun-muted);line-height:1.55}#lifesim-startup-error button{margin:10px 0;padding:11px 16px;border:0;border-radius:var(--fun-radius-sm);background:linear-gradient(135deg,var(--fun-accent),var(--fun-cyan));color:white;font-weight:850;cursor:pointer}#lifesim-startup-error small{display:block;color:var(--fun-muted)}
 
 .game-sidebar{background:rgba(8,12,22,.94)!important;border-right:1px solid var(--fun-line)!important;box-shadow:none!important;}
 .sidebar-panel-stack{padding:18px 14px!important;gap:12px!important;}
@@ -111,7 +140,16 @@ body::after{display:none!important;}
   .fun-hero{align-items:flex-start}.fun-stage-icon{width:48px;height:48px;font-size:24px}.fun-hero h2{font-size:18px}.fun-hero p{font-size:10px}.fun-mood{grid-template-columns:auto 1fr;padding:8px 10px;min-width:auto}.fun-mood>span{font-size:20px}.fun-overview{gap:7px}.fun-stat,.fun-money{min-height:66px;padding:10px}.fun-stat>span,.fun-money>span{width:31px;height:31px;font-size:16px}.fun-stat b,.fun-money b{font-size:14px}.fun-section{padding:13px;border-radius:16px}.fun-section-head{align-items:flex-start}.fun-section-head h3{font-size:16px}.fun-random-btn{padding:7px 9px;font-size:9px}.fun-actions{grid-template-columns:1fr}.fun-action-card{min-height:67px}.fun-next-year{align-items:flex-start;flex-direction:column}.fun-next-year>button{width:100%;justify-content:center}.fun-more-grid{grid-template-columns:1fr}.nav-bar{gap:3px;padding:5px!important}.nav-bar .nt{height:47px!important}.nav-bar .ni{font-size:15px!important}.nav-bar .nl{font-size:8px!important}.fun-optional-head{flex-wrap:wrap}.fun-optional-head div{order:-1;flex-basis:100%}
 }
 
-@media (prefers-reduced-motion:reduce){.fun-life,.fun-action-card,.fun-next-year>button{animation:none!important;transition:none!important}}
+@media (prefers-reduced-motion:reduce){.fun-life,.fun-action-card,.fun-next-year>button,.age-btn-side.is-aging::after,.age-btn.is-aging::after{animation:none!important;transition:none!important}}
+
+/* Clear keyboard focus on every control introduced by the Fun First layer. */
+.fun-first :is(button,a[href],input,select,textarea,[tabindex]:not([tabindex="-1"])):focus-visible,#lifesim-startup-error button:focus-visible{
+  outline:3px solid var(--fun-focus)!important;
+  outline-offset:3px!important;
+  box-shadow:0 0 0 5px color-mix(in srgb,var(--fun-focus) 18%,transparent)!important;
+}
+
+html.no-auto-motion .fun-life,html.no-auto-motion .fun-action-card,html.no-auto-motion .fun-next-year>button,html.no-auto-motion .age-btn-side.is-aging::after,html.no-auto-motion .age-btn.is-aging::after{animation:none!important;transition:none!important}
 /* Kill inherited purple/white shell layers from older themes. */
 #game-screen,.game-sidebar,.sidebar-panel-stack,.game-main,.content-area{background-color:transparent!important;background-image:none!important;}
 .game-sidebar{background:#080c16!important;}
